@@ -9,7 +9,8 @@ vendorizan — se clonan siguiendo las instrucciones de abajo.
 
 ```
 h1_2_teleoperation/
-├── README_DEPLOY.md          Guía completa del despliegue: topología, hallazgos, puesta en marcha
+├── README_DEPLOY.md          Despliegue FÍSICO: topología, hallazgos, puesta en marcha
+├── README_SIM.md             Despliegue en SIMULACIÓN (Isaac Sim + unitree_sim_isaaclab)
 ├── scripts/                  Lado HOST (laptop Ubuntu 22.04)
 │   ├── 00_check_host.sh          diagnóstico: entorno, versiones, imports, certificados, red
 │   ├── 01_install_host.sh        instalación del entorno conda `tv` y sus dependencias
@@ -17,21 +18,29 @@ h1_2_teleoperation/
 │   ├── 03_launch_teleop.sh       lanzador con los parámetros del H1-2 + manos FTP
 │   ├── 04_test_inspire_dds_loopback.py   prueba de la cadena DDS de las manos SIN hardware
 │   ├── arm_joint_test.py         primer movimiento de brazos, una articulación, en 3 peldaños
+│   ├── 09_isolate_conda_env.sh   aísla los entornos conda del ROS/robotpkg del sistema
+│   ├── 10_install_sim.sh         instalación del entorno conda `unitree_sim_env` (simulador)
+│   ├── 11_launch_sim.sh          lanza unitree_sim_isaaclab con el H1-2 + manos Inspire
+│   ├── 12_launch_teleop_sim.sh   lanza xr_teleoperate en modo `--sim` contra el simulador
+│   ├── 13_check_sim.sh           diagnóstico del lado simulación
+│   ├── 14_test_inspire_ftp_bridge.py   prueba del puente FTP del simulador, sin Isaac Sim
 │   └── robot_pc2/            Lado ROBOT (PC2) — ejecución, no instalación
 │       ├── inspire_ftp_dual_driver.py   puente Modbus ⇄ DDS de las dos manos
 │       ├── videohub_image_bridge.py     sustituye a teleimager-server: videohub (DDS) → ZMQ
 │       ├── hand_test.py                 prueba de manos: read / wiggle / sweep / open / forceclb
-│       ├── probe_hands.py               sonda de solo lectura del estado de las manos
-│       └── wait_for_camera.py           vigila la RealSense por si se conecta al PC2
+│       ├── probe_hands.py                sonda de solo lectura del estado de las manos
+│       └── wait_for_camera.py            vigila la RealSense por si se conecta al PC2
 └── patches/
-    └── inspire_sdkpy_uint16.patch       corrige un fallo de inspire_sdkpy (ver abajo)
+    ├── inspire_sdkpy_uint16.patch              corrige un fallo de inspire_sdkpy (ver abajo)
+    └── unitree_sim_isaaclab_inspire_ftp.patch  añade las manos RH56DFTP (FTP) al simulador
 ```
 
 ## Qué NO está aquí, y por qué
 
-- **`xr_teleoperate`, `unitree_sdk2_python`, `inspire_hand_ws`** — repositorios de
-  terceros, sin modificar. Se clonan (ver «Puesta en marcha»). El único cambio a
-  código ajeno está aislado en `patches/`.
+- **`xr_teleoperate`, `unitree_sdk2_python`, `inspire_hand_ws`,
+  `unitree_sim_isaaclab`, `cyclonedds`** — repositorios de terceros. Se clonan
+  (ver «Puesta en marcha»). Los cambios a código ajeno están aislados en
+  `patches/`.
 - **Instalación del PC2** — el bundle offline (224 MB de ruedas), su instalador y
   el script de despliegue por SSH quedan fuera: son de puesta a punto, no de
   operación. `README_DEPLOY.md` §4 documenta el procedimiento por si hay que
@@ -66,6 +75,23 @@ bash scripts/00_check_host.sh
 
 El detalle completo —incluidas cuatro incidencias del procedimiento oficial que
 no funcionan tal cual— está en [`README_DEPLOY.md`](h1_2_teleoperation/README_DEPLOY.md).
+
+## Simulación
+
+El mismo `xr_teleoperate` corre contra
+[`unitree_sim_isaaclab`](https://github.com/unitreerobotics/unitree_sim_isaaclab)
+(Isaac Sim 5.1 + Isaac Lab), con el H1-2 de 27 DoF y manos Inspire. El comando de
+teleoperación es idéntico al del robot real salvo por el flag `--sim`, porque
+este repo añade al simulador el protocolo **FTP** de las RH56DFTP —el simulador
+de Unitree solo hablaba el de las manos DFX del G1—.
+
+La guía completa, con las ocho incidencias del procedimiento oficial, está en
+[`README_SIM.md`](h1_2_teleoperation/README_SIM.md).
+
+```bash
+./scripts/11_launch_sim.sh          # terminal 1: simulador
+./scripts/12_launch_teleop_sim.sh   # terminal 2: teleoperación
+```
 
 ## Hallazgos que condicionan el despliegue
 

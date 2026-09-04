@@ -9,7 +9,9 @@
 # Variables sobreescribibles:  IMG_SERVER_IP, NET_IF, INPUT_MODE, DISPLAY_MODE, EXTRA
 set -euo pipefail
 
-ROOT=/home/utec/Documents/h1_2_teleoperation
+# ROOT = la carpeta h1_2_teleoperation (la que contiene scripts/). Se deduce de la
+# ubicacion de este script, asi que el repo se puede clonar donde sea.
+ROOT="${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 IMG_SERVER_IP="${IMG_SERVER_IP:-192.168.123.164}"   # PC2 del robot
 NET_IF="${NET_IF:-enp0s31f6}"                        # NIC hacia el robot (DDS)
 INPUT_MODE="${INPUT_MODE:-hand}"                     # hand | controller

@@ -1,0 +1,486 @@
+diff --git a/dds/dds_create.py b/dds/dds_create.py
+index f3645c1..8d02754 100644
+--- a/dds/dds_create.py
++++ b/dds/dds_create.py
+@@ -24,8 +24,17 @@ def create_dds_objects(args_cli,env):
+         publish_names.append("dex1")
+         subscribe_names.append("dex1")
+     elif args_cli.enable_inspire_dds:
+-        from dds.inspire_dds import InspireDDS
+-        inspire = InspireDDS()
++        # Dos protocolos DDS para las mismas manos Inspire:
++        #   FTP (RH56DFTP del H1-2): rt/inspire_hand/{ctrl,state}/{l,r}
++        #   DFX (manos del G1):      rt/inspire/{cmd,state}
++        # Las dos clases exponen la misma interfaz y se registran con el mismo
++        # nombre, asi que nada mas del simulador cambia.
++        if getattr(args_cli, "enable_inspire_ftp_dds", False):
++            from dds.inspire_ftp_dds import InspireFTPDDS
++            inspire = InspireFTPDDS()
++        else:
++            from dds.inspire_dds import InspireDDS
++            inspire = InspireDDS()
+         dds_manager.register_object("inspire", inspire)
+         publish_names.append("inspire")
+         subscribe_names.append("inspire")
+@@ -74,8 +83,17 @@ def create_dds_objects_replay(args_cli,env):
+         publish_names.append("dex1")
+         subscribe_names.append("dex1")
+     elif args_cli.enable_inspire_dds:
+-        from dds.inspire_dds import InspireDDS
+-        inspire = InspireDDS()
++        # Dos protocolos DDS para las mismas manos Inspire:
++        #   FTP (RH56DFTP del H1-2): rt/inspire_hand/{ctrl,state}/{l,r}
++        #   DFX (manos del G1):      rt/inspire/{cmd,state}
++        # Las dos clases exponen la misma interfaz y se registran con el mismo
++        # nombre, asi que nada mas del simulador cambia.
++        if getattr(args_cli, "enable_inspire_ftp_dds", False):
++            from dds.inspire_ftp_dds import InspireFTPDDS
++            inspire = InspireFTPDDS()
++        else:
++            from dds.inspire_dds import InspireDDS
++            inspire = InspireDDS()
+         dds_manager.register_object("inspire", inspire)
+         publish_names.append("inspire")
+         subscribe_names.append("inspire")
+diff --git a/dds/inspire_ftp_dds.py b/dds/inspire_ftp_dds.py
+new file mode 100644
+index 0000000..47b10ec
+--- /dev/null
++++ b/dds/inspire_ftp_dds.py
+@@ -0,0 +1,308 @@
++# Copyright (c) 2025, Unitree Robotics Co., Ltd. All Rights Reserved.
++# License: Apache License, Version 2.0
++"""
++Puente DDS de las manos Inspire **RH56DFTP** para el simulador.
++
++El `InspireDDS` de este repo habla el protocolo de las manos **DFX** del G1:
++un solo par de topicos (`rt/inspire/cmd` / `rt/inspire/state`) con mensajes
++`unitree_go::MotorCmds_`/`MotorStates_` de 12 motores y angulos normalizados
++[0,1]. Las RH56DFTP del H1-2 hablan otra cosa: un par de topicos **por mano**
++con los IDL de `inspire_sdkpy`, y angulos enteros 0..1000.
++
++    rt/inspire_hand/ctrl/l   <- comandos  (inspire::inspire_hand_ctrl)
++    rt/inspire_hand/state/l  -> estado    (inspire::inspire_hand_state)
++    ... e igual con /r para la mano derecha
++
++Son exactamente los topicos de `Inspire_Controller_FTP` de xr_teleoperate, o
++sea los mismos que publica/consume `inspire_ftp_dual_driver.py` contra el
++robot real. Con esta clase el mismo comando
++
++    teleop_hand_and_arm.py --arm H1_2 --ee inspire_ftp [--sim]
++
++sirve en simulacion y en el robot fisico sin cambiar nada mas que `--sim`.
++
++Se registra bajo el mismo nombre ("inspire") y con la misma memoria compartida
++que `InspireDDS`, asi que es un reemplazo directo: ni `action_provider_dds.py`
++ni `tasks/common_observations/inspire_state.py` se enteran.
++
++Orden de los 12 DOF, heredado del simulador
++(`tasks/common_observations/inspire_state.py: get_robot_girl_joint_names`):
++
++    0..5   mano DERECHA  -> rt/inspire_hand/{ctrl,state}/r
++    6..11  mano IZQUIERDA -> rt/inspire_hand/{ctrl,state}/l
++
++y dentro de cada mano, el orden de la RH56:
++
++    [menique, anular, medio, indice, pulgar-flexion, pulgar-rotacion]
++
++Que se simula y que no
++----------------------
++- `angle_act`  : real. Angulo normalizado del simulador escalado a 0..1000
++                 (1000 = abierto, 0 = cerrado), igual que la mano fisica.
++- `pos_act`    : copia de `angle_act`. La mano real reporta ahi la posicion
++                 cruda del actuador, que el simulador no modela.
++- `status`     : deducido comparando el angulo actual con el ultimo comandado
++                 (0 abriendo, 1 cerrando, 2 posicion alcanzada).
++- `force_act`  : **siempre 0**. El simulador no modela el sensor de fuerza de
++                 la RH56; publicar el par articular aqui seria dar gf falsos.
++- `current`, `err`, `temperature` : siempre 0.
++- Del comando solo se atiende el **modo angulo** (`mode & 0b0001`). `pos_set`,
++  `force_set` y `speed_set` se ignoran: el simulador aplica la posicion
++  objetivo directamente, sin lazo de fuerza ni de velocidad.
++- `angle_set[i] == -1` es el **no-op** del protocolo RH56 ("deja este DOF como
++  esta"): se respeta, manteniendo el ultimo valor comandado para ese DOF.
++"""
++
++import threading
++from typing import Any, Dict, Optional
++
++from dds.dds_base import DDSObject
++from unitree_sdk2py.core.channel import ChannelPublisher, ChannelSubscriber
++
++# IDL copiado de inspire_sdkpy para no arrastrar PyQt5/pymodbus al entorno de
++# Isaac Sim; ver la cabecera de dds/inspire_ftp_idl.py.
++from dds.inspire_ftp_idl import (
++    inspire_hand_ctrl,
++    inspire_hand_state,
++    get_inspire_hand_state,
++)
++
++# Rangos articulares del modelo Inspire en Isaac Lab, por DOF y mano.
++# Son los mismos que usa dds/inspire_dds.py para el camino DFX.
++_JOINT_RANGE = (
++    (0.0, 1.7),    # 0 menique
++    (0.0, 1.7),    # 1 anular
++    (0.0, 1.7),    # 2 medio
++    (0.0, 1.7),    # 3 indice
++    (0.0, 0.5),    # 4 pulgar flexion
++    (-0.1, 1.3),   # 5 pulgar rotacion
++)
++
++_NUM_DOF = 6            # DOF por mano
++_RIGHT_BASE = 0         # indices 0..5  de los 12 del simulador
++_LEFT_BASE = 6          # indices 6..11
++_ANGLE_MAX = 1000       # escala entera de la RH56
++_STATUS_TOL = 15        # |angulo - objetivo| por debajo del cual se da por llegado
++
++
++class InspireFTPDDS(DDSObject):
++    """Comunicacion DDS de las dos manos RH56DFTP - patron singleton.
++
++    - Publica el estado de cada mano en rt/inspire_hand/state/{l,r}
++    - Recibe los comandos de cada mano en rt/inspire_hand/ctrl/{l,r}
++    """
++
++    def __init__(self, node_name: str = "inspire_ftp"):
++        """Inicializa el nodo DDS de las manos FTP"""
++        # evitar doble inicializacion
++        if hasattr(self, '_initialized'):
++            return
++
++        super().__init__()
++        self.node_name = node_name
++
++        self.left_state_publisher = None
++        self.right_state_publisher = None
++        self.left_cmd_subscriber = None
++        self.right_cmd_subscriber = None
++
++        # Ultimo comando recibido, normalizado [0,1] por DOF, los 12 juntos.
++        # 1.0 = mano abierta, que es la postura de reposo de la RH56.
++        self._cmd_lock = threading.Lock()
++        self._cmd_norm = [1.0] * (2 * _NUM_DOF)
++        self._cmd_received = False
++
++        self._initialized = True
++
++        # misma memoria compartida que InspireDDS: reemplazo directo
++        self.setup_shared_memory(
++            input_shm_name="isaac_inspire_state",   # estado que escribe Isaac Lab
++            input_size=1024,
++            output_shm_name="isaac_inspire_cmd",    # comando que lee Isaac Lab
++            output_size=1024,
++        )
++
++        print(f"[{self.node_name}] Inspire RH56DFTP (FTP) DDS node initialized")
++
++    # ------------------------------------------------------------------ setup
++
++    def setup_publisher(self) -> bool:
++        """Crea los publicadores de estado de las dos manos"""
++        try:
++            self.left_state_publisher = ChannelPublisher(
++                "rt/inspire_hand/state/l", inspire_hand_state)
++            self.left_state_publisher.Init()
++
++            self.right_state_publisher = ChannelPublisher(
++                "rt/inspire_hand/state/r", inspire_hand_state)
++            self.right_state_publisher.Init()
++
++            print(f"[{self.node_name}] Inspire FTP state publishers initialized "
++                  f"(rt/inspire_hand/state/l, rt/inspire_hand/state/r)")
++            return True
++        except Exception as e:
++            print(f"inspire_ftp_dds [{self.node_name}] state publisher initialization failed: {e}")
++            return False
++
++    def setup_subscriber(self) -> bool:
++        """Crea los suscriptores de comando de las dos manos"""
++        try:
++            self.left_cmd_subscriber = ChannelSubscriber(
++                "rt/inspire_hand/ctrl/l", inspire_hand_ctrl)
++            self.left_cmd_subscriber.Init(lambda msg: self.dds_subscriber(msg, "l"), 32)
++
++            self.right_cmd_subscriber = ChannelSubscriber(
++                "rt/inspire_hand/ctrl/r", inspire_hand_ctrl)
++            self.right_cmd_subscriber.Init(lambda msg: self.dds_subscriber(msg, "r"), 32)
++
++            print(f"[{self.node_name}] Inspire FTP command subscribers initialized "
++                  f"(rt/inspire_hand/ctrl/l, rt/inspire_hand/ctrl/r)")
++            return True
++        except Exception as e:
++            print(f"inspire_ftp_dds [{self.node_name}] command subscriber initialization failed: {e}")
++            return False
++
++    # ------------------------------------------------------------ conversiones
++
++    @staticmethod
++    def normalize(val: float, min_val: float, max_val: float) -> float:
++        """Angulo articular -> [0,1], con 1.0 = abierto (igual que InspireDDS)"""
++        n = (max_val - val) / (max_val - min_val)
++        return 0.0 if n < 0.0 else (1.0 if n > 1.0 else n)
++
++    @staticmethod
++    def denormalize(norm_val: float, min_val: float, max_val: float) -> float:
++        """[0,1] -> angulo articular (igual que InspireDDS)"""
++        n = 0.0 if norm_val < 0.0 else (1.0 if norm_val > 1.0 else norm_val)
++        return (1.0 - n) * (max_val - min_val) + min_val
++
++    def _status_of(self, dof_index: int, angle_act: int) -> int:
++        """Codigo de estado de la RH56 deducido del error de seguimiento.
++
++        0 = abriendo, 1 = cerrando, 2 = posicion alcanzada. Sin comando previo
++        se reporta 2, que es lo que hace la mano real en reposo.
++        """
++        if not self._cmd_received:
++            return 2
++        target = int(round(self._cmd_norm[dof_index] * _ANGLE_MAX))
++        delta = target - angle_act
++        if abs(delta) <= _STATUS_TOL:
++            return 2
++        return 0 if delta > 0 else 1
++
++    # ---------------------------------------------------------------- publicar
++
++    def dds_publisher(self) -> Any:
++        """Convierte el estado de Isaac Lab en los dos mensajes de estado FTP.
++
++        Formato esperado en la memoria compartida de entrada:
++        {
++            "positions":  [12 angulos articulares del simulador],
++            "velocities": [12 velocidades],
++            "torques":    [12 pares aplicados]
++        }
++        """
++        try:
++            data = self.input_shm.read_data()
++            if data is None:
++                return
++            positions = data.get("positions")
++            if not positions or len(positions) < 2 * _NUM_DOF:
++                return
++
++            angle_act = [0] * (2 * _NUM_DOF)
++            for i in range(2 * _NUM_DOF):
++                min_val, max_val = _JOINT_RANGE[i % _NUM_DOF]
++                norm = self.normalize(float(positions[i]), min_val, max_val)
++                angle_act[i] = int(round(norm * _ANGLE_MAX))
++
++            with self._cmd_lock:
++                status = [self._status_of(i, angle_act[i]) for i in range(2 * _NUM_DOF)]
++
++            right_msg = get_inspire_hand_state()
++            right_msg.angle_act = angle_act[_RIGHT_BASE:_RIGHT_BASE + _NUM_DOF]
++            right_msg.pos_act = list(right_msg.angle_act)
++            right_msg.status = status[_RIGHT_BASE:_RIGHT_BASE + _NUM_DOF]
++
++            left_msg = get_inspire_hand_state()
++            left_msg.angle_act = angle_act[_LEFT_BASE:_LEFT_BASE + _NUM_DOF]
++            left_msg.pos_act = list(left_msg.angle_act)
++            left_msg.status = status[_LEFT_BASE:_LEFT_BASE + _NUM_DOF]
++
++            if self.right_state_publisher:
++                self.right_state_publisher.Write(right_msg)
++            if self.left_state_publisher:
++                self.left_state_publisher.Write(left_msg)
++
++        except Exception as e:
++            print(f"inspire_ftp_dds [{self.node_name}] Error processing publish data: {e}")
++            return None
++
++    # -------------------------------------------------------------- suscribir
++
++    def dds_subscriber(self, msg: Any, datatype: str = None) -> Optional[Dict[str, Any]]:
++        """Convierte un comando FTP de una mano en el formato de Isaac Lab.
++
++        Los dos topicos escriben en el mismo bloque de 12 DOF, por eso el
++        comando vive en `self._cmd_norm` y se reescribe entero cada vez.
++        """
++        try:
++            base = _LEFT_BASE if datatype == "l" else _RIGHT_BASE
++
++            with self._cmd_lock:
++                # modo 1 = control por angulo. Es el unico que aplica el
++                # simulador; pos/force/speed no tienen equivalente aqui.
++                if msg.mode & 0b0001:
++                    for i in range(min(_NUM_DOF, len(msg.angle_set))):
++                        raw = int(msg.angle_set[i])
++                        if raw < 0:
++                            continue   # -1 = no-op del protocolo RH56
++                        if raw > _ANGLE_MAX:
++                            raw = _ANGLE_MAX
++                        self._cmd_norm[base + i] = raw / float(_ANGLE_MAX)
++                    self._cmd_received = True
++                else:
++                    return None
++
++                # Convertir y escribir DENTRO del lock: los dos topicos llegan
++                # en hilos distintos y comparten el bloque de 12 DOF, asi que
++                # soltar el lock antes de escribir dejaria perder comandos.
++                positions = []
++                for i in range(2 * _NUM_DOF):
++                    min_val, max_val = _JOINT_RANGE[i % _NUM_DOF]
++                    positions.append(self.denormalize(self._cmd_norm[i], min_val, max_val))
++
++                cmd_data = {
++                    "positions": positions,
++                    "velocities": [0.0] * (2 * _NUM_DOF),
++                    "torques": [0.0] * (2 * _NUM_DOF),
++                    "kp": [0.0] * (2 * _NUM_DOF),
++                    "kd": [0.0] * (2 * _NUM_DOF),
++                }
++                self.output_shm.write_data(cmd_data)
++            return cmd_data
++
++        except Exception as e:
++            print(f"inspire_ftp_dds [{self.node_name}] Error processing subscribe data: {e}")
++            return None
++
++    # --------------------------------------------- interfaz igual a InspireDDS
++
++    def get_inspire_hand_command(self) -> Optional[Dict[str, Any]]:
++        """Devuelve el ultimo comando de las manos, o None si no hay ninguno"""
++        if self.output_shm:
++            return self.output_shm.read_data()
++        return None
++
++    def write_inspire_state(self, positions, velocities, torques):
++        """Escribe el estado de las manos del simulador en memoria compartida"""
++        try:
++            inspire_hand_data = {
++                "positions": positions.tolist() if hasattr(positions, 'tolist') else positions,
++                "velocities": velocities.tolist() if hasattr(velocities, 'tolist') else velocities,
++                "torques": torques.tolist() if hasattr(torques, 'tolist') else torques,
++            }
++            if self.input_shm:
++                self.input_shm.write_data(inspire_hand_data)
++        except Exception as e:
++            print(f"inspire_ftp_dds [{self.node_name}] Error writing inspire hand state: {e}")
+diff --git a/dds/inspire_ftp_idl.py b/dds/inspire_ftp_idl.py
+new file mode 100644
+index 0000000..c4e98c5
+--- /dev/null
++++ b/dds/inspire_ftp_idl.py
+@@ -0,0 +1,60 @@
++"""
++IDL de las manos Inspire RH56DFTP, copiado de `inspire_sdkpy`.
++
++Copia verbatim de `inspire_sdkpy/inspire_dds/_inspire_hand_{ctrl,state}.py`
++(https://github.com/NaCl-1374/inspire_hand_ws, BSD-3-Clause), generado en su
++dia por el backend Python de idlc de Cyclone DDS.
++
++Por que copiarlo en vez de depender del paquete: `inspire_sdkpy/__init__.py`
++importa `qt_tabs`, que arrastra PyQt5, pyqtgraph y colorcet, ademas de pymodbus
++y pyserial para hablar con la mano fisica. Nada de eso pinta en el entorno de
++Isaac Sim, que solo necesita el formato de cable. Y la interoperabilidad DDS va
++por el `typename` y la estructura del tipo, no por la clase Python: estas
++definiciones y las de `inspire_sdkpy` son el mismo tipo para Cyclone DDS, asi
++que el simulador y el driver del robot real se entienden sin mas.
++
++Si alguna vez cambia el IDL aguas arriba, hay que volver a copiarlo aqui.
++"""
++
++from dataclasses import dataclass
++
++import cyclonedds.idl as idl
++import cyclonedds.idl.annotations as annotate
++import cyclonedds.idl.types as types
++
++
++@dataclass
++@annotate.final
++@annotate.autoid("sequential")
++class inspire_hand_ctrl(idl.IdlStruct, typename="inspire.inspire_hand_ctrl"):
++    pos_set: types.sequence[types.int16, 6]
++    angle_set: types.sequence[types.int16, 6]
++    force_set: types.sequence[types.int16, 6]
++    speed_set: types.sequence[types.int16, 6]
++    mode: types.int8
++
++
++@dataclass
++@annotate.final
++@annotate.autoid("sequential")
++class inspire_hand_state(idl.IdlStruct, typename="inspire.inspire_hand_state"):
++    pos_act: types.sequence[types.int16, 6]
++    angle_act: types.sequence[types.int16, 6]
++    force_act: types.sequence[types.int16, 6]
++    current: types.sequence[types.int16, 6]
++    err: types.sequence[types.uint8, 6]
++    status: types.sequence[types.uint8, 6]
++    temperature: types.sequence[types.uint8, 6]
++
++
++def get_inspire_hand_state() -> inspire_hand_state:
++    """Mensaje de estado a ceros, equivalente al de inspire_hand_defaut.py"""
++    return inspire_hand_state(
++        pos_act=[0] * 6,
++        angle_act=[0] * 6,
++        force_act=[0] * 6,
++        current=[0] * 6,
++        err=[0] * 6,
++        status=[0] * 6,
++        temperature=[0] * 6,
++    )
+diff --git a/sim_main.py b/sim_main.py
+index dc4cfe5..1a00b0f 100644
+--- a/sim_main.py
++++ b/sim_main.py
+@@ -34,6 +34,7 @@ parser.add_argument("--robot_type", type=str, default="g129", help="robot type")
+ parser.add_argument("--enable_dex1_dds", action="store_true", help="enable gripper DDS")
+ parser.add_argument("--enable_dex3_dds", action="store_true", help="enable dexterous hand DDS")
+ parser.add_argument("--enable_inspire_dds", action="store_true", help="enable inspire hand DDS")
++parser.add_argument("--enable_inspire_ftp_dds", action="store_true", help="enable inspire RH56DFTP (FTP) hand DDS: rt/inspire_hand/{ctrl,state}/{l,r} instead of rt/inspire/{cmd,state}")
+ parser.add_argument("--stats_interval", type=float, default=10.0, help="statistics print interval (seconds)")
+ 
+ parser.add_argument("--file_path", type=str, default="/home/unitree/Code/xr_teleoperate/teleop/utils/data", help="file path (when action_source=file)")
+@@ -85,6 +86,11 @@ if args_cli.no_render:
+ else:
+     os.environ["LIVESTREAM"] = "0"
+ 
++# --enable_inspire_ftp_dds son las mismas manos Inspire, solo cambia el protocolo
++# DDS (RH56DFTP en vez de DFX), asi que implica --enable_inspire_dds.
++if args_cli.enable_inspire_ftp_dds:
++    args_cli.enable_inspire_dds = True
++
+ if args_cli.enable_dex3_dds and args_cli.enable_dex1_dds and args_cli.enable_inspire_dds:
+     print("Error: enable_dex3_dds and enable_dex1_dds and enable_inspire_dds cannot be enabled at the same time")
+     print("Please select one of the options")
+@@ -678,3 +684,10 @@ if __name__ == "__main__":
+ # python sim_main.py --device cpu  --enable_cameras  --task Isaac-PickPlace-Cylinder-H12-27dof-Inspire-Joint  --enable_inspire_dds --robot_type h1_2
+ # python sim_main.py --device cpu  --enable_cameras  --task Isaac-PickPlace-RedBlock-H12-27dof-Inspire-Joint  --enable_inspire_dds --robot_type h1_2
+ # python sim_main.py --device cpu  --enable_cameras  --task Isaac-Stack-RgyBlock-H12-27dof-Inspire-Joint --enable_inspire_dds --robot_type h1_2
++
++# H1-2 con manos Inspire RH56DFTP (protocolo FTP, el del robot real de UTEC).
++# Publica rt/inspire_hand/state/{l,r} y escucha rt/inspire_hand/ctrl/{l,r},
++# para teleoperar con `teleop_hand_and_arm.py --arm H1_2 --ee inspire_ftp --sim`.
++# python sim_main.py --device cpu  --enable_cameras  --task Isaac-PickPlace-Cylinder-H12-27dof-Inspire-Joint  --enable_inspire_ftp_dds --robot_type h1_2
++# python sim_main.py --device cpu  --enable_cameras  --task Isaac-PickPlace-RedBlock-H12-27dof-Inspire-Joint  --enable_inspire_ftp_dds --robot_type h1_2
++# python sim_main.py --device cpu  --enable_cameras  --task Isaac-Stack-RgyBlock-H12-27dof-Inspire-Joint --enable_inspire_ftp_dds --robot_type h1_2
+diff --git a/tasks/common_observations/inspire_state.py b/tasks/common_observations/inspire_state.py
+index 12fd05e..631b55f 100644
+--- a/tasks/common_observations/inspire_state.py
++++ b/tasks/common_observations/inspire_state.py
+@@ -105,7 +105,21 @@ def get_robot_inspire_joint_states(
+ 
+     global _obs_cache
+     if _obs_cache["device"] != device or _obs_cache["inspire_idx_t"] is None:
+-        inspire_joint_indices = [36, 37, 35, 34, 48, 38, 31, 32, 30, 29, 43, 33]
++        # Los indices se resuelven POR NOMBRE, como hace action_provider_dds.py
++        # con inspire_hand_joint_mapping. La lista fija que habia aqui,
++        #     [36, 37, 35, 34, 48, 38, 31, 32, 30, 29, 43, 33]
++        # es la del G1-29dof; el H1-2 tiene otro orden de articulaciones y con
++        # ella el estado de las manos sale barajado (comprobado moviendo un DOF
++        # a la vez: ctrl/l dof3 = L_index aparecia en state/r ranura 1, y
++        # L_pinky y L_thumb_pitch no aparecian en ninguna). Como el comando SI
++        # se resuelve por nombre, la teleoperacion mandaba bien y leia mal.
++        joint_names = list(env.scene["robot"].data.joint_names)
++        try:
++            inspire_joint_indices = [joint_names.index(n) for n in get_robot_girl_joint_names()]
++        except ValueError as e:
++            print(f"[inspire_state] no encuentro alguna articulacion Inspire por nombre ({e}); "
++                  f"vuelvo a los indices fijos del G1-29dof")
++            inspire_joint_indices = [36, 37, 35, 34, 48, 38, 31, 32, 30, 29, 43, 33]
+         _obs_cache["inspire_idx_t"] = torch.tensor(inspire_joint_indices, dtype=torch.long, device=device)
+         _obs_cache["device"] = device
+         _obs_cache["batch"] = None

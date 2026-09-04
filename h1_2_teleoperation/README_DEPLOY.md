@@ -11,8 +11,10 @@ Despliegue **físico** (`Physical Deployment`) de
 | Laptop Ubuntu 22.04 (`utec-Precision-3581`) | **Host**: corre la teleoperación |
 | **PC2** = `unitree-h1-2-pc4`, x86_64 | servicio de imagen + driver de manos |
 
-> **Simulation Deployment** (Isaac Sim / Isaac Lab / CUDA) queda fuera de
-> alcance a propósito: se hará en otra computadora.
+> El **Simulation Deployment** (Isaac Sim / Isaac Lab / `unitree_sim_isaaclab`)
+> vive en su propio documento: [`README_SIM.md`](README_SIM.md). Comparte el
+> entorno conda `tv` y los scripts `0*`, así que las incidencias de §4 de este
+> documento aplican también allí.
 
 ---
 

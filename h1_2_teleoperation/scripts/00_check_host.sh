@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 # Diagnostico del Host (esta laptop): entorno, dependencias, certificados y red.
-ROOT=/home/utec/Documents/h1_2_teleoperation
-PY=/home/utec/miniconda3/envs/tv/bin/python
+# ROOT = la carpeta h1_2_teleoperation (la que contiene scripts/). Se deduce de la
+# ubicacion de este script, asi que el repo se puede clonar donde sea.
+ROOT="${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+PYBIN=/home/utec/miniconda3/envs/tv/bin/python
+# `env -u PYTHONPATH` reproduce lo que ve el entorno una vez activado: los
+# hooks de 09_isolate_conda_env.sh quitan el PYTHONPATH global de ROS/robotpkg.
+PY="env -u PYTHONPATH $PYBIN"
 ok(){ printf "  \033[32m✔\033[0m %s\n" "$1"; }
 no(){ printf "  \033[31m\u2717\033[0m %s\n" "$1"; }
 
 echo "== 1. Entorno conda 'tv' =="
-if [ -x "$PY" ]; then ok "$($PY --version 2>&1)"; else no "falta /home/utec/miniconda3/envs/tv"; exit 1; fi
+if [ -x "$PYBIN" ]; then ok "$($PY --version 2>&1)"; else no "falta /home/utec/miniconda3/envs/tv"; exit 1; fi
 
 echo "== 2. Paquetes clave =="
 $PY - <<'EOF'
@@ -30,14 +35,39 @@ for p, exp in esperado.items():
         print(f"  \033[31m✗\033[0m {p:<18} NO INSTALADO")
 EOF
 
-echo "== 3. Imports funcionales =="
-$PY - <<'EOF' 2>/dev/null
+echo "== 3. Aislamiento de PYTHONPATH =="
+# Solo es un problema si el entorno global mete /opt/ros o /opt/openrobots.
+if printf '%s:%s' "${PYTHONPATH:-}" "${LD_LIBRARY_PATH:-}" | grep -q "/opt/ros\|/opt/openrobots"; then
+  if [ -f /home/utec/miniconda3/envs/tv/etc/conda/activate.d/00_isolate_from_ros.sh ]; then
+    ok "hook activate.d instalado (quita ROS Humble / robotpkg del entorno)"
+  else
+    no "esta maquina exporta /opt/ros o /opt/openrobots y el entorno no esta aislado — corre scripts/09_isolate_conda_env.sh"
+  fi
+else
+  ok "el entorno global no mete /opt/ros ni /opt/openrobots: no hace falta aislar"
+fi
+PINO_SRC=$(bash -lc 'source /home/utec/miniconda3/etc/profile.d/conda.sh && conda activate tv && python -c "import pinocchio; print(pinocchio.__version__, pinocchio.__file__)"' 2>/dev/null | tail -1)
+case "$PINO_SRC" in
+  *envs/tv/*) ok "pinocchio resuelto en el entorno: $PINO_SRC" ;;
+  "")         no "no se pudo importar pinocchio tras 'conda activate tv'" ;;
+  *)          no "pinocchio se resuelve FUERA del entorno: $PINO_SRC" ;;
+esac
+
+echo "== 4. Imports funcionales =="
+ROOT="$ROOT" $PY - <<'EOF' 2>/dev/null
 import sys, os
-sys.path.insert(0, "/home/utec/Documents/h1_2_teleoperation/xr_teleoperate")
-os.chdir("/home/utec/Documents/h1_2_teleoperation/xr_teleoperate/teleop")
+ROOT = os.environ["ROOT"]
+sys.path.insert(0, f"{ROOT}/xr_teleoperate")
+os.chdir(f"{ROOT}/xr_teleoperate/teleop")
 def t(desc, fn):
-    try: fn(); print(f"  \033[32m✔\033[0m {desc}")
-    except Exception as e: print(f"  \033[31m✗\033[0m {desc}: {type(e).__name__}: {e}")
+    try:
+        fn(); print(f"  \033[32m✔\033[0m {desc}")
+    except Exception as e:
+        print(f"  \033[31m✗\033[0m {desc}: {type(e).__name__}: {e}")
+        if "class version" in str(e):
+            # pinocchio serializa el modelo con pickle: una cache escrita por
+            # otra version de pinocchio no se puede leer.
+            print("      -> cache de pinocchio de otra version: borra teleop/*_model_cache.pkl")
 t("vuer / televuer",       lambda: __import__("televuer").TeleVuerWrapper)
 t("teleimager ImageClient",lambda: __import__("teleimager.image_client", fromlist=["ImageClient"]).ImageClient)
 t("unitree_sdk2py DDS",    lambda: __import__("unitree_sdk2py.core.channel", fromlist=["ChannelPublisher"]).ChannelPublisher)
@@ -49,14 +79,14 @@ def hr():
 t("HandRetargeting Inspire", hr)
 EOF
 
-echo "== 4. Certificados TLS =="
+echo "== 5. Certificados TLS =="
 for f in "$HOME/.config/xr_teleoperate/cert.pem" "$ROOT/xr_teleoperate/teleop/televuer/cert.pem"; do
   if [ -f "$f" ]; then ok "$f"; else no "FALTA $f  (corre scripts/02_gen_certs.sh)"; fi
 done
 [ -f "$HOME/.config/xr_teleoperate/cert.pem" ] && \
   openssl x509 -in "$HOME/.config/xr_teleoperate/cert.pem" -noout -dates -ext subjectAltName | sed 's/^/    /'
 
-echo "== 5. Red =="
+echo "== 6. Red (solo aplica al despliegue FISICO) =="
 ip -4 -brief addr | grep -v '^lo' | sed 's/^/    /'
 if ip -4 addr show enp0s31f6 2>/dev/null | grep -q 192.168.123.222; then
   ok "enp0s31f6 = 192.168.123.222 (perfil unitree-h1_2 activo)"

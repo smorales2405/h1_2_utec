@@ -10,7 +10,10 @@
 # Las IP del host se detectan solas; los argumentos añaden IPs adicionales.
 set -euo pipefail
 
-OUT="/home/utec/Documents/h1_2_teleoperation/xr_teleoperate/teleop/televuer"
+# ROOT = la carpeta h1_2_teleoperation (la que contiene scripts/). Se deduce de la
+# ubicacion de este script, asi que el repo se puede clonar donde sea.
+ROOT="${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+OUT="$ROOT/xr_teleoperate/teleop/televuer"
 CONF_DIR="$HOME/.config/xr_teleoperate"
 
 # IPs fijas del despliegue: host por ethernet, PC1/PC2 del robot, manos Inspire

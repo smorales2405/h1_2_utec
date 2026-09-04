@@ -9,6 +9,8 @@
 h1_2_teleoperation/xr_teleoperate/
 h1_2_teleoperation/unitree_sdk2_python/
 h1_2_teleoperation/inspire_hand_ws/
+h1_2_teleoperation/unitree_sim_isaaclab/
+h1_2_teleoperation/cyclonedds/
 
 # Instalación del PC2 (bundle offline de ruedas)
 h1_2_teleoperation/pc2_offline/

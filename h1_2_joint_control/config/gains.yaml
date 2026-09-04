@@ -1,0 +1,154 @@
+# Ganancias del control PD embebido en cada motor del H1-2.
+#
+# El robot NO ejecuta nuestro lazo: nosotros enviamos (q, dq, tau, kp, kd) y la
+# electrónica de cada articulación calcula
+#
+#     tau_motor = kp * (q_des - q) + kd * (dq_des - dq) + tau_ff
+#
+# a su propia frecuencia. Por eso "sintonizar" aquí es elegir kp/kd por
+# articulación, no escribir un controlador.
+#
+# `active` dice qué conjunto usan los scripts por defecto. Cámbialo, o pasa
+# `--gains <nombre>` en la línea de comandos.
+
+active: official_arm_sdk
+
+sets:
+
+  # ---------------------------------------------------------------------
+  # Referencia oficial de Unitree para el canal arm_sdk.
+  # Fuente: unitree_sdk2/example/h1/high_level/h1_2_arm_sdk_dds_example.cpp
+  #         (arrays kp_array / kd_array, 15 elementos).
+  # Es el punto de partida: son las ganancias con las que Unitree mueve
+  # los brazos del H1-2 por este mismo canal.
+  # ---------------------------------------------------------------------
+  official_arm_sdk:
+    description: >-
+      Ejemplo oficial h1_2_arm_sdk_dds_example.cpp. Punto de partida.
+    joints:
+      L_shoulder_pitch: {kp: 120.0, kd: 2.0}
+      L_shoulder_roll:  {kp: 120.0, kd: 2.0}
+      L_shoulder_yaw:   {kp:  80.0, kd: 1.5}
+      L_elbow:          {kp:  50.0, kd: 1.0}
+      L_wrist_roll:     {kp:  50.0, kd: 1.0}
+      L_wrist_pitch:    {kp:  50.0, kd: 1.0}
+      L_wrist_yaw:      {kp:  50.0, kd: 1.0}
+      R_shoulder_pitch: {kp: 120.0, kd: 2.0}
+      R_shoulder_roll:  {kp: 120.0, kd: 2.0}
+      R_shoulder_yaw:   {kp:  80.0, kd: 1.5}
+      R_elbow:          {kp:  50.0, kd: 1.0}
+      R_wrist_roll:     {kp:  50.0, kd: 1.0}
+      R_wrist_pitch:    {kp:  50.0, kd: 1.0}
+      R_wrist_yaw:      {kp:  50.0, kd: 1.0}
+      waist_yaw:        {kp: 200.0, kd: 2.0}
+
+  # ---------------------------------------------------------------------
+  # Las que usará la teleoperación. Fuente: xr_teleoperate,
+  # teleop/robot_control/robot_arm.py -> H1_2_ArmController.
+  #   kp_low = 140 / kd_low = 3   -> hombros y codo
+  #   kp_wrist = 50 / kd_wrist = 2 -> wrist_roll, wrist_pitch, wrist_yaw
+  # Nótese que el codo va a 140, casi el TRIPLE que en el ejemplo oficial.
+  # xr_teleoperate no comanda la cintura.
+  # ---------------------------------------------------------------------
+  xr_teleoperate:
+    description: >-
+      Las que aplica H1_2_ArmController de xr_teleoperate. Es el objetivo a
+      validar: si con estas el seguimiento es bueno, la teleoperación irá bien.
+    joints:
+      L_shoulder_pitch: {kp: 140.0, kd: 3.0}
+      L_shoulder_roll:  {kp: 140.0, kd: 3.0}
+      L_shoulder_yaw:   {kp: 140.0, kd: 3.0}
+      L_elbow:          {kp: 140.0, kd: 3.0}
+      L_wrist_roll:     {kp:  50.0, kd: 2.0}
+      L_wrist_pitch:    {kp:  50.0, kd: 2.0}
+      L_wrist_yaw:      {kp:  50.0, kd: 2.0}
+      R_shoulder_pitch: {kp: 140.0, kd: 3.0}
+      R_shoulder_roll:  {kp: 140.0, kd: 3.0}
+      R_shoulder_yaw:   {kp: 140.0, kd: 3.0}
+      R_elbow:          {kp: 140.0, kd: 3.0}
+      R_wrist_roll:     {kp:  50.0, kd: 2.0}
+      R_wrist_pitch:    {kp:  50.0, kd: 2.0}
+      R_wrist_yaw:      {kp:  50.0, kd: 2.0}
+      waist_yaw:        {kp: 200.0, kd: 5.0}
+
+  # ---------------------------------------------------------------------
+  # Ejemplo de bajo nivel de unitree_ros2 (low_level_ctrl_hg.cpp): kp=50, kd=1
+  # para TODO lo que va del motor 13 en adelante. Es lo que usaba
+  # test_mandar_modificado.py. Se conserva para poder reproducir la vibración.
+  # ---------------------------------------------------------------------
+  ros2_example:
+    description: >-
+      kp=50 / kd=1 planos, como low_level_ctrl_hg.cpp. Sirve de comparación.
+    joints:
+      L_shoulder_pitch: {kp: 50.0, kd: 1.0}
+      L_shoulder_roll:  {kp: 50.0, kd: 1.0}
+      L_shoulder_yaw:   {kp: 50.0, kd: 1.0}
+      L_elbow:          {kp: 50.0, kd: 1.0}
+      L_wrist_roll:     {kp: 50.0, kd: 1.0}
+      L_wrist_pitch:    {kp: 50.0, kd: 1.0}
+      L_wrist_yaw:      {kp: 50.0, kd: 1.0}
+      R_shoulder_pitch: {kp: 50.0, kd: 1.0}
+      R_shoulder_roll:  {kp: 50.0, kd: 1.0}
+      R_shoulder_yaw:   {kp: 50.0, kd: 1.0}
+      R_elbow:          {kp: 50.0, kd: 1.0}
+      R_wrist_roll:     {kp: 50.0, kd: 1.0}
+      R_wrist_pitch:    {kp: 50.0, kd: 1.0}
+      R_wrist_yaw:      {kp: 50.0, kd: 1.0}
+      waist_yaw:        {kp: 50.0, kd: 1.0}
+
+  # ---------------------------------------------------------------------
+  # RESULTADO DE LA SINTONIZACIÓN. Lo rellena `05_tune.py --write tuned`.
+  # Arranca como copia de `official_arm_sdk` para que sea usable desde el
+  # primer momento; cada articulación se va sustituyendo conforme se valida.
+  # ---------------------------------------------------------------------
+  tuned:
+    description: >-
+      Ganancias medidas en ESTE robot. Ver docs/05_BITACORA.md para el ensayo
+      que respalda cada valor. Sin validar todavía = igual a official_arm_sdk.
+    joints:
+      L_shoulder_pitch: {kp: 120.0, kd: 2.0}
+      L_shoulder_roll:  {kp: 120.0, kd: 2.0}
+      L_shoulder_yaw:   {kp:  80.0, kd: 1.5}
+      L_elbow:          {kp:  50.0, kd: 1.0}
+      L_wrist_roll:     {kp:  50.0, kd: 1.0}
+      L_wrist_pitch:    {kp:  50.0, kd: 1.0}
+      L_wrist_yaw:      {kp:  50.0, kd: 1.0}
+      R_shoulder_pitch: {kp: 120.0, kd: 2.0}
+      R_shoulder_roll:  {kp: 120.0, kd: 2.0}
+      R_shoulder_yaw:   {kp:  80.0, kd: 1.5}
+      R_elbow:          {kp:  50.0, kd: 1.0}
+      R_wrist_roll:     {kp:  50.0, kd: 1.0}
+      R_wrist_pitch:    {kp:  50.0, kd: 1.0}
+      R_wrist_yaw:      {kp:  50.0, kd: 1.0}
+      waist_yaw:        {kp: 200.0, kd: 2.0}
+
+# Ganancias para las articulaciones que NO se comandan pero que hay que
+# rellenar cuando se publica en /lowcmd (modo debug, robot colgado del arnés).
+# En canal arm_sdk estas entradas se ignoran: el servicio del robot sigue
+# llevando las piernas.
+legs_hold:
+  description: >-
+    Sostener piernas y cintura en su postura actual. Solo se aplican en
+    canal `lowcmd`. Valores de H1_2_ArmController (kp_high/kd_high, y
+    kp_low/kd_low para los tobillos, que son motores débiles).
+  default: {kp: 300.0, kd: 5.0}
+  overrides:
+    L_ankle_pitch: {kp: 140.0, kd: 3.0}
+    L_ankle_roll:  {kp: 140.0, kd: 3.0}
+    R_ankle_pitch: {kp: 140.0, kd: 3.0}
+    R_ankle_roll:  {kp: 140.0, kd: 3.0}
+
+# Topes de seguridad. Se comprueban en cada ciclo de control; si se superan,
+# el cliente aborta y devuelve el brazo al robot.
+safety:
+  # Fracción del par máximo del URDF a partir de la cual se aborta.
+  tau_abort_fraction: 0.70
+  # Temperatura de bobinado (°C) a partir de la cual se aborta.
+  temperature_abort: 80.0
+  # Guarda contra los topes articulares del URDF (rad).
+  joint_limit_margin: 0.05
+  # Velocidad máxima a la que se deja avanzar la CONSIGNA (rad/s).
+  # No es un límite físico: limita el escalón que ve el motor.
+  max_ref_velocity: 1.0
+  # Segundos sin recibir /lowstate antes de abortar.
+  lowstate_timeout: 0.5

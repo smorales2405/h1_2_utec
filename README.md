@@ -8,6 +8,14 @@ despliegue y los parches al código de terceros. Los repositorios upstream no se
 vendorizan — se clonan siguiendo las instrucciones de abajo.
 
 ```
+h1_2_joint_control/           Control y sintonización articular (SIN teleoperación)
+├── README.md                     guía completa
+├── config/gains.yaml             conjuntos de ganancias + topes de seguridad
+├── docs/                         diagnóstico, arquitectura, seguridad, metodología, bitácora
+├── h1_2_joint_control/           librería: joints, crc, client, metrics, trajectories
+├── scripts/                      00_diagnose · 01_hold · 02_move · 03_tune · 04_sweep_arms · 05_plot
+└── logs/                         CSV y gráficas de los ensayos
+
 h1_2_teleoperation/
 ├── README_DEPLOY.md          Despliegue FÍSICO: topología, hallazgos, puesta en marcha
 ├── README_SIM.md             Despliegue en SIMULACIÓN (Isaac Sim + unitree_sim_isaaclab)
@@ -76,6 +84,26 @@ bash scripts/00_check_host.sh
 El detalle completo —incluidas cuatro incidencias del procedimiento oficial que
 no funcionan tal cual— está en [`README_DEPLOY.md`](h1_2_teleoperation/README_DEPLOY.md).
 
+## Control y sintonización articular
+
+Antes de teleoperar conviene comprobar que **cada articulación sigue su
+referencia**. Eso vive en [`h1_2_joint_control/`](h1_2_joint_control/), que es
+independiente de `xr_teleoperate`: corre sobre `unitree_ros2` y no necesita ni
+conda ni `unitree_sdk2py`.
+
+```bash
+cd h1_2_joint_control
+source scripts/env.sh
+python3 scripts/00_diagnose.py                       # solo lectura
+python3 scripts/01_hold.py --seconds 10              # tomar el control sin mover
+python3 scripts/02_move.py --joint L_elbow --traj step --amp 0.15
+python3 scripts/03_tune.py --joint L_elbow --kp-list 50,80,110,140 --kd-list 2
+python3 scripts/04_sweep_arms.py                     # las 14 articulaciones
+```
+
+Las ganancias que salen de ahí valen tal cual para `xr_teleoperate`: los dos
+caminos escriben el mismo `kp`/`kd` en el mismo mensaje DDS.
+
 ## Simulación
 
 El mismo `xr_teleoperate` corre contra
@@ -120,6 +148,16 @@ las cuales la teleoperación no funciona, o funciona mal:
    pulsar `r`, y no se puede evitar desde fuera. `arm_joint_test.py` lo esquiva
    con una subclase que fija el objetivo en la postura actual antes de que el
    hilo publique nada.
+
+6. **`rt/lowcmd` ya tiene dueño.** El controlador de alto nivel del robot (`ai`)
+   publica ahí **a 500 Hz sin parar**. Un script que publique en el mismo tópico
+   no lo sustituye: se alterna con él y el motor recibe consignas
+   contradictorias. Eso explica los dos síntomas que se veían al mover
+   articulaciones a bajo nivel —una que no llega a su referencia y otra que se
+   mueve pero vibra— sin que las ganancias tengan nada que ver. El canal bueno
+   para los brazos es **`rt/arm_sdk`**, que está libre y además deja las piernas
+   al controlador del robot. Medidas y detalle en
+   [`h1_2_joint_control/docs/01_DIAGNOSTICO.md`](h1_2_joint_control/docs/01_DIAGNOSTICO.md).
 
 ## Hardware
 

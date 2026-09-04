@@ -21,3 +21,10 @@ h1_2_teleoperation/camera_test/
 __pycache__/
 *.pyc
 .venv/
+
+# Ensayos de h1_2_joint_control: las trazas crudas se quedan en local (6-7 MB
+# por sesión), pero el índice de métricas SÍ se versiona: es el registro que
+# citan docs/06_RESULTADOS.md y la bitácora.
+h1_2_joint_control/logs/*.csv
+!h1_2_joint_control/logs/index.csv
+h1_2_joint_control/logs/*.png

@@ -115,6 +115,45 @@ class MotionSwitcher:
         """⚠ Cambia el controlador de alto nivel (p. ej. 'ai', 'normal')."""
         return self._call(API_SELECT_MODE, {"name": name})
 
+    # -- modo debug -------------------------------------------------------
+    def active_mode(self) -> str | None:
+        """Nombre del controlador activo, o "" si no hay ninguno.
+        None si el servicio no responde."""
+        code, mode = self.check_mode()
+        if code != 0 or mode is None:
+            return None
+        return str(mode.get("name", ""))
+
+    def enter_debug_mode(self, attempts: int = 5):
+        """Suelta el controlador de alto nivel hasta que `CheckMode` da vacío.
+
+        ⚠ A partir de aquí NADIE publica en `rt/lowcmd`: los motores quedan a
+        merced de lo que publiquemos nosotros. Con el robot de pie y
+        equilibrándose, esto lo tira. Solo con el robot colgado o sujeto.
+
+        Repetir la llamada es intencionado: es lo que hace
+        `xr_teleoperate/teleop/utils/motion_switcher.py`, porque un solo
+        `ReleaseMode` no siempre basta.
+        """
+        for _ in range(attempts):
+            name = self.active_mode()
+            if name == "":
+                return True, ""
+            if name is None:
+                return False, "el servicio motion_switcher no responde"
+            self.release_mode()
+            time.sleep(1.0)
+        return False, f"sigue activo '{self.active_mode()}' tras {attempts} intentos"
+
+    def exit_debug_mode(self, name: str = "ai", attempts: int = 5):
+        """Devuelve el mando al controlador de alto nivel."""
+        for _ in range(attempts):
+            self.select_mode(name)
+            time.sleep(1.0)
+            if self.active_mode() == name:
+                return True, name
+        return False, f"no se pudo volver a '{name}' (activo: {self.active_mode()})"
+
     def close(self):
         try:
             if self._executor is not None and self._owns_node:

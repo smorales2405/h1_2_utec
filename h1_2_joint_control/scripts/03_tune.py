@@ -31,7 +31,8 @@ import itertools
 import math
 import sys
 
-from _common import add_common_args, build_client, confirm, describe, joint_index
+from _common import (add_common_args, build_client, confirm, describe,
+                     joint_index, pick_amplitude)
 from h1_2_joint_control import config as cfg
 from h1_2_joint_control import metrics as mt
 from h1_2_joint_control import recorder as rec
@@ -103,11 +104,10 @@ def main() -> int:
         cli.wait_for_state()
         q0 = cli.q(idx)
 
-        margin = gains.safety.joint_limit_margin
-        amp = a.amp
-        if q0 + amp > j.q_max - margin or q0 + amp < j.q_min + margin:
-            amp = -amp
-        print(f"\n  postura de partida: {q0:+.3f} rad. Amplitud: {amp:+.3f} rad.\n")
+        amp, nota = pick_amplitude(idx, q0, a.amp,
+                                   gains.safety.joint_limit_margin, a.direction)
+        print(f"\n  postura de partida: {q0:+.3f} rad. "
+              f"Amplitud: {amp:+.3f} rad. {nota}\n")
 
         cli.engage()
         for n, (kp, kd) in enumerate(grid, 1):

@@ -37,12 +37,23 @@ def add_common_args(ap: argparse.ArgumentParser) -> None:
     ap.add_argument("--yes", action="store_true",
                     help="no pedir confirmación (para automatizar barridos)")
     ap.add_argument("--tag", default="", help="etiqueta para el nombre del CSV")
+    ap.add_argument("--direction", choices=["auto", "positive", "negative"],
+                    default="auto",
+                    help="sentido del ensayo. auto = hacia donde queda más "
+                         "recorrido articular, que en los brazos especulares "
+                         "del H1-2 evita empujar contra el torso")
     ap.add_argument("--dry-run", action="store_true",
                     help="publicar en un tópico que nadie escucha: ejercita todo "
                          "el software sin que el robot pueda moverse")
     ap.add_argument("--weight", type=float, default=1.0,
                     help="autoridad máxima de arm_sdk, de 0 a 1. 0 = publica en "
                          "el tópico bueno pero sin mandar; 0.3 = manda flojo")
+    ap.add_argument("--legs", choices=["free", "damp", "hold"], default="free",
+                    help="solo con --channel lowcmd: qué hacer con las piernas. "
+                         "free = kp=kd=0, igual que el servicio en reposo (por "
+                         "defecto, y lo correcto con el robot colgado); "
+                         "damp = kd=2 para que no se bamboleen; "
+                         "hold = kp=300, rígidas")
 
 
 def confirm(args, extra: str = "") -> None:
@@ -67,7 +78,36 @@ def confirm(args, extra: str = "") -> None:
         raise SystemExit("  cancelado.")
 
 
+def require_debug_mode(args) -> None:
+    """Con `--channel lowcmd`, negarse a arrancar si el servicio sigue activo.
+
+    Publicar en `/lowcmd` mientras el controlador de alto nivel también lo hace
+    es exactamente el problema que este paquete existe para evitar. Antes que
+    soltar el servicio por nuestra cuenta —que es una decisión con
+    consecuencias físicas— se para y se dice qué hacer.
+    """
+    if args.channel != "lowcmd" or getattr(args, "dry_run", False):
+        return
+    from h1_2_joint_control.motion_switcher import MotionSwitcher
+    ms = MotionSwitcher()
+    name = ms.active_mode()
+    ms.close()
+    if name is None:
+        raise SystemExit("  el servicio motion_switcher no responde; no se puede "
+                         "comprobar si /lowcmd está libre. Abortado.")
+    if name:
+        raise SystemExit(
+            f"  El controlador de alto nivel '{name}' sigue activo y publica en\n"
+            f"  /lowcmd a 500 Hz. Si publicamos ahí a la vez, el motor recibirá\n"
+            f"  consignas alternas y la articulación no seguirá su referencia.\n\n"
+            f"  Con el robot COLGADO DEL ARNÉS:\n"
+            f"      python3 scripts/06_debug_mode.py enter\n"
+            f"  y al terminar la sesión:\n"
+            f"      python3 scripts/06_debug_mode.py exit")
+
+
 def build_client(args, controlled: list[int], verbose: bool = True) -> H12Client:
+    require_debug_mode(args)
     gains = cfg.load(args.gains)
     if args.kp is not None or args.kd is not None:
         for i in controlled:
@@ -77,7 +117,8 @@ def build_client(args, controlled: list[int], verbose: bool = True) -> H12Client
     return H12Client(controlled=controlled, gains=gains, channel=args.channel,
                      rate_hz=args.rate, verbose=verbose,
                      dry_run=getattr(args, "dry_run", False),
-                     max_weight=getattr(args, "weight", 1.0))
+                     max_weight=getattr(args, "weight", 1.0),
+                     legs_policy=getattr(args, "legs", "free"))
 
 
 def joint_index(spec: str) -> int:
@@ -88,6 +129,45 @@ def joint_index(spec: str) -> int:
     raise SystemExit(
         f"articulación desconocida: '{spec}'.\n  Válidas: "
         + ", ".join(BY_NAME))
+
+
+def pick_amplitude(idx: int, q0: float, amp: float, margin: float,
+                   direction: str = "auto") -> tuple[float, str]:
+    """Elige el sentido y la amplitud del ensayo. Devuelve (amp, comentario).
+
+    Con `direction="auto"` se va hacia donde queda MÁS recorrido articular. No
+    es un capricho: en el H1-2 los brazos son especulares, así que un `+0.12`
+    que separa el brazo izquierdo del cuerpo mete el derecho CONTRA el torso.
+    Medido: R_shoulder_roll con +0.12 rad choca, el error se queda en 6.3° y el
+    par llega a 29.6 Nm (saltó la protección). En el sentido contrario, el
+    mismo ensayo da 1.67° de error y 4.3 Nm.
+
+    El recorrido libre no equivale exactamente a «lejos del cuerpo», pero en la
+    práctica separa los dos casos y evita empujar contra un tope.
+    """
+    j = BY_INDEX[idx]
+    lo, hi = j.q_min + margin, j.q_max - margin
+    up_ok, down_ok = (q0 + abs(amp)) <= hi, (q0 - abs(amp)) >= lo
+    room_up, room_down = hi - q0, q0 - lo
+
+    if direction == "positive":
+        want = +1
+    elif direction == "negative":
+        want = -1
+    else:
+        want = +1 if room_up >= room_down else -1
+
+    if want > 0 and up_ok:
+        return abs(amp), ""
+    if want < 0 and down_ok:
+        return -abs(amp), ""
+    # el sentido preferido no cabe: probar el otro
+    if up_ok:
+        return abs(amp), "(sentido invertido: no cabía)"
+    if down_ok:
+        return -abs(amp), "(sentido invertido: no cabía)"
+    room = max(min(room_up, room_down), 0.0)
+    return math.copysign(room * 0.8, want), "(amplitud recortada por el tope)"
 
 
 def describe(idx: int, gains) -> str:

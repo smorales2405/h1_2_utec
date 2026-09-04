@@ -86,6 +86,7 @@ class H12Client:
         verbose: bool = True,
         dry_run: bool = False,
         max_weight: float = 1.0,
+        legs_policy: str = "free",
     ):
         """`dry_run`: publica en un tópico que nadie escucha. El robot no se
         entera de nada; sirve para validar el software.
@@ -93,7 +94,22 @@ class H12Client:
         `max_weight`: hasta dónde sube el peso de arm_sdk en `engage()`. Con
         0.0 se publica en el tópico bueno pero con autoridad nula, que es la
         primera prueba prudente sobre el robot real. Con 0.3, un tercio de
-        autoridad: el brazo obedece, pero flojo."""
+        autoridad: el brazo obedece, pero flojo.
+
+        `legs_policy`: qué hacer con piernas y cintura en el canal `lowcmd`,
+        donde somos los únicos que mandamos. Solo aplica a ese canal.
+
+            free  kp = kd = 0. Reproduce EXACTAMENTE lo que el servicio `ai`
+                  estaba publicando en reposo, así que soltarlo no cambia nada
+                  para las piernas. Es lo correcto con el robot colgado.
+            damp  kp = 0, kd = 2. Igual de libre, pero amortiguado: si el robot
+                  cuelga, las piernas dejan de bambolearse.
+            hold  las ganancias de `legs_hold` (kp = 300). Sostiene las piernas
+                  rígidas donde estén. NO usar si el robot no está colgado:
+                  pasar de par nulo a kp = 300 de golpe es un tirón."""
+        if legs_policy not in ("free", "damp", "hold"):
+            raise ValueError("legs_policy debe ser 'free', 'damp' o 'hold'")
+        self.legs_policy = legs_policy
         if channel not in ("arm_sdk", "lowcmd"):
             raise ValueError("channel debe ser 'arm_sdk' o 'lowcmd'")
         self.channel = channel
@@ -262,9 +278,15 @@ class H12Client:
                 kp, kd = self.gains.for_index(i)
                 self._kp[i], self._kd[i] = kp, kd
             if self.channel == "lowcmd":
-                # En debug el servicio ya no manda: hay que sostener las piernas.
+                # En debug ya no publica nadie más: las piernas dependen de
+                # nosotros. Qué hacer con ellas lo decide `legs_policy`.
                 for i in LEG_INDICES:
-                    kp, kd = self.gains.for_index(i)
+                    if self.legs_policy == "hold":
+                        kp, kd = self.gains.for_index(i)
+                    elif self.legs_policy == "damp":
+                        kp, kd = 0.0, 2.0
+                    else:                       # free
+                        kp, kd = 0.0, 0.0
                     self._kp[i], self._kd[i] = kp, kd
             self._weight = 0.0
             self._weight_target = self.max_weight
@@ -272,8 +294,13 @@ class H12Client:
 
         self._start_loop()
         where = f"DRY RUN -> {self.topic}" if self.dry_run else self.topic
-        self._log(f"cediendo el control ({ramp:.1f} s de rampa de peso hasta "
-                  f"{self.max_weight:.2f}) por {where}…")
+        if self.channel == "arm_sdk":
+            self._log(f"cediendo el control ({ramp:.1f} s de rampa de peso hasta "
+                      f"{self.max_weight:.2f}) por {where}…")
+        else:
+            self._log(f"tomando el control por {where}  "
+                      f"(piernas: {self.legs_policy}, {ramp:.1f} s de rampa de "
+                      f"ganancias)…")
         self.sleep(ramp + 0.3)
         drift = float(np.max(np.abs(self.q_all()[self.commanded] - self.q0[self.commanded])))
         flag = "OK" if drift < 0.02 else "⚠ REVISAR"
@@ -293,7 +320,9 @@ class H12Client:
             self._log("volviendo a la postura inicial…")
             self.ramp_to({i: float(self.q0[i]) for i in self.controlled},
                          speed=home_speed)
-            self._log(f"bajando el peso a 0 en {weight_ramp:.1f} s…")
+            self._log(("bajando el peso a 0" if self.channel == "arm_sdk"
+                       else "bajando las ganancias a 0")
+                      + f" en {weight_ramp:.1f} s…")
             with self._lock:
                 self._weight_target = 0.0
                 self._weight_rate = 1.0 / max(weight_ramp, 1e-3)
@@ -512,15 +541,24 @@ class H12Client:
         m = self._msg
         m.mode_pr = 0                       # tobillos en modo Pitch/Roll
         m.mode_machine = int(state.mode_machine)
+        # `weight` es la autoridad, de 0 a 1, y significa lo mismo en los dos
+        # canales aunque se aplique distinto:
+        #   arm_sdk  el servicio del robot mezcla nuestra consigna con la suya
+        #   lowcmd   no hay nadie con quien mezclar, así que escalamos kp, kd y
+        #            tau_ff. Con 0 el motor queda libre; con 1, mandamos del
+        #            todo. Así entrar y salir del control es una rampa en los
+        #            dos casos, y no un corte.
+        scale = float(weight) if self.channel == "lowcmd" else 1.0
         for i in self.commanded:
             c = m.motor_cmd[i]
             c.mode = 1                      # 1 = habilitado
             c.q = float(q_des[i])
             c.dq = float(dq_des[i])
-            c.tau = float(tau_ff[i])
-            c.kp = float(kp[i])
-            c.kd = float(kd[i])
+            c.tau = float(tau_ff[i]) * scale
+            c.kp = float(kp[i]) * scale
+            c.kd = float(kd[i]) * scale
         if self.channel == "arm_sdk":
+            # El peso de mezcla viaja en el `q` de un motor que no existe.
             m.motor_cmd[WEIGHT_INDEX].q = float(weight)
         set_crc(m)
         self._pub.publish(m)

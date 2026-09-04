@@ -15,20 +15,39 @@ mismo mensaje DDS.
 
 ## Lo primero: por qué el codo no se movía
 
-**`/lowcmd` ya tiene dueño.** El controlador de alto nivel del robot (`ai`)
-publica ahí a 500 Hz sin parar. Un script que publique en el mismo tópico no lo
-sustituye: se alterna con él, y el motor recibe consignas contradictorias
-decenas de veces por segundo. De ahí los dos síntomas:
+**`/lowcmd` ya tiene dueño, y lo que manda es «par cero».** El controlador de
+alto nivel (`ai`) publica ahí a 500 Hz sin parar, con `kp = kd = 0` en los 27
+motores. Un script que publique en el mismo tópico no lo sustituye: se alterna
+con él, y el motor recibe alternativamente nuestras ganancias y ganancias nulas.
 
-* `arm_joint_test.py` publica en `rt/lowcmd` a 250 Hz contra los 500 Hz del
-  servicio → **el codo no llega a su referencia**.
-* `test_mandar_modificado.py` publica a 500 Hz contra 500 Hz → **se mueve, pero
-  vibra**.
+* `arm_joint_test.py` publica a 250 Hz contra 500 → dos de cada tres mensajes
+  anulan el kp → **el codo no llega a su referencia**.
+* `test_mandar_modificado.py` publica a 500 Hz contra 500 → la mitad, suficiente
+  para arrastrar la articulación pero conmutando kp/0 a centenares de hercios →
+  **se mueve, pero vibra**.
 
-No es un problema de ganancias. La solución es usar **`/arm_sdk`**, que está
-libre, que Unitree diseñó exactamente para esto, y que además deja las piernas
-al controlador del robot. El detalle, con las medidas que lo respaldan, en
-[`docs/01_DIAGNOSTICO.md`](docs/01_DIAGNOSTICO.md).
+No es un problema de ganancias. Y `arm_sdk`, que parecía la salida limpia,
+**no hace nada con el robot en reposo**: probadas cinco variantes del mensaje,
+incluida una copia literal del ejemplo oficial de Unitree, ninguna mueve la
+articulación. Lo que funciona es soltar el controlador de alto nivel y quedarse
+solo en `/lowcmd`:
+
+```bash
+python3 scripts/06_debug_mode.py status   # qué está mandando el servicio
+python3 scripts/06_debug_mode.py enter    # ⚠ robot COLGADO DEL ARNÉS
+...
+python3 scripts/06_debug_mode.py exit
+```
+
+Medidas y detalle en [`docs/01_DIAGNOSTICO.md`](docs/01_DIAGNOSTICO.md).
+
+## Y la respuesta a «¿sigue cada articulación su referencia?»
+
+**Sí, las 14.** Con las ganancias de `xr_teleoperate`, escalón suave de 0.12 rad:
+ninguna oscila, ninguna tiembla por encima del ruido de los motores libres, y
+ninguna pasa del 25 % de su par. La tabla completa y el resto de resultados
+—barridos de kp/kd del codo, compensación de gravedad, el coste de mandar
+`dq = 0`— en [`docs/06_RESULTADOS.md`](docs/06_RESULTADOS.md).
 
 ---
 
@@ -64,6 +83,8 @@ Todos aceptan `--help`, `--dry-run` y `--weight`.
 | `03_tune.py` | sí | Barrido de kp/kd sobre una articulación, con criterio explícito. Escribe el ganador en `gains.yaml` |
 | `04_sweep_arms.py` | sí | Recorre las 14 articulaciones de los brazos y saca la tabla de veredictos |
 | `05_plot.py` | **no** | Gráficas desde los CSV: consigna vs. medida, error, par y espectro del temblor |
+| `06_debug_mode.py` | sí | Entra y sale del modo debug. Es la única puerta a `/lowcmd`, y antes de dejarte entrar comprueba qué está mandando el servicio |
+| `07_gravity_ff.py` | sí | Mide el par de gravedad de una articulación y comprueba que compensarlo con `tau_ff` elimina el error permanente |
 | `99_selftest.py` | **no** | 32 comprobaciones sin robot: tabla contra el URDF, CRC contra la implementación literal, métricas contra señales de respuesta conocida, carga de `gains.yaml` |
 
 ### Recorrido típico

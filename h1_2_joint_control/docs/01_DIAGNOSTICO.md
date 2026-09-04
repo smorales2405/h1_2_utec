@@ -10,19 +10,50 @@ tiembla— tienen la misma causa, y no son las ganancias.
 
 ## Resumen
 
-**`/lowcmd` ya tiene dueño.** El controlador de alto nivel del robot publica en
-ese tópico **a 500 Hz de forma continua**. Un script que publique ahí a la vez
-no sustituye al servicio: se alterna con él. El bus de motores aplica el último
-mensaje que llega, así que la consigna oscila entre lo que pide el script y lo
-que pide el servicio, decenas de veces por segundo.
+**`/lowcmd` ya tiene dueño, y lo que manda es «par cero».** El controlador de
+alto nivel (`ai`) publica en ese tópico **a 500 Hz de forma continua**, con
+`kp = 0, kd = 0, tau = 0` en los 27 motores: los motores están habilitados pero
+no aplican par. Un script que publique ahí a la vez no sustituye al servicio, se
+alterna con él, y el bus de motores aplica el último mensaje que llega. El
+resultado es que la articulación recibe, milisegundo a milisegundo,
+alternativamente nuestras ganancias y **ganancias nulas**:
 
-* Si el servicio manda «quédate donde estás» y el script manda «ve a +0.15 rad»,
-  gana el que más publique. → **la articulación no llega a su referencia**.
-* Si el script manda un seno, la articulación recibe seno / postura / seno /
-  postura… → **se mueve, pero vibrando**.
+* A 250 Hz contra los 500 Hz del servicio, dos de cada tres mensajes anulan las
+  ganancias. La articulación apenas ve un tercio del kp pedido → **no llega a su
+  referencia**. Es el caso de `arm_joint_test.py`.
+* A 500 Hz contra 500 Hz, la mitad. Suficiente para arrastrar la articulación,
+  pero conmutando entre kp y 0 a centenares de hercios → **se mueve, pero
+  vibrando**. Es el caso de `test_mandar_modificado.py`.
 
-La solución no es tocar kp y kd: es **dejar de pelear por `/lowcmd`** y usar
-`/arm_sdk`, que está libre y existe precisamente para esto.
+La solución no es tocar kp y kd, sino **quedarse solo en el canal**. Hay dos
+formas, y solo una funciona en este robot:
+
+| Vía | Resultado medido |
+|---|---|
+| `rt/arm_sdk` con peso 1 | **No hace nada.** Ver abajo |
+| Soltar el controlador (`ReleaseMode`) y usar `rt/lowcmd` | **Funciona** |
+
+### `arm_sdk` no sirve con el robot en reposo
+
+`rt/arm_sdk` es el canal que Unitree diseñó para mover los brazos sin soltar la
+locomoción, y el diagnóstico lo daba por bueno: 1 suscriptor, 0 publicadores,
+canal libre. Nuestro publicador incluso empareja con él
+(`get_subscription_count() == 1`). Pero **el servicio no aplica lo que recibe**.
+
+Comprobado con cinco variantes del mensaje, todas con peso 1 y kp = 50 en
+`L_wrist_yaw`, escalón de 0.08 rad:
+
+| Variante | Recorrido | Par |
+|---|---|---|
+| Copia literal del ejemplo oficial (sin `mode`, sin `mode_machine`, sin CRC, 50 Hz) | 0.05 mrad | 0.06 Nm |
+| Igual a 250 Hz | 0.06 mrad | 0.06 Nm |
+| + `mode = 1` | 0.05 mrad | 0.06 Nm |
+| + `mode_machine` | 0.05 mrad | 0.06 Nm |
+| + CRC | 0.05 mrad | 0.06 Nm |
+
+Ninguna mueve nada. La explicación más razonable es que el servicio solo mezcla
+`arm_sdk` cuando el controlador de alto nivel está **realmente controlando**, y
+aquí está en reposo con par cero. No se ha comprobado con el robot activo.
 
 ---
 
@@ -78,8 +109,9 @@ kTopicLowCommand_Motion = "rt/arm_sdk"    # motion_mode = True
 Publica en `rt/lowcmd` **a 250 Hz** (`control_dt = 1.0/250.0`) contra los
 500 Hz del servicio `ai`. Por cada mensaje del script llegan dos del servicio.
 
-El script llama a `Enter_Debug_Mode()` para soltar el servicio antes, pero él
-mismo admite que puede fallar y sigue adelante:
+El script llama a `Enter_Debug_Mode()` para soltar el servicio antes —que es lo
+correcto, y lo que acaba funcionando—, pero él mismo admite que puede fallar y
+sigue adelante de todos modos:
 
 ```python
 print(f"  modo debug: {'OK' if status == 0 else 'FALLÓ (el servicio puede pelear el mando)'}")
@@ -175,14 +207,29 @@ hilo → `destroy_node()` → `rclpy.shutdown()`.
 
 ## Qué hacer en su lugar
 
-Usar `/arm_sdk`, que es el canal que Unitree diseñó para esto
-(`unitree_sdk2/example/h1/high_level/h1_2_arm_sdk_dds_example.cpp`):
+**Soltar el controlador de alto nivel y quedarse solo en `/lowcmd`.**
 
-* El controlador `ai` **sigue llevando las piernas**: el robot no deja de
-  equilibrarse y no hace falta `ReleaseMode` ni modo debug.
-* El servicio cede 15 motores: los 14 de los brazos y la cintura.
-* Un peso `w ∈ [0, 1]` en `motor_cmd[27].q` mezcla nuestra consigna con la
-  interna. `w = 0` es «manda el robot», `w = 1` es «mandamos nosotros».
-* Nadie más publica ahí, así que **no hay con quién pelear**.
+```bash
+python3 scripts/06_debug_mode.py status   # ¿qué está mandando el servicio?
+python3 scripts/06_debug_mode.py enter    # ⚠ robot COLGADO DEL ARNÉS
+...ensayos...
+python3 scripts/06_debug_mode.py exit     # devolver el mando a 'ai'
+```
 
-Ver [`02_ARQUITECTURA.md`](02_ARQUITECTURA.md) para el detalle del protocolo.
+Lo que hace esto tolerable en este robot concreto es el resultado de `status`:
+el servicio publica **kp = kd = 0 en los 27 motores**, así que ya no aplica par.
+Soltarlo no cambia nada físicamente; lo único que cambia es que deja de
+publicar y el canal queda libre. `06_debug_mode.py status` lo comprueba y lo
+dice antes de dejarte entrar.
+
+Con el robot **de pie sosteniéndose solo** la historia sería otra: ahí el
+servicio sí aplicaría par y soltarlo lo tiraría. Por eso el aviso.
+
+Verificado inmediatamente después de entrar: `/lowcmd` a 0 Hz, y el primer
+escalón comandado (`L_wrist_yaw`, 0.10 rad, kp = 50) sale limpio —48 ms de
+subida, 0 % de sobreimpulso, 0.16° de error final, sin temblor—, contra el
+mismo ensayo por `arm_sdk` unos minutos antes, donde el error se quedaba en los
+100 mrad comandados.
+
+Ver [`02_ARQUITECTURA.md`](02_ARQUITECTURA.md) para el detalle de los canales y
+[`06_RESULTADOS.md`](06_RESULTADOS.md) para las medidas.

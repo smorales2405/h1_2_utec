@@ -223,3 +223,42 @@ safety:
   joint_limit_margin: 0.05
   max_ref_velocity: 1.0
   lowstate_timeout: 0.5
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Postura de ensayo
+# ═══════════════════════════════════════════════════════════════════════════
+# A dónde llevar ciertas articulaciones ANTES de medir, para que los brazos no
+# se golpeen con el torso. Sin esto, la postura de partida era «donde estuviera
+# el robot al arrancar», que no es reproducible y puede ser peligrosa: con los
+# hombros cerca de cero, un ensayo de `shoulder_roll` mete el brazo contra el
+# cuerpo (medido: 6.3° de error y 29.6 Nm, saltó la protección de par).
+#
+# En GRADOS, no en radianes: es como se especifican estos ángulos en la
+# práctica y así no hay que convertir a ojo al leer el fichero.
+test_posture_deg:
+  description: >-
+    Brazos separados del cuerpo para que los ensayos de las demás
+    articulaciones tengan sitio.
+  joints:
+    L_shoulder_roll:  18.0
+    R_shoulder_roll: -18.0
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Topes blandos (anticolisión)
+# ═══════════════════════════════════════════════════════════════════════════
+# Más restrictivos que los del URDF. El URDF describe el tope MECÁNICO de cada
+# articulación por separado; no sabe nada de que el brazo pueda chocar con el
+# torso. Estos son los del robot montado.
+#
+# Se aplican TAL CUAL, sin sumarles el `joint_limit_margin` de `safety`: ya
+# llevan dentro el margen de seguridad que se ha decidido. El margen sí se
+# aplica a los topes del URDF, donde llegar al final de carrera sí es un golpe.
+soft_limits_deg:
+  description: >-
+    Autocolisión brazo-torso. Por debajo de estos valores el brazo se toca a sí
+    mismo. Medidos en el robot, no en el modelo.
+  joints:
+    # El roll positivo separa el brazo IZQUIERDO del cuerpo: nunca por debajo de +10°
+    L_shoulder_roll: {min: 10.0}
+    # El roll negativo separa el DERECHO: nunca por encima de -10°
+    R_shoulder_roll: {max: -10.0}

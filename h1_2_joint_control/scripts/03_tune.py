@@ -31,8 +31,8 @@ import itertools
 import math
 import sys
 
-from _common import (add_common_args, build_client, confirm, describe,
-                     joint_index, pick_amplitude)
+from _common import (add_common_args, apply_test_posture, build_client, confirm,
+                     describe, joint_index, pick_amplitude)
 from h1_2_joint_control import config as cfg
 from h1_2_joint_control import metrics as mt
 from h1_2_joint_control import recorder as rec
@@ -102,20 +102,18 @@ def main() -> int:
     stamp = rec.stamp()
     try:
         cli.wait_for_state()
-        q0 = cli.q(idx)
-
-        amp, nota = pick_amplitude(idx, q0, a.amp,
-                                   gains.safety.joint_limit_margin, a.direction)
-        print(f"\n  postura de partida: {q0:+.3f} rad. "
-              f"Amplitud: {amp:+.3f} rad. {nota}\n")
-
         cli.engage()
+        apply_test_posture(cli, a, gains)
+        q0 = float(cli.q_base[idx])
+        amp, nota = pick_amplitude(idx, q0, a.amp, gains.limits(idx), a.direction)
+        print(f"  ensayo: {math.degrees(q0):+.1f}° -> "
+              f"{math.degrees(q0 + amp):+.1f}°  {nota}\n")
         for n, (kp, kd) in enumerate(grid, 1):
             gains.set_index(idx, kp, kd)
             cli.set_gains(idx, kp, kd)
             # volver siempre al mismo punto: si no, cada candidato arrancaría
             # desde donde lo dejó el anterior y no serían comparables
-            cli.ramp_to({idx: float(cli.q0[idx])}, speed=0.3)
+            cli.ramp_to({idx: q0}, speed=0.3)
             cli.sleep(a.pause)
 
             tracks, steps = [], []
@@ -129,7 +127,7 @@ def main() -> int:
                                      f"_r{r}_{stamp}.csv")
                 rec.save_samples(samples, [idx], csv)
                 if r + 1 < a.repeats:
-                    cli.ramp_to({idx: float(cli.q0[idx])}, speed=0.3)
+                    cli.ramp_to({idx: q0}, speed=0.3)
                     cli.sleep(a.pause)
 
             track = tracks[0] if len(tracks) == 1 else _mean_track(tracks)
@@ -147,7 +145,7 @@ def main() -> int:
                               "zero_dq": int(a.zero_dq), "csv": "",
                               **track.as_row()})
 
-        cli.ramp_to({idx: float(cli.q0[idx])}, speed=0.3)
+        cli.ramp_to({idx: q0}, speed=0.3)
 
     except SafetyAbort as e:
         print(f"\n  ⚠ abortado por seguridad: {e}")

@@ -130,6 +130,12 @@ python3 scripts/04_sweep_arms.py --gains tuned
 | `ros2_example` | `low_level_ctrl_hg.cpp`, kp 50 / kd 1 planos | kp 50 / kd 1 | kp 50 / kd 1 |
 | `tuned` | lo medido en **este** robot | lo que escriba `03_tune.py` | — |
 
+`gains.yaml` guarda además la **postura de ensayo** (hombros a ±18°, para que
+los brazos no toquen el torso) y los **topes de autocolisión** (±10° en los
+`shoulder_roll`), que el URDF no conoce porque describe cada articulación por
+separado. Ver [`docs/07_POSTURA.md`](docs/07_POSTURA.md), que explica también
+qué hacen las otras trece articulaciones mientras se prueba una.
+
 La diferencia entre los dos primeros no es menor: **`xr_teleoperate` casi
 triplica el kp del codo**. Y el codo del H1-2 tiene solo 18 Nm, así que con
 kp = 140 basta con 0.13 rad (7.4°) de error para saturarlo. Validarlo es una de

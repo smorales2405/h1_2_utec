@@ -36,7 +36,8 @@ import sys
 
 import numpy as np
 
-from _common import add_common_args, build_client, confirm, pick_amplitude
+from _common import (add_common_args, apply_test_posture, build_client, confirm,
+                     pick_amplitude)
 from h1_2_joint_control import config as cfg
 from h1_2_joint_control import recorder as rec
 from h1_2_joint_control.client import SafetyAbort
@@ -99,13 +100,13 @@ def main() -> int:
     try:
         cli.wait_for_state()
         cli.engage()
+        apply_test_posture(cli, a, gains)
 
         for n, idx in enumerate(targets, 1):
             j = BY_INDEX[idx]
             kp, kd = gains.for_index(idx)
-            q0 = float(cli.q0[idx])
-            amp, _nota = pick_amplitude(idx, q0, a.amp,
-                                        gains.safety.joint_limit_margin, a.direction)
+            q0 = float(cli.q_base[idx])
+            amp, _nota = pick_amplitude(idx, q0, a.amp, gains.limits(idx), a.direction)
             if abs(amp) < 5e-3:
                 print(f"  [{n}/{len(targets)}] {j.name}: sin recorrido, se salta.")
                 continue

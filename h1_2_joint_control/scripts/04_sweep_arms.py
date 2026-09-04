@@ -22,7 +22,8 @@ import math
 import sys
 from pathlib import Path
 
-from _common import add_common_args, build_client, confirm, pick_amplitude
+from _common import (add_common_args, apply_test_posture, build_client, confirm,
+                     pick_amplitude)
 from h1_2_joint_control import config as cfg
 from h1_2_joint_control import metrics as mt
 from h1_2_joint_control import recorder as rec
@@ -92,12 +93,12 @@ def main() -> int:
     try:
         cli.wait_for_state()
         cli.engage()
+        apply_test_posture(cli, a, gains)
 
         for n, idx in enumerate(targets, 1):
             j = BY_INDEX[idx]
-            q0 = float(cli.q0[idx])
-            amp, note = pick_amplitude(idx, q0, a.amp,
-                                       gains.safety.joint_limit_margin, a.direction)
+            q0 = float(cli.q_base[idx])
+            amp, note = pick_amplitude(idx, q0, a.amp, gains.limits(idx), a.direction)
             print(f"\n  [{n:>2}/{len(targets)}] {j.name}  "
                   f"q0={q0:+.3f} rad  amp={amp:+.3f} rad {note}")
             if abs(amp) < 5e-3:

@@ -32,8 +32,8 @@ import sys
 
 import numpy as np
 
-from _common import (add_common_args, build_client, confirm, describe,
-                     joint_index, pick_amplitude)
+from _common import (add_common_args, apply_test_posture, build_client, confirm,
+                     describe, joint_index, pick_amplitude)
 from h1_2_joint_control import config as cfg
 from h1_2_joint_control import metrics as mt
 from h1_2_joint_control import recorder as rec
@@ -72,7 +72,7 @@ def run_once(cli, idx, a, amp, gains, quiet=False):
     if a.zero_dq:
         func = tr.zero_velocity(func)
 
-    q_base = cli.q0[idx]
+    q_base = cli.q_base[idx]
     cli.record(True)
     cli.set_trajectory(idx, func, q_base=q_base)
     t_end = duration
@@ -138,10 +138,15 @@ def main() -> int:
     cli = build_client(a, [idx])
     try:
         cli.wait_for_state()
-        q0 = cli.q(idx)
+        q_ahora = cli.q(idx)
+        # La previsión se hace desde donde ESTARÁ la articulación al empezar a
+        # medir, no desde donde está ahora: si la postura de ensayo la va a
+        # mover, calcular la amplitud sobre la posición actual da un aviso
+        # falso de «no cabía».
+        posture = {} if a.no_posture else gains.test_posture()
+        q0 = float(posture.get(idx, q_ahora))
 
-        amp, nota = pick_amplitude(idx, q0, a.amp,
-                                   gains.safety.joint_limit_margin, a.direction)
+        amp, nota = pick_amplitude(idx, q0, a.amp, gains.limits(idx), a.direction)
         if nota:
             print(f"  ⚠ {nota}  amplitud -> {amp:+.3f} rad")
         if abs(amp) < 1e-3 and a.traj != "hold":
@@ -149,14 +154,23 @@ def main() -> int:
 
         _, duration, desc = build_traj(a, amp)
         print("\n" + describe(idx, gains))
-        print(f"\n    postura actual : {q0:+.3f} rad ({math.degrees(q0):+.1f}°)")
+        print(f"\n    postura actual : {q_ahora:+.3f} rad ({math.degrees(q_ahora):+.1f}°)")
+        if idx in posture:
+            print(f"    se medirá desde: {q0:+.3f} rad ({math.degrees(q0):+.1f}°) "
+                  f"— postura de ensayo")
         print(f"    trayectoria    : {desc}")
         print(f"    canal          : {a.channel}   lazo {a.rate:.0f} Hz   "
               f"dq de referencia: {'ANULADA (como xr_teleoperate)' if a.zero_dq else 'activa'}")
         confirm(a)
 
         cli.engage()
-        print(f"\n  Ejecutando…")
+        apply_test_posture(cli, a, gains)
+        q0 = float(cli.q_base[idx])
+        amp, nota = pick_amplitude(idx, q0, a.amp, gains.limits(idx), a.direction)
+        if nota:
+            print(f"  ⚠ {nota}  amplitud -> {amp:+.3f} rad")
+        print(f"\n  Ejecutando…  desde {math.degrees(q0):+.1f}° "
+              f"hasta {math.degrees(q0 + amp):+.1f}°")
         samples, track, step = run_once(cli, idx, a, amp, gains)
 
         print("\n  ── Resultados ─────────────────────────────────────────────")

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import copy
+import math
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -37,7 +38,27 @@ class Gains:
         self._joints = dict(raw["sets"][set_name]["joints"])
         self.description = raw["sets"][set_name].get("description", "")
         self._legs = raw.get("legs_hold", {})
-        self.safety = Safety(**raw.get("safety", {}))
+        safety_raw = {k: v for k, v in raw.get("safety", {}).items()
+                      if k != "description"}
+        self.safety = Safety(**safety_raw)
+
+        # Postura de ensayo y topes blandos van en GRADOS en el YAML; aquí
+        # dentro todo es radianes, como el resto del paquete.
+        self._posture = {
+            BY_NAME[n].idx: math.radians(float(v))
+            for n, v in (raw.get("test_posture_deg", {}).get("joints", {}) or {}).items()
+            if n in BY_NAME
+        }
+        self._soft = {}
+        for n, lim in (raw.get("soft_limits_deg", {}).get("joints", {}) or {}).items():
+            if n not in BY_NAME:
+                continue
+            lo = lim.get("min")
+            hi = lim.get("max")
+            self._soft[BY_NAME[n].idx] = (
+                math.radians(float(lo)) if lo is not None else None,
+                math.radians(float(hi)) if hi is not None else None,
+            )
 
     # -- consulta ---------------------------------------------------------
     def for_index(self, idx: int) -> tuple[float, float]:
@@ -55,6 +76,38 @@ class Gains:
 
     def as_dict(self) -> dict:
         return copy.deepcopy(self._joints)
+
+    # -- postura de ensayo y topes ---------------------------------------
+    def test_posture(self) -> dict[int, float]:
+        """{índice: ángulo en rad} al que llevar el robot antes de medir."""
+        return dict(self._posture)
+
+    def limits(self, idx: int) -> tuple[float, float]:
+        """Topes efectivos de una articulación, en rad.
+
+        Es la intersección de dos cosas distintas:
+
+        * los del URDF, que son el final de carrera MECÁNICO, y se estrechan
+          con `safety.joint_limit_margin` porque llegar ahí es un golpe;
+        * los blandos de `soft_limits_deg`, que son de AUTOCOLISIÓN y se
+          aplican tal cual: ya llevan dentro el margen que se decidió.
+        """
+        j = BY_INDEX[idx]
+        m = self.safety.joint_limit_margin
+        lo, hi = j.q_min + m, j.q_max - m
+        soft_lo, soft_hi = self._soft.get(idx, (None, None))
+        if soft_lo is not None:
+            lo = max(lo, soft_lo)
+        if soft_hi is not None:
+            hi = min(hi, soft_hi)
+        return lo, hi
+
+    def has_soft_limit(self, idx: int) -> bool:
+        return idx in self._soft
+
+    def clamp(self, idx: int, q: float) -> float:
+        lo, hi = self.limits(idx)
+        return min(max(q, lo), hi)
 
     def __repr__(self) -> str:
         return f"<Gains '{self.set_name}' con {len(self._joints)} articulaciones>"

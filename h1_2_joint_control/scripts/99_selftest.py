@@ -203,6 +203,44 @@ def t_config():
           0 < s.tau_abort_fraction <= 1 and s.temperature_abort > 50,
           f"par<{s.tau_abort_fraction*100:.0f}%  T<{s.temperature_abort:.0f}°C")
 
+    # --- postura de ensayo y topes blandos ---
+    post = g.test_posture()
+    lsr, rsr = BY_NAME["L_shoulder_roll"].idx, BY_NAME["R_shoulder_roll"].idx
+    check("postura de ensayo: hombros a ±18°",
+          abs(math.degrees(post.get(lsr, 0)) - 18.0) < 0.01
+          and abs(math.degrees(post.get(rsr, 0)) + 18.0) < 0.01,
+          f"L {math.degrees(post.get(lsr, float('nan'))):+.1f}°  "
+          f"R {math.degrees(post.get(rsr, float('nan'))):+.1f}°")
+
+    lo_l, hi_l = g.limits(lsr)
+    lo_r, hi_r = g.limits(rsr)
+    check("tope blando: L_shoulder_roll nunca por debajo de +10°",
+          abs(math.degrees(lo_l) - 10.0) < 0.01, f"{math.degrees(lo_l):+.2f}°")
+    check("tope blando: R_shoulder_roll nunca por encima de -10°",
+          abs(math.degrees(hi_r) + 10.0) < 0.01, f"{math.degrees(hi_r):+.2f}°")
+    check("el tope blando recorta, no amplía",
+          lo_l > BY_NAME["L_shoulder_roll"].q_min and
+          hi_r < BY_NAME["R_shoulder_roll"].q_max)
+    check("clamp respeta el tope blando",
+          abs(math.degrees(g.clamp(rsr, math.radians(-2))) + 10.0) < 0.01
+          and abs(math.degrees(g.clamp(lsr, math.radians(2))) - 10.0) < 0.01)
+    check("la postura de ensayo cae DENTRO de los topes blandos",
+          lo_l <= post[lsr] <= hi_l and lo_r <= post[rsr] <= hi_r,
+          f"L {math.degrees(post[lsr]):+.0f}° en [{math.degrees(lo_l):+.0f}, "
+          f"{math.degrees(hi_l):+.0f}]  ·  R {math.degrees(post[rsr]):+.0f}° en "
+          f"[{math.degrees(lo_r):+.0f}, {math.degrees(hi_r):+.0f}]")
+    # margen de ensayo disponible hacia el cuerpo desde la postura
+    margen_l = post[lsr] - lo_l
+    margen_r = hi_r - post[rsr]
+    check("queda recorrido hacia el cuerpo para ensayar el propio hombro",
+          margen_l > 0.10 and margen_r > 0.10,
+          f"L {math.degrees(margen_l):.1f}°  R {math.degrees(margen_r):.1f}° "
+          f"(hacen falta ~6.9° para una amplitud de 0.12 rad)")
+    check("las articulaciones sin tope blando usan el del URDF",
+          not g.has_soft_limit(BY_NAME["L_elbow"].idx)
+          and abs(g.limits(BY_NAME["L_elbow"].idx)[0]
+                  - (BY_NAME["L_elbow"].q_min + s.joint_limit_margin)) < 1e-9)
+
 
 def _raises(fn, exc):
     try:

@@ -37,6 +37,10 @@ def add_common_args(ap: argparse.ArgumentParser) -> None:
     ap.add_argument("--yes", action="store_true",
                     help="no pedir confirmación (para automatizar barridos)")
     ap.add_argument("--tag", default="", help="etiqueta para el nombre del CSV")
+    ap.add_argument("--no-posture", action="store_true",
+                    help="no llevar el robot a la postura de ensayo de "
+                         "config/gains.yaml (hombros separados del cuerpo) "
+                         "antes de medir")
     ap.add_argument("--direction", choices=["auto", "positive", "negative"],
                     default="auto",
                     help="sentido del ensayo. auto = hacia donde queda más "
@@ -131,7 +135,7 @@ def joint_index(spec: str) -> int:
         + ", ".join(BY_NAME))
 
 
-def pick_amplitude(idx: int, q0: float, amp: float, margin: float,
+def pick_amplitude(idx: int, q0: float, amp: float, limits: tuple[float, float],
                    direction: str = "auto") -> tuple[float, str]:
     """Elige el sentido y la amplitud del ensayo. Devuelve (amp, comentario).
 
@@ -144,9 +148,11 @@ def pick_amplitude(idx: int, q0: float, amp: float, margin: float,
 
     El recorrido libre no equivale exactamente a «lejos del cuerpo», pero en la
     práctica separa los dos casos y evita empujar contra un tope.
+
+    `limits` son los topes EFECTIVOS, ya combinados: los del URDF con su margen
+    y los blandos de autocolisión. Vienen de `Gains.limits(idx)`.
     """
-    j = BY_INDEX[idx]
-    lo, hi = j.q_min + margin, j.q_max - margin
+    lo, hi = limits
     up_ok, down_ok = (q0 + abs(amp)) <= hi, (q0 - abs(amp)) >= lo
     room_up, room_down = hi - q0, q0 - lo
 
@@ -170,13 +176,34 @@ def pick_amplitude(idx: int, q0: float, amp: float, margin: float,
     return math.copysign(room * 0.8, want), "(amplitud recortada por el tope)"
 
 
+def apply_test_posture(cli, args, gains) -> None:
+    """Lleva el robot a la postura de ensayo, salvo que se pida lo contrario."""
+    if getattr(args, "no_posture", False):
+        print("  --no-posture: se mide desde la postura en que estuviera el robot.")
+        return
+    if not gains.test_posture():
+        return
+    cli.go_to_test_posture()
+    # A partir de aquí `q0` deja de ser «donde estaba al arrancar» para las
+    # articulaciones movidas: los ensayos parten de la postura de ensayo. El
+    # `q0` original se conserva en el cliente para devolver el robot al final.
+
+
 def describe(idx: int, gains) -> str:
     j = BY_INDEX[idx]
     kp, kd = gains.for_index(idx)
     sat = j.tau_max / kp if kp else float("inf")
-    return (f"  {j.name}  (motor {j.idx}, {j.urdf})\n"
-            f"    topes URDF : [{j.q_min:+.3f}, {j.q_max:+.3f}] rad "
-            f"= [{math.degrees(j.q_min):+.0f}°, {math.degrees(j.q_max):+.0f}°]\n"
-            f"    par máximo : {j.tau_max:.1f} Nm     velocidad máx: {j.dq_max:.1f} rad/s\n"
-            f"    ganancias  : kp={kp:.1f}  kd={kd:.2f}   "
-            f"-> satura el motor con {sat:.3f} rad ({math.degrees(sat):.1f}°) de error")
+    lo, hi = gains.limits(idx)
+    lineas = [
+        f"  {j.name}  (motor {j.idx}, {j.urdf})",
+        f"    topes URDF : [{math.degrees(j.q_min):+7.1f}°, {math.degrees(j.q_max):+7.1f}°]"
+        f"   (final de carrera mecánico)",
+        f"    efectivos  : [{math.degrees(lo):+7.1f}°, {math.degrees(hi):+7.1f}°]"
+        + ("   ← recortado por autocolisión (soft_limits_deg)"
+           if gains.has_soft_limit(idx) else
+           f"   (URDF menos {gains.safety.joint_limit_margin:.2f} rad de guarda)"),
+        f"    par máximo : {j.tau_max:.1f} Nm     velocidad máx: {j.dq_max:.1f} rad/s",
+        f"    ganancias  : kp={kp:.1f}  kd={kd:.2f}   "
+        f"-> satura el motor con {sat:.3f} rad ({math.degrees(sat):.1f}°) de error",
+    ]
+    return "\n".join(lineas)

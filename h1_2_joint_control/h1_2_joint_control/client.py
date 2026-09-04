@@ -183,7 +183,11 @@ class H12Client:
         self._abort: str | None = None
         self._tau_hot_since: dict[int, float] = {}
 
-        self.q0 = np.zeros(NUM_CMD_MOTOR)  # postura al ceder el control
+        # `q0` es donde estaba el robot al ceder el control: ahí se le devuelve
+        # al terminar. `q_base` es desde dónde parten los ensayos, que NO es lo
+        # mismo en cuanto se aplica una postura de ensayo.
+        self.q0 = np.zeros(NUM_CMD_MOTOR)
+        self.q_base = np.zeros(NUM_CMD_MOTOR)
         self.cycles = 0
         self.late_cycles = 0
         self._loop_t0 = 0.0
@@ -298,6 +302,7 @@ class H12Client:
         """
         self.wait_for_state()
         self.q0 = self.q_all()
+        self.q_base = self.q0.copy()
 
         with self._lock:
             self._q_des[:] = self.q0
@@ -347,7 +352,10 @@ class H12Client:
             return
         try:
             self._log("volviendo a la postura inicial…")
-            self.ramp_to({i: float(self.q0[i]) for i in self.controlled},
+            # Todas las comandadas, no solo las que se estaban midiendo: si se
+            # aplicó una postura de ensayo (p. ej. hombros a ±18°), esas
+            # articulaciones también hay que devolverlas a donde estaban.
+            self.ramp_to({i: float(self.q0[i]) for i in self.commanded},
                          speed=home_speed)
             self._log(("bajando el peso a 0" if self.channel == "arm_sdk"
                        else "bajando las ganancias a 0")
@@ -381,10 +389,10 @@ class H12Client:
     # -- consignas --------------------------------------------------------
     def set_target(self, idx: int, q: float, dq: float = 0.0,
                    tau_ff: float = 0.0) -> None:
-        """Consigna instantánea (sin rampa). Recorta a los topes del URDF."""
-        j = BY_INDEX[idx]
+        """Consigna instantánea (sin rampa). Recorta a los topes efectivos:
+        los del URDF con margen, y los blandos de autocolisión."""
         with self._lock:
-            self._q_des[idx] = j.clamp(q, self.safety.joint_limit_margin)
+            self._q_des[idx] = self.gains.clamp(idx, q)
             self._dq_des[idx] = dq
             self._tau_ff[idx] = tau_ff
 
@@ -420,14 +428,50 @@ class H12Client:
         with self._lock:
             self._kp[idx], self._kd[idx] = float(kp), float(kd)
 
+    def go_to_test_posture(self, speed: float = 0.25,
+                           extra: dict[int, float] | None = None) -> dict[int, float]:
+        """Lleva las articulaciones de `test_posture_deg` a su ángulo.
+
+        Se hace DESPUÉS de `engage()` y despacio: es un movimiento real del
+        robot, no una lectura. Devuelve lo que se ha movido y desde dónde, para
+        poder dejarlo en el registro del ensayo.
+        """
+        posture = self.gains.test_posture()
+        if extra:
+            posture.update(extra)
+        posture = {i: q for i, q in posture.items() if i in self.commanded}
+        if not posture:
+            return {}
+        desde = {i: float(self.q0[i]) for i in posture}
+        movidas = {i: q for i, q in posture.items()
+                   if abs(q - desde[i]) > 1e-3}
+        if not movidas:
+            self._log("  postura de ensayo: ya estaba en su sitio.")
+            return {}
+        for i, q in movidas.items():
+            j = BY_INDEX[i]
+            self._log(f"  postura de ensayo: {j.name} "
+                      f"{math.degrees(desde[i]):+.1f}° -> {math.degrees(q):+.1f}°")
+        self.ramp_to(movidas, speed=speed)
+        self.sleep(0.4)
+        for i, q in movidas.items():
+            self.q_base[i] = q          # los ensayos parten de aquí
+        if not self.dry_run:
+            for i, q in movidas.items():
+                j = BY_INDEX[i]
+                err = self.q(i) - q
+                flag = "" if abs(err) < 0.05 else "   ⚠ no ha llegado"
+                self._log(f"    {j.name}: {math.degrees(self.q(i)):+.1f}° "
+                          f"(error {math.degrees(err):+.2f}°){flag}")
+        return movidas
+
     def ramp_to(self, targets: dict[int, float], speed: float = 0.4) -> None:
         """Lleva la consigna a `targets` a `speed` rad/s, bloqueando."""
         speed = min(abs(speed), self.safety.max_ref_velocity)
         self.clear_trajectory()      # una rampa manda sobre cualquier trayectoria
         with self._lock:
             start = {i: float(self._q_des[i]) for i in targets}
-        goal = {i: BY_INDEX[i].clamp(q, self.safety.joint_limit_margin)
-                for i, q in targets.items()}
+        goal = {i: self.gains.clamp(i, q) for i, q in targets.items()}
         dist = max((abs(goal[i] - start[i]) for i in targets), default=0.0)
         if dist < 1e-6:
             return
@@ -548,9 +592,7 @@ class H12Client:
             # trayectorias: se evalúan aquí, en el ciclo de control
             for i, (func, base, t0) in self._traj.items():
                 q_rel, dq_rel = func(now - t0)
-                j = BY_INDEX[i]
-                self._q_des[i] = j.clamp(base + q_rel,
-                                         self.safety.joint_limit_margin)
+                self._q_des[i] = self.gains.clamp(i, base + q_rel)
                 self._dq_des[i] = dq_rel
 
             # rampa de peso

@@ -429,12 +429,27 @@ class H12Client:
             self._kp[idx], self._kd[idx] = float(kp), float(kd)
 
     def go_to_test_posture(self, speed: float = 0.25,
-                           extra: dict[int, float] | None = None) -> dict[int, float]:
-        """Lleva las articulaciones de `test_posture_deg` a su ángulo.
+                           extra: dict[int, float] | None = None,
+                           tol: float = 0.0087, iters: int = 6
+                           ) -> dict[int, float]:
+        """Lleva las articulaciones de `test_posture_deg` a su ángulo REAL.
 
         Se hace DESPUÉS de `engage()` y despacio: es un movimiento real del
-        robot, no una lectura. Devuelve lo que se ha movido y desde dónde, para
-        poder dejarlo en el registro del ensayo.
+        robot, no una lectura.
+
+        La postura de ensayo es una posición FÍSICA (anticolisión): lo que
+        importa es dónde acaba el brazo, no qué se le pidió. Y con un PD sin
+        integral esas dos cosas no coinciden: sosteniendo contra la gravedad
+        queda un error permanente `tau_g/kp` que no se va nunca. Medido en
+        `R_shoulder_roll` con kp=140: se le pide −18.0° y se queda en −15.5°,
+        2.5° más cerca del cuerpo de lo previsto. En una postura que existe
+        precisamente para no tocarse, eso no vale.
+
+        Así que se corrige: se manda, se mide, y se desplaza la consigna por lo
+        que falte, hasta que el ángulo real entre en `tol` (0.5° por defecto) o
+        se agoten las iteraciones. Es acción integral, aplicada una vez.
+
+        Devuelve {índice: ángulo objetivo} de lo que se ha movido.
         """
         posture = self.gains.test_posture()
         if extra:
@@ -454,15 +469,37 @@ class H12Client:
                       f"{math.degrees(desde[i]):+.1f}° -> {math.degrees(q):+.1f}°")
         self.ramp_to(movidas, speed=speed)
         self.sleep(0.4)
-        for i, q in movidas.items():
-            self.q_base[i] = q          # los ensayos parten de aquí
-        if not self.dry_run:
+
+        if self.dry_run:
             for i, q in movidas.items():
-                j = BY_INDEX[i]
-                err = self.q(i) - q
-                flag = "" if abs(err) < 0.05 else "   ⚠ no ha llegado"
-                self._log(f"    {j.name}: {math.degrees(self.q(i)):+.1f}° "
-                          f"(error {math.degrees(err):+.2f}°){flag}")
+                self.q_base[i] = q
+            return movidas
+
+        # Corrección en lazo cerrado del error permanente de gravedad
+        cmd = dict(movidas)
+        for k in range(iters):
+            self.sleep(0.35)                       # dejar asentar
+            errs = {i: self.q(i) - q for i, q in movidas.items()}
+            if max(abs(e) for e in errs.values()) <= tol:
+                break
+            for i, e in errs.items():
+                # el signo: si el brazo se queda corto, se le pide de más
+                cmd[i] = self.gains.clamp(i, cmd[i] - e)
+            self.ramp_to(cmd, speed=speed)
+
+        for i, q in movidas.items():
+            real = self.q(i)
+            err = real - q
+            j = BY_INDEX[i]
+            extra_cmd = cmd[i] - q
+            flag = "" if abs(err) <= tol else "   ⚠ NO LLEGA"
+            self._log(f"    {j.name}: real {math.degrees(real):+6.2f}°  "
+                      f"objetivo {math.degrees(q):+6.2f}°  "
+                      f"(error {math.degrees(err):+5.2f}°; hubo que pedir "
+                      f"{math.degrees(extra_cmd):+5.2f}° de más){flag}")
+            # Los ensayos parten de la CONSIGNA corregida: es la que mantiene
+            # el brazo donde se quiere.
+            self.q_base[i] = cmd[i]
         return movidas
 
     def ramp_to(self, targets: dict[int, float], speed: float = 0.4) -> None:

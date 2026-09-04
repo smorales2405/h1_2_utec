@@ -53,6 +53,41 @@ despacio (0.25 rad/s) y con verificación de llegada. Se desactiva con
 final—, y aparece un segundo vector, `q_base`, que es desde dónde parten los
 ensayos. Para las articulaciones que la postura no toca, los dos coinciden.
 
+## La consigna no es la posición: hay que cerrar el lazo
+
+La postura de ensayo es una posición **física** —existe para que el brazo no
+toque el torso—, así que lo que importa es dónde acaba el brazo, no qué se le
+pidió. Y con un PD sin integral esas dos cosas **no coinciden**.
+
+Medido en `R_shoulder_roll` con kp = 140: se le pide −18.0° y se queda en
+**−15.5°**, con 6.4 Nm de par de sostenimiento. Es el error permanente de
+siempre, `tau_g/kp` = 6.4/140 = 45.7 mrad = 2.6°, y coincide con el medido. En
+una postura pensada para no tocarse, quedarse 2.5° **más cerca del cuerpo** de
+lo previsto no vale.
+
+Por eso `go_to_test_posture()` corrige: manda, mide, desplaza la consigna por lo
+que falte, y repite hasta que el ángulo REAL entra en 0.5° (o se agotan seis
+iteraciones). Es acción integral, aplicada una vez.
+
+Validado el 2026-09-04 en tres pasadas independientes, canal `lowcmd`, ganancias
+de `xr_teleoperate`:
+
+| pasada | `L_shoulder_roll` real | `R_shoulder_roll` real | consigna extra |
+|---|---:|---:|---|
+| sin corregir | — | −15.5° | — |
+| 1 | +18.15° | −18.38° | +2.83° / −2.94° |
+| 2 | +17.71° | −17.65° | +2.44° / −2.17° |
+
+Con corrección, los dos hombros caen dentro de ±0.4° del objetivo. La consigna
+extra que hace falta (2.2°–2.9°) es justo la caída por gravedad.
+
+Sosteniendo ahí: temblor 0.009–0.013 rad/s, indistinguible del ruido de fondo, y
+6.3–7.6 Nm de los 40 del motor (81–84 % de margen).
+
+**Consecuencia para los ensayos**: `q_base` no es el ángulo objetivo sino la
+consigna corregida, que es la que mantiene el brazo donde se quiere. Las
+amplitudes de los ensayos se cuentan desde ahí.
+
 ## Los topes blandos
 
 El URDF describe el final de carrera **mecánico** de cada articulación por

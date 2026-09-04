@@ -169,8 +169,12 @@ def main() -> int:
         amp, nota = pick_amplitude(idx, q0, a.amp, gains.limits(idx), a.direction)
         if nota:
             print(f"  ⚠ {nota}  amplitud -> {amp:+.3f} rad")
-        print(f"\n  Ejecutando…  desde {math.degrees(q0):+.1f}° "
-              f"hasta {math.degrees(q0 + amp):+.1f}°")
+        if a.traj == "hold":
+            print(f"\n  Ejecutando…  sin comandar movimiento, "
+                  f"sosteniendo {math.degrees(q0):+.1f}°")
+        else:
+            print(f"\n  Ejecutando…  desde {math.degrees(q0):+.1f}° "
+                  f"hasta {math.degrees(q0 + amp):+.1f}°")
         samples, track, step = run_once(cli, idx, a, amp, gains)
 
         print("\n  ── Resultados ─────────────────────────────────────────────")

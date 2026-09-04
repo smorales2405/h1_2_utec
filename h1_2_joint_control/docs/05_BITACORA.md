@@ -209,6 +209,26 @@ control, con sus ganancias del conjunto activo; no se dejan libres ni se mandan
 a un ángulo absoluto. En canal `lowcmd` las piernas sí quedan libres
 (`--legs free`), que es lo que ya hacía el servicio `ai`.
 
+### Validación de la postura de ensayo (17:57)
+
+Modo debug, canal `lowcmd`, ganancias de `xr_teleoperate`.
+
+Primera pasada, con la consigna a pelo: **el hombro no llega**. Se le pide
+−18.0° y se queda en −15.5°, con 6.4 Nm de par. `tau_g/kp` = 45.7 mrad = 2.6°,
+que es exactamente el error medido. Como la postura es anticolisión, quedarse
+2.5° más cerca del cuerpo no vale.
+
+Corregido: `go_to_test_posture()` cierra el lazo (manda, mide, desplaza la
+consigna, hasta 6 iteraciones o 0.5° de tolerancia). Dos pasadas de validación:
+
+| | `L_shoulder_roll` | `R_shoulder_roll` |
+|---|---:|---:|
+| pasada 1 | +18.15° | −18.38° |
+| pasada 2 | +17.71° | −17.65° |
+
+Dentro de ±0.4°. Temblor 0.009–0.013 rad/s (ruido de fondo), par 6.3–7.6 Nm de
+40 disponibles. Robot devuelto a modo `ai` al terminar.
+
 ### Pendiente
 
 - [ ] Repetir el barrido del codo en dos o tres posturas más: todo lo medido lo

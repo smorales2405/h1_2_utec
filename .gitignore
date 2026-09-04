@@ -1,0 +1,21 @@
+# Claves y certificados: se generan localmente con scripts/02_gen_certs.sh
+*.pem
+*.key
+*.crt
+*.csr
+*.srl
+
+# Repositorios upstream, se clonan aparte
+h1_2_teleoperation/xr_teleoperate/
+h1_2_teleoperation/unitree_sdk2_python/
+h1_2_teleoperation/inspire_hand_ws/
+
+# Instalación del PC2 (bundle offline de ruedas)
+h1_2_teleoperation/pc2_offline/
+
+# Artefactos de trabajo
+h1_2_teleoperation/logs/
+h1_2_teleoperation/camera_test/
+__pycache__/
+*.pyc
+.venv/

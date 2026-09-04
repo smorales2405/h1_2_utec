@@ -1,0 +1,101 @@
+diff --git a/inspire_hand_sdk/inspire_sdkpy/inspire_sdk.py b/inspire_hand_sdk/inspire_sdkpy/inspire_sdk.py
+index 7edbc64..9968690 100644
+--- a/inspire_hand_sdk/inspire_sdkpy/inspire_sdk.py
++++ b/inspire_hand_sdk/inspire_sdkpy/inspire_sdk.py
+@@ -113,21 +113,38 @@ class ModbusDataHandler:
+                 else:
+                     print("Max retries reached. Could not connect.")
+                     raise   
++    @staticmethod
++    def _u16(values):
++        """int16 con signo -> uint16 crudo para pymodbus.
++
++        El protocolo de la RH56 usa -1 en ANGLE_SET como no-op ("deja este DOF
++        como esta"), y FORCE_SET admite valores negativos. pymodbus empaqueta
++        con struct.pack(">H") y revienta con `struct.error: argument out of
++        range` ante cualquier negativo, lo que ademas mata el hilo lector de
++        DDS y deja la mano sorda hasta reiniciar el driver. Enmascarar a 16 bits
++        preserva el complemento a dos que la mano espera.
++        """
++        return [int(v) & 0xFFFF for v in values]
++
+     def write_registers_callback(self,msg:inspire_hand_ctrl):
++      try:
+         with modbus_lock:
+             if msg.mode & 0b0001:  # 模式 1 - 角度
+-                self.client.write_registers(1486, msg.angle_set, self.device_id)
++                self.client.write_registers(1486, self._u16(msg.angle_set), self.device_id)
+                 # print('angle_set')
+             if msg.mode & 0b0010:  # 模式 2 - 位置
+-                self.client.write_registers(1474, msg.pos_set, self.device_id)
++                self.client.write_registers(1474, self._u16(msg.pos_set), self.device_id)
+                 # print('pos_set')
+ 
+             if msg.mode & 0b0100:  # 模式 4 - 力控
+-                self.client.write_registers(1498, msg.force_set, self.device_id)
++                self.client.write_registers(1498, self._u16(msg.force_set), self.device_id)
+                 # print('force_set')
+ 
+             if msg.mode & 0b1000:  # 模式 8 - 速度
+-                self.client.write_registers(1522, msg.speed_set, self.device_id)
++                self.client.write_registers(1522, self._u16(msg.speed_set), self.device_id)
++      except Exception as e:
++        # Nunca dejar que un mensaje malformado tumbe el hilo lector de DDS.
++        print(f"[write_registers_callback] mensaje descartado: {type(e).__name__}: {e}", flush=True)
+                 
+     def read(self):
+         if not self.use_serial:
+diff --git a/inspire_hand_sdk/inspire_sdkpy/inspire_sdk_double.py b/inspire_hand_sdk/inspire_sdkpy/inspire_sdk_double.py
+index aa9f803..5aa8d9f 100644
+--- a/inspire_hand_sdk/inspire_sdkpy/inspire_sdk_double.py
++++ b/inspire_hand_sdk/inspire_sdkpy/inspire_sdk_double.py
+@@ -121,28 +121,41 @@ class ModbusDataHandlerDouble:
+                 else:
+                     print("Max retries reached. Could not connect.")
+                     raise   
++    @staticmethod
++    def _u16(values):
++        """int16 con signo -> uint16 crudo (ver ModbusDataHandler._u16)."""
++        return [int(v) & 0xFFFF for v in values]
++
+     def write_registers_callback(self,msg:inspire_hand_ctrl):
++      # OJO: esta clase registra ESTE MISMO callback para ctrl/l y ctrl/r, y
++      # escribe el comando a los DOS device_id. Sobre RS485 las dos manos quedan
++      # espejadas: no sirve para teleoperar con manos independientes. En este
++      # H1-2 las manos van por Modbus TCP (una IP cada una), que no tiene el
++      # problema; esta ruta queda solo como respaldo de diagnostico.
++      try:
+         with modbus_lock:
+             if msg.mode & 0b0001:  # 模式 1 - 角度
+-                self.client.write_registers(1486, msg.angle_set, self.device_id[0])
+-                self.client.write_registers(1486, msg.angle_set, self.device_id[1])
++                self.client.write_registers(1486, self._u16(msg.angle_set), self.device_id[0])
++                self.client.write_registers(1486, self._u16(msg.angle_set), self.device_id[1])
+ 
+                 # print('angle_set')
+             if msg.mode & 0b0010:  # 模式 2 - 位置
+-                self.client.write_registers(1474, msg.pos_set, self.device_id[0])
+-                self.client.write_registers(1474, msg.pos_set, self.device_id[1])
++                self.client.write_registers(1474, self._u16(msg.pos_set), self.device_id[0])
++                self.client.write_registers(1474, self._u16(msg.pos_set), self.device_id[1])
+ 
+                 # print('pos_set')
+ 
+             if msg.mode & 0b0100:  # 模式 4 - 力控
+-                self.client.write_registers(1498, msg.force_set, self.device_id[0])
+-                self.client.write_registers(1498, msg.force_set, self.device_id[1])
++                self.client.write_registers(1498, self._u16(msg.force_set), self.device_id[0])
++                self.client.write_registers(1498, self._u16(msg.force_set), self.device_id[1])
+ 
+                 # print('force_set')
+ 
+             if msg.mode & 0b1000:  # 模式 8 - 速度
+-                self.client.write_registers(1522, msg.speed_set, self.device_id[0])
+-                self.client.write_registers(1522, msg.speed_set, self.device_id[1])
++                self.client.write_registers(1522, self._u16(msg.speed_set), self.device_id[0])
++                self.client.write_registers(1522, self._u16(msg.speed_set), self.device_id[1])
++      except Exception as e:
++        print(f"[write_registers_callback] mensaje descartado: {type(e).__name__}: {e}", flush=True)
+ 
+     def read(self):
+         if not self.use_serial:

@@ -12,6 +12,11 @@ que superar antes de intentar mover nada:
   · Si el brazo tiembla, kd está mal o hay alguien más mandando (mira el
     diagnóstico: `python3 scripts/00_diagnose.py`).
 
+Este script NO aplica la postura de ensayo de `config/gains.yaml`, ni siquiera
+sin `--no-posture`: sostener la postura ACTUAL es justamente lo que se está
+probando, y moverla antes lo desvirtuaría. Los que sí la aplican son
+`02_move.py`, `03_tune.py`, `04_sweep_arms.py` y `07_gravity_ff.py`.
+
 Uso:
     source scripts/env.sh
     python3 scripts/01_hold.py --seconds 10

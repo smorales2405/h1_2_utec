@@ -185,6 +185,30 @@ Verificado: `02_move.py` bajo SIGTERM vuelve a la postura inicial, baja las
 ganancias en rampa e informa del estado del lazo. SIGINT ya funcionaba bien, así
 que la vía de escape documentada (Ctrl-C) nunca estuvo rota.
 
+### Postura de ensayo y topes de autocolisión (aportados por el operador)
+
+Ángulos de hombro para que los brazos no toquen el torso:
+
+* Para ensayar **cualquier otra** articulación: `R_shoulder_roll` a **−18°** y
+  `L_shoulder_roll` a **+18°**.
+* Para ensayar **el propio** `shoulder_roll`: como mucho hasta **−10°** (derecho)
+  y **+10°** (izquierdo).
+
+Llevado a `config/gains.yaml` como `test_posture_deg` y `soft_limits_deg`. Esto
+cierra el agujero que produjo el choque de `R_shoulder_roll`: antes la postura
+de partida era «donde estuviera el robot», y con los hombros cerca de cero
+cualquier ensayo de roll iba contra el cuerpo.
+
+Desde ±18° quedan 8° de recorrido hacia el cuerpo, suficientes para la amplitud
+de 0.12 rad (6.9°) que se venía usando.
+
+Detalle en [`07_POSTURA.md`](07_POSTURA.md), que documenta además algo que
+faltaba por escrito: **qué hacen las otras trece articulaciones mientras se
+prueba una**. Se sostienen clavadas en la postura que tenían al ceder el
+control, con sus ganancias del conjunto activo; no se dejan libres ni se mandan
+a un ángulo absoluto. En canal `lowcmd` las piernas sí quedan libres
+(`--legs free`), que es lo que ya hacía el servicio `ai`.
+
 ### Pendiente
 
 - [ ] Repetir el barrido del codo en dos o tres posturas más: todo lo medido lo

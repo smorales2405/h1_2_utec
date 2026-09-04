@@ -6,6 +6,14 @@ soltado (`06_debug_mode.py enter`). Lazo a 250 Hz. Todos los datos crudos en
 
 ---
 
+> **Nota de la segunda sesión (17:30–18:10).** El barrido de la sección 1 se
+> repitió con la **postura de ensayo** validada (hombros a ±18° reales, ver
+> [`07_POSTURA.md`](07_POSTURA.md)). Los resultados están en la sección 1 bis y
+> matizan a los de abajo: doce articulaciones siguen igual de bien, y las dos
+> `shoulder_roll` pasan a tener un error de ~4°, **más grande que antes**, por
+> una razón física clara. Se conservan las dos tablas porque la comparación
+> entre ellas es justamente el resultado.
+
 ## 1. ¿Sigue cada articulación su referencia? Sí, las 14
 
 Escalón suavizado de 0.12 rad (6.9°) en 0.3 s, una articulación cada vez, con
@@ -39,6 +47,59 @@ Con esto, la teleoperación tiene una base sana. Las ganancias de
 
 Los hombros son los únicos con sobreimpulso apreciable (2.9 %–9.1 %) y los
 únicos que piden par de verdad. Es lo esperable: cargan con el brazo entero.
+
+---
+
+## 1 bis. El mismo barrido desde la postura de ensayo
+
+Con los hombros llevados a ±18° reales antes de medir, mismo escalón suave de
+0.12 rad:
+
+| articulación | err final | sobreimp. | subida | temblor | par máx |
+|---|---:|---:|---:|---:|---|
+| L_shoulder_pitch | −0.95° | 10.3 % | 195 ms | 0.0146 | 6.77 / 40 Nm |
+| **L_shoulder_roll** | **+4.17°** | 0.0 % | — | 0.0131 | 15.12 / 40 Nm |
+| L_shoulder_yaw | +0.39° | 0.0 % | 163 ms | 0.0191 | 2.07 / 18 Nm |
+| L_elbow | +0.03° | 3.0 % | 212 ms | 0.0146 | 1.58 / 18 Nm |
+| L_wrist_roll | +0.05° | 0.7 % | 168 ms | 0.0058 | 0.50 / 19 Nm |
+| L_wrist_pitch | −0.04° | 0.0 % | 169 ms | 0.0083 | 0.62 / 19 Nm |
+| L_wrist_yaw | +0.01° | 0.1 % | 161 ms | 0.0090 | 0.31 / 19 Nm |
+| R_shoulder_pitch | −0.14° | 3.7 % | 198 ms | 0.0152 | 6.50 / 40 Nm |
+| **R_shoulder_roll** | **−4.15°** | 0.0 % | — | 0.0151 | 15.73 / 40 Nm |
+| R_shoulder_yaw | −0.27° | 0.0 % | 169 ms | 0.0157 | 1.40 / 18 Nm |
+| R_elbow | +0.13° | 4.0 % | 159 ms | 0.0122 | 1.76 / 18 Nm |
+| R_wrist_roll | −0.05° | 0.0 % | 175 ms | 0.0117 | 0.69 / 19 Nm |
+| R_wrist_pitch | +0.22° | 0.0 % | 199 ms | 0.0087 | 0.62 / 19 Nm |
+| R_wrist_yaw | −0.01° | 0.3 % | 144 ms | 0.0105 | 0.56 / 19 Nm |
+
+**Doce articulaciones clavan la referencia**: los codos y las seis muñecas se
+quedan por debajo de **0.25°** de error final, mejor que en el barrido anterior.
+El temblor sigue en el nivel del ruido de fondo en todas.
+
+Las dos `shoulder_roll` empeoran, y no por casualidad. Esta vez **no hay
+choque**: la postura las pone a ±18° y el ensayo las aleja aún más, hasta ±27°,
+donde el brazo está más horizontal y **el par de gravedad es mayor**. De 9 Nm
+antes a 15 Nm ahora. Confirmado midiendo:
+
+| articulación | ángulo | `tau_g` | err sin `tau_ff` | `tau_g/kp` previsto | err con `tau_ff` | mejora |
+|---|---:|---:|---:|---:|---:|---:|
+| L_shoulder_roll | +27.3° | 9.63 Nm | +4.13° | **+3.94°** | +1.10° | 73 % |
+| R_shoulder_roll | −27.0° | −10.36 Nm | −4.17° | **−4.24°** | −0.36° | 91 % |
+
+El modelo acierta a la décima de grado. No es un fallo de sintonización: es lo
+que un PD sin integral puede hacer, y **ningún kp razonable lo arregla** (haría
+falta kp ≈ 600 para bajar de 1°, y con 40 Nm de motor eso satura con 0.07 rad
+de error).
+
+### Qué significa esto para la teleoperación
+
+**`shoulder_roll` va a ir retrasado, y tanto más cuanto más levantado esté el
+brazo**: ~1° con el brazo casi caído, ~4° con el brazo a 27°. Es la articulación
+donde la compensación de gravedad más se nota, y `xr_teleoperate` hoy le pasa
+`tauff = 0`.
+
+Las otras doce no necesitan nada: con las ganancias que ya trae, siguen la
+referencia con menos de un cuarto de grado.
 
 ---
 
@@ -171,6 +232,8 @@ Conviene mover la articulación un par de veces antes de medir, y usar
 
 ## Qué queda por hacer
 
+- [x] ~~Repetir el barrido con una postura de partida reproducible~~ — hecho,
+      sección 1 bis.
 - [ ] Repetir el barrido del codo en dos o tres posturas más, para ver cuánto
       cambian las ganancias óptimas con la configuración del brazo.
 - [ ] Sintonizar hombros y muñecas con el mismo método (aquí solo se validaron

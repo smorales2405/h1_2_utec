@@ -229,6 +229,27 @@ consigna, hasta 6 iteraciones o 0.5° de tolerancia). Dos pasadas de validación
 Dentro de ±0.4°. Temblor 0.009–0.013 rad/s (ruido de fondo), par 6.3–7.6 Nm de
 40 disponibles. Robot devuelto a modo `ai` al terminar.
 
+### Barrido de las 14 desde la postura validada (18:03)
+
+12/14 dentro de tolerancia, pero el reparto cambia respecto al barrido anterior:
+los codos y las seis muñecas bajan a **menos de 0.25°** de error final, y las
+dos `shoulder_roll` suben a ~4°.
+
+Esta vez **no es un choque**: la postura las deja a ±18° y el ensayo las aleja
+hasta ±27°, donde el brazo está más horizontal y el par de gravedad pasa de 9 a
+15 Nm. Comprobado con `07_gravity_ff.py`, y el modelo acierta a la décima:
+
+| | ángulo | `tau_g` | err medido | `tau_g/kp` previsto | con `tau_ff` |
+|---|---:|---:|---:|---:|---:|
+| L_shoulder_roll | +27.3° | 9.63 Nm | +4.13° | +3.94° | +1.10° (73 %) |
+| R_shoulder_roll | −27.0° | −10.36 Nm | −4.17° | −4.24° | −0.36° (91 %) |
+
+Conclusión para la teleoperación: `shoulder_roll` irá retrasado y tanto más
+cuanto más levantado el brazo. Ninguna ganancia razonable lo arregla; hace falta
+`tauff`. Las otras doce no necesitan nada.
+
+Robot devuelto a modo `ai` y verificado.
+
 ### Pendiente
 
 - [ ] Repetir el barrido del codo en dos o tres posturas más: todo lo medido lo

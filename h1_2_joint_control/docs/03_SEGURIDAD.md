@@ -59,6 +59,13 @@ Además, siempre:
   peso, para que el relevo con el controlador del robot no dé un tirón.
 * **Ctrl-C, una excepción o un aborto ejecutan la misma salida ordenada**: está
   en el `finally` de un gestor de contexto.
+* **`kill <pid>` (SIGTERM) también.** No venía de serie: bajo `rclpy`, SIGTERM
+  cierra el contexto DDS pero **no interrumpe el bucle del hilo principal**, así
+  que el proceso seguía vivo publicando al robot y `timeout` no podía con él
+  (comprobado: `rclpy.ok()` pasaba a False y el bucle seguía 5 s después).
+  `_install_sigterm_handler()` en `client.py` lo convierte en el mismo
+  `KeyboardInterrupt` que produce Ctrl-C, de modo que dispara la salida
+  ordenada. SIGINT sí funcionaba de serie.
 
 ## El canal `lowcmd`: por qué está desaconsejado
 
@@ -82,6 +89,7 @@ alcance actual de este paquete.
 |---|---|
 | El brazo se va donde no debe | `L2 + B` en el mando, luego Ctrl-C en la terminal |
 | El script se ha colgado | Ctrl-C. Si no responde, `L2 + B` y matar el proceso |
-| El proceso ha muerto de golpe | El peso de `arm_sdk` deja de refrescarse y el robot recupera el brazo. Aun así, comprobar la postura antes de seguir |
+| El proceso ha muerto de golpe | En `arm_sdk`, el peso deja de refrescarse y el robot recupera el brazo. En `lowcmd` (modo debug) deja de llegar comando y el puente de motores del robot los **deshabilita solo** (`mode = 0`); los brazos se quedan donde estaban. Comprobado dos veces en la sesión del 2026-09-04. Aun así, mirar la postura con `08_read_state.py` antes de seguir |
+| Hay que matar un script | `kill <pid>` vale: SIGTERM ejecuta la salida ordenada. `kill -9` NO: corta en seco y además deja el participante DDS a medias, con lo que la siguiente ejecución tarda ~10 s en recibir `/lowstate` |
 | Un motor pasa de 80 °C | Parar y dejar enfriar. En reposo van a 46–51 °C |
 | Tras un fallo, no llega `/lowstate` | Un participante DDS quedó a medias. Esperar ~10 s y volver a probar (ver `01_DIAGNOSTICO.md`, tercer hallazgo) |

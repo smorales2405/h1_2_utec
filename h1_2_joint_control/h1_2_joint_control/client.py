@@ -33,6 +33,7 @@ baja a 0. El robot nunca se queda sin nadie que lo mande.
 from __future__ import annotations
 
 import math
+import signal
 import threading
 import time
 from dataclasses import dataclass, field
@@ -60,6 +61,33 @@ TOPIC_DRY_RUN = "/h1_2_joint_control/dry_run"
 
 class SafetyAbort(RuntimeError):
     """Se ha superado un tope de seguridad. El cliente ya está soltando."""
+
+
+def _install_sigterm_handler():
+    """Hacer que SIGTERM se comporte como Ctrl-C.
+
+    Ctrl-C ya funciona: `rclpy` deja que Python lance `KeyboardInterrupt`, el
+    hilo principal sale de `sleep()` y se ejecuta la salida ordenada.
+
+    SIGTERM no. Comprobado: `rclpy` cierra su contexto (`rclpy.ok()` pasa a
+    False) pero el bucle del hilo principal sigue corriendo tan campante. En un
+    script que está mandando al robot eso es serio: un `kill <pid>` o un
+    `timeout` dejarían el proceso vivo PUBLICANDO, sin nadie mirando.
+
+    Lanzar `KeyboardInterrupt` desde el manejador lo arregla: el manejador corre
+    en el hilo principal, así que la excepción sale por donde estuviera y
+    dispara el mismo `finally` que Ctrl-C.
+    """
+    if threading.current_thread() is not threading.main_thread():
+        return                       # solo el hilo principal puede
+    try:
+        if signal.getsignal(signal.SIGTERM) is signal.SIG_DFL:
+            signal.signal(
+                signal.SIGTERM,
+                lambda signum, frame: (_ for _ in ()).throw(
+                    KeyboardInterrupt(f"SIGTERM ({signum})")))
+    except (ValueError, OSError):
+        pass                         # entornos sin señales; no es crítico
 
 
 @dataclass
@@ -189,6 +217,7 @@ class H12Client:
 
         self._running = False
         self._ctrl_thread: threading.Thread | None = None
+        _install_sigterm_handler()
 
     # ================================================================== ROS
     def _spin(self):

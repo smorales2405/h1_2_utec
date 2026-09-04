@@ -82,6 +82,7 @@ Todos aceptan `--help`, `--dry-run` y `--weight`.
 | `02_move.py` | sí | Mueve UNA articulación con escalón / seno / chirp, mide y guarda CSV |
 | `03_tune.py` | sí | Barrido de kp/kd sobre una articulación, con criterio explícito. Escribe el ganador en `gains.yaml` |
 | `04_sweep_arms.py` | sí | Recorre las 14 articulaciones de los brazos y saca la tabla de veredictos |
+| `08_read_state.py` | **no** | Lectura rápida (<1 s) de ángulos, velocidad, par y temperatura. Con `--watch` refresca en el sitio; con `--json`, para encadenar |
 | `05_plot.py` | **no** | Gráficas desde los CSV: consigna vs. medida, error, par y espectro del temblor |
 | `06_debug_mode.py` | sí | Entra y sale del modo debug. Es la única puerta a `/lowcmd`, y antes de dejarte entrar comprueba qué está mandando el servicio |
 | `07_gravity_ff.py` | sí | Mide el par de gravedad de una articulación y comprueba que compensarlo con `tau_ff` elimina el error permanente |

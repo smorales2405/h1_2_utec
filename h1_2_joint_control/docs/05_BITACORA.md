@@ -158,6 +158,33 @@ La protección de par actuó dos veces y en las dos soltó el brazo correctament
 Tras soltar, el puente de motores del robot los deshabilita solo (`mode = 0`) y
 los brazos se quedan donde estaban.
 
+### Añadido después de parar los ensayos
+
+`scripts/08_read_state.py`: lectura rápida del estado, equivalente al
+`arm_joint_test.py read` de la otra máquina pero sin depender de
+`unitree_sdk2py`. Menos de 1 s, solo lectura, con `--watch`, `--json` y
+selección de articulaciones.
+
+Escribiéndolo salió un fallo que afectaba a **todos** los scripts: bajo `rclpy`,
+**SIGTERM cierra el contexto DDS pero no interrumpe el bucle del hilo
+principal**. Medido con un caso mínimo:
+
+```
+señal 2  (SIGINT ):  KeyboardInterrupt capturado a los 1.00 s  ✔
+señal 15 (SIGTERM):  BUCLE NO INTERRUMPIDO tras 5 s   rclpy.ok()=False
+```
+
+En un script que está mandando al robot eso es serio: un `kill <pid>` o un
+`timeout` dejaban el proceso **vivo y publicando**, sin nadie mirando. Se
+detectó porque tres procesos de `--watch` sobrevivieron a `timeout` y hubo que
+matarlos con `kill -9`.
+
+Corregido con `_install_sigterm_handler()` en `client.py`: SIGTERM lanza el
+mismo `KeyboardInterrupt` que produce Ctrl-C y dispara la salida ordenada.
+Verificado: `02_move.py` bajo SIGTERM vuelve a la postura inicial, baja las
+ganancias en rampa e informa del estado del lazo. SIGINT ya funcionaba bien, así
+que la vía de escape documentada (Ctrl-C) nunca estuvo rota.
+
 ### Pendiente
 
 - [ ] Repetir el barrido del codo en dos o tres posturas más: todo lo medido lo

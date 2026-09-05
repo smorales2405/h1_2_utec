@@ -92,6 +92,42 @@ python3 scripts/02_move.py --joint L_wrist_yaw --traj step --amp 0.10
 python3 scripts/05_plot.py --last
 ```
 
+### El techo de kp no lo pone el seguimiento, lo pone la saturación
+
+Antes de barrer nada conviene entender por qué el barrido no puede ser abierto
+por arriba.
+
+En las articulaciones con carga estática apreciable —los hombros, el codo— el
+error de seguimiento está dominado por la caída de gravedad, `tau_g/kp`. Es
+decir, **baja monótonamente con kp**. Un criterio que solo mire el error elegirá
+siempre el kp más alto que se le ofrezca, y ampliar el rango solo mueve la
+respuesta más arriba. Medido en el hombro izquierdo: kp = 280 (el doble de la
+referencia) ganaba los tres barridos, con el aviso de «ganador en el borde» en
+los tres.
+
+Lo que sí pone un límite es la **saturación**. Un kp alto es inofensivo mientras
+la consigna se mueva despacio, y peligroso en cuanto da un salto — que en
+teleoperación ocurre cada vez que parpadea el seguimiento del mando. De ahí el
+tope que aplica `09_tune_all.py`:
+
+```
+kp_max = tau_abort_fraction · tau_max / salto        (salto = 0.10 rad por defecto)
+```
+
+| grupo | `tau_max` | `kp_max` |
+|---|---:|---:|
+| hombro pitch/roll | 40 Nm | **280** |
+| hombro yaw, codo | 18 Nm | **126** |
+| muñecas | 19 Nm | **133** |
+
+Esto descartó un resultado que el barrido sin tope había dado por bueno:
+`L_shoulder_yaw` salía con kp = 280, y es un motor de 18 Nm — un salto de
+consigna de 3.7° lo habría saturado. También deja el codo sintonizado en la
+primera sesión (kp = 140) **por encima de su tope** de 126.
+
+La rejilla de kp es geométrica, no lineal: kp actúa como `1/error`, así que
+interesa muestrear en proporción.
+
 ### Paso 3 — Barrer kp y kd
 
 ```bash
@@ -114,6 +150,30 @@ J = w_err·err_rms[mrad] + w_chatter·temblor[10⁻² rad/s] + w_overshoot·sobr
 
 Si lo que molesta es la vibración, `--w-chatter 3`. Si lo que importa es la
 fidelidad del seguimiento para teleoperación, `--w-err 2`.
+
+### kd óptimo a 0.5 Hz no es kd óptimo a 3 Hz
+
+El barrido de kd elige el que menos error y menos temblor da **a la frecuencia
+con la que se ha medido**. Y a 0.5 Hz, subir kd casi siempre gana: el temblor
+baja y el error apenas se mueve. Medido en el hombro izquierdo, kd salía en el
+borde superior del barrido una y otra vez (13.5, que es 4.5 veces la
+referencia).
+
+Eso no significa que kd deba ser 13.5. Un kd alto es un filtro paso bajo sobre
+la respuesta: quita ruido, y **añade retardo a los movimientos rápidos**. A
+0.5 Hz no se nota; a 2 o 3 Hz —que es donde vive un gesto brusco del
+operador— sí.
+
+Por eso el kd ganador **hay que confirmarlo con un chirp** antes de darlo por
+bueno:
+
+```bash
+python3 scripts/02_move.py --channel lowcmd --joint L_shoulder_pitch \
+    --traj chirp --amp 0.08 --f0 0.2 --f1 3.0 --duration 20 --kp 280 --kd 13.5
+```
+
+y compararlo con el kd de referencia. Si a 3 Hz el candidato sigue peor que el
+de partida, el barrido a 0.5 Hz ha sobreajustado.
 
 ### Paso 4 — Confirmar con seguimiento, no solo con escalón
 

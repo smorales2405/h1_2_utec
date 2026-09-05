@@ -49,6 +49,11 @@ class Gains:
             for n, v in (raw.get("test_posture_deg", {}).get("joints", {}) or {}).items()
             if n in BY_NAME
         }
+        self._direction = {
+            BY_NAME[n].idx: str(v)
+            for n, v in (raw.get("test_direction", {}).get("joints", {}) or {}).items()
+            if n in BY_NAME
+        }
         self._soft = {}
         for n, lim in (raw.get("soft_limits_deg", {}).get("joints", {}) or {}).items():
             if n not in BY_NAME:
@@ -105,6 +110,13 @@ class Gains:
     def has_soft_limit(self, idx: int) -> bool:
         return idx in self._soft
 
+    def direction(self, idx: int, requested: str = "auto") -> str:
+        """Sentido del ensayo. Lo que pide el usuario manda; si pide `auto` y
+        la articulación tiene preferencia en el YAML, se usa esa."""
+        if requested != "auto":
+            return requested
+        return self._direction.get(idx, "auto")
+
     def clamp(self, idx: int, q: float) -> float:
         lo, hi = self.limits(idx)
         return min(max(q, lo), hi)
@@ -115,23 +127,67 @@ class Gains:
     # -- persistencia -----------------------------------------------------
     def write_into(self, target_set: str, path: Path = CONFIG_PATH,
                    note: str | None = None) -> None:
-        """Guarda estas ganancias en `sets[target_set]` de gains.yaml.
+        """Guarda estas ganancias en `sets[target_set].joints` de gains.yaml.
 
-        Reescribe el fichero entero con yaml.safe_dump, así que se pierden los
-        comentarios de las secciones tocadas. Se hace copia previa en
-        `<fichero>.bak`.
+        Sustituye SOLO las líneas de ese bloque, no el fichero entero. Pasar
+        por `yaml.safe_dump` sería más corto pero se llevaría por delante todos
+        los comentarios, y en este fichero los comentarios son media
+        documentación: de dónde sale cada conjunto de ganancias, por qué los
+        topes blandos no llevan margen, qué significa cada sentido de ensayo.
+
+        Deja copia previa en `<fichero>.bak`.
         """
-        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
-        entry = raw["sets"].setdefault(target_set, {})
-        entry["joints"] = self.as_dict()
-        if note:
-            entry["description"] = note
-        path.with_suffix(path.suffix + ".bak").write_text(
-            path.read_text(encoding="utf-8"), encoding="utf-8")
-        path.write_text(
-            yaml.safe_dump(raw, sort_keys=False, allow_unicode=True,
-                           default_flow_style=False),
-            encoding="utf-8")
+        original = path.read_text(encoding="utf-8")
+        lineas = original.splitlines(keepends=True)
+
+        def sangria(l: str) -> int:
+            return len(l) - len(l.lstrip(" "))
+
+        # 1) localizar `sets:`, 2) dentro, el conjunto, 3) dentro, `joints:`
+        i_sets = next((k for k, l in enumerate(lineas)
+                       if l.rstrip("\n") == "sets:"), None)
+        if i_sets is None:
+            raise KeyError("no encuentro la clave 'sets:' en " + str(path))
+
+        i_set = None
+        for k in range(i_sets + 1, len(lineas)):
+            l = lineas[k]
+            if l.strip() and sangria(l) == 0:
+                break                              # se acabó el bloque `sets:`
+            if l.strip().rstrip(":") == target_set and l.strip().endswith(":"):
+                i_set = k
+                break
+        if i_set is None:
+            raise KeyError(f"el conjunto '{target_set}' no está en {path}")
+
+        base = sangria(lineas[i_set])
+        i_joints = None
+        for k in range(i_set + 1, len(lineas)):
+            l = lineas[k]
+            if l.strip() and sangria(l) <= base:
+                break                              # se acabó este conjunto
+            if l.strip() == "joints:":
+                i_joints = k
+                break
+        if i_joints is None:
+            raise KeyError(f"'{target_set}' no tiene bloque 'joints:'")
+
+        sang_j = sangria(lineas[i_joints])
+        fin = len(lineas)
+        for k in range(i_joints + 1, len(lineas)):
+            l = lineas[k]
+            if l.strip() and sangria(l) <= sang_j:
+                fin = k
+                break
+
+        ancho = max((len(n) for n in self._joints), default=0)
+        nuevas = [f"{' ' * (sang_j + 2)}{n + ':':<{ancho + 1}} "
+                  f"{{kp: {g['kp']}, kd: {g['kd']}}}\n"
+                  for n, g in self._joints.items()]
+
+        path.with_suffix(path.suffix + ".bak").write_text(original, encoding="utf-8")
+        path.write_text("".join(lineas[:i_joints + 1] + nuevas + lineas[fin:]),
+                        encoding="utf-8")
 
 
 def load(set_name: str | None = None, path: Path = CONFIG_PATH) -> Gains:

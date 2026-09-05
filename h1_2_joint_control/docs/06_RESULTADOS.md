@@ -230,6 +230,166 @@ Conviene mover la articulación un par de veces antes de medir, y usar
 
 ---
 
+---
+
+## 7. Sintonización completa de hombros, codos y muñecas (2026-09-05)
+
+Método: kp primero (kd en su referencia), luego kd con el kp ganador. Medida
+por seguimiento sinusoidal de 0.12 rad a 0.5 Hz, tres ciclos, con la postura de
+ensayo aplicada y `dq_des` **activa**. Canal `lowcmd`, robot colgado.
+
+### Las 14, y la mejora sobre la referencia
+
+| articulación | referencia | sintonizado | err rms | qué mandó la decisión |
+|---|---|---|---:|---|
+| L_shoulder_pitch | 140 / 3.0 | 280 / 13.5 | 10.08 mrad | kp en el tope de saturación (40 Nm) |
+| L_shoulder_roll | 140 / 3.0 | 280 / 13.5 | 31.91 mrad | ídem; es la peor con diferencia |
+| L_shoulder_yaw | 140 / 3.0 | 126 / 13.5 | 10.48 mrad | kp acotado: 18 Nm, no 40 |
+| L_elbow | 140 / 3.0 | 126 / 13.5 | 9.49 mrad | ídem |
+| L_wrist_roll | 50 / 2.0 | 100 / 4.0 | 5.62 mrad | kd con óptimo **interior** |
+| L_wrist_pitch | 50 / 2.0 | 100 / 4.0 | 7.39 mrad | ídem, mismo valor |
+| L_wrist_yaw | 50 / 2.0 | 100 / 9.0 | 9.55 mrad | |
+| R_shoulder_pitch | 140 / 3.0 | 280 / 13.5 | 9.45 mrad | 16.86 → 9.45, **44 %** mejor |
+| R_shoulder_roll | 140 / 3.0 | 280 / 9.0 | 30.90 mrad | 56.71 → 30.90, **46 %** |
+| R_shoulder_yaw | 140 / 3.0 | 126 / 13.5 | 8.65 mrad | kp acotado |
+| R_elbow | 140 / 3.0 | 126 / 13.5 | 13.76 mrad | ídem |
+| R_wrist_roll | 50 / 2.0 | 100 / 9.0 | 6.74 mrad | 9.73 → 6.74, **31 %** |
+| R_wrist_pitch | 50 / 2.0 | 100 / 6.0 | 7.47 mrad | 12.25 → 7.47, **39 %** |
+| R_wrist_yaw | 50 / 2.0 | 100 / 9.0 | 9.56 mrad | 16.59 → 9.56, **42 %** |
+
+Mejora del **31 al 46 %** en error de seguimiento, sin un solo aborto en 126
+ensayos.
+
+Que `L_wrist_roll` y `L_wrist_pitch` —articulaciones independientes— den
+exactamente el mismo par de ganancias es buena señal de que el método no ajusta
+ruido. Los kd de las muñecas del brazo derecho salen algo más altos (9, 6, 9
+contra 4, 4, 9): es dispersión entre pasadas, del orden de la ya vista en la
+sección 6.
+
+### Barrido de comprobación con las ganancias nuevas
+
+Escalón suave de 0.12 rad, las 14 de una en una, postura de ensayo aplicada:
+
+| articulación | kp | kd | err final | sobreimp | subida | temblor | par máx |
+|---|---:|---:|---:|---:|---:|---:|---|
+| L_shoulder_pitch | 280 | 13.5 | −0.25° | 4.5 % | 204 ms | 0.0102 | 8.44 / 40 Nm |
+| L_shoulder_roll | 280 | 13.5 | +0.95° | 20.3 % | 132 ms | 0.0100 | 13.01 / 40 Nm |
+| L_shoulder_yaw | 126 | 13.5 | +0.52° | 0.1 % | 188 ms | 0.0102 | 2.40 / 18 Nm |
+| L_elbow | 126 | 13.5 | −0.18° | 0.0 % | 204 ms | 0.0108 | 3.52 / 18 Nm |
+| L_wrist_roll | 100 | 4.0 | +0.06° | 0.0 % | 176 ms | 0.0049 | 0.44 / 19 Nm |
+| L_wrist_pitch | 100 | 4.0 | −0.16° | 0.0 % | 177 ms | 0.0068 | 0.69 / 19 Nm |
+| L_wrist_yaw | 100 | 9.0 | +0.05° | 0.0 % | 177 ms | 0.0048 | 0.31 / 19 Nm |
+| R_shoulder_pitch | 280 | 13.5 | −0.14° | 3.2 % | 192 ms | 0.0089 | 6.68 / 40 Nm |
+| R_shoulder_roll | 280 | 9.0 | −1.09° | 21.0 % | 128 ms | 0.0117 | 14.06 / 40 Nm |
+| R_shoulder_yaw | 126 | 13.5 | +0.29° | 0.1 % | 180 ms | 0.0139 | 1.40 / 18 Nm |
+| R_elbow | 126 | 13.5 | −0.79° | 0.4 % | — | 0.0086 | 4.04 / 18 Nm |
+| R_wrist_roll | 100 | 9.0 | +0.20° | 0.1 % | 184 ms | 0.0082 | 0.56 / 19 Nm |
+| R_wrist_pitch | 100 | 6.0 | +0.19° | 0.0 % | 184 ms | 0.0078 | 0.69 / 19 Nm |
+| R_wrist_yaw | 100 | 9.0 | −0.02° | 0.1 % | 176 ms | 0.0050 | 0.94 / 19 Nm |
+
+**14 de 14 dentro de tolerancia.** Frente al barrido con las ganancias de
+`xr_teleoperate` (sección 1 bis), el error permanente de los `shoulder_roll`
+baja de ±4.2° a **±1.0°**: cuatro veces mejor en la articulación que peor
+estaba. El resto se mantiene por debajo de 0.8°.
+
+El precio es sobreimpulso en los dos `shoulder_roll`, 20 %, que antes no había.
+Es real y es la contrapartida de kp = 280: suben en 132 ms en vez de 200 y se
+pasan 1.4° antes de asentarse. Con umbral de 25 % pasa, pero si en
+teleoperación molesta, la salida es bajar kd… no: es bajar kp y aceptar más
+error permanente, o —mejor— compensar gravedad y volver a kp moderado.
+
+### Un fallo de la métrica de sobreimpulso, encontrado aquí
+
+La primera lectura de ese barrido dio **42 % y 46 %** de sobreimpulso en los
+`shoulder_roll`. Al intentar corregirlo bajando kp, salió lo contrario de lo
+que dice la teoría:
+
+| kp | «sobreimpulso» |
+|---:|---:|
+| 280 | 42.1 % |
+| 220 | 48.0 % |
+| 180 | 56.9 % |
+| 140 | 72.3 % |
+
+Bajar kp con el mismo kd **aumenta** el amortiguamiento relativo, así que el
+sobreimpulso tenía que bajar. Que subiera delataba un fallo de medida, no del
+robot.
+
+La causa: el sobreimpulso se medía contra la CONSIGNA, y con gravedad la
+articulación no parte de la consigna anterior sino de ella menos la caída
+`tau_g/kp`. Ese desfase entraba en el denominador. Y como la caída **crece** al
+bajar kp, el artefacto crecía al bajar kp — de ahí la tendencia invertida.
+
+Corregido midiendo contra el **valor final**, que es la pregunta correcta: ¿se
+pasa de donde acaba reposando, y cuánto? Recalculado sobre los mismos CSV, sin
+volver a tocar el robot:
+
+| | antes | corregido |
+|---|---:|---:|
+| L_shoulder_roll | 42.0 % | **20.3 %** |
+| R_shoulder_roll | 45.9 % | **21.0 %** |
+| L_shoulder_pitch | 0.7 % | 4.5 % |
+
+Casi la mitad era artefacto; el 20 % que queda es real.
+
+### Por qué kp acaba pegado a su techo, y qué significa
+
+En hombros y codo el error lo domina la gravedad, `tau_g/kp`, así que baja
+monótonamente con kp: el barrido sube hasta donde la saturación se lo permite.
+**No es «cuanto más kp, mejor»**; es que en esas articulaciones el problema no
+es la ganancia, es que falta compensación de gravedad. Ver la sección 3.
+
+El tope viene de exigir que un salto de consigna de 0.10 rad no pida más par que
+el umbral de aborto: `kp_max = 0.7 · tau_max / 0.10`. Son 280 en los hombros de
+40 Nm y 126 en el codo y el hombro-yaw de 18 Nm.
+
+Ese mismo criterio marca como excesivas **cuatro ganancias del propio
+`xr_teleoperate`**: `L/R_shoulder_yaw` y `L/R_elbow`, todas a kp = 140 sobre
+motores de 18 Nm, cuyo techo es 126. Un salto de consigna de 7.4° las satura.
+`99_selftest.py` lo comprueba ahora automáticamente.
+
+### kd: lo que el barrido premia y lo que hay que mirar antes de creérselo
+
+En las muñecas kd tiene un mínimo claro. Ejemplo real, `L_wrist_roll` a kp = 100:
+
+| kd | err rms | temblor | par máx |
+|---:|---:|---:|---:|
+| 1.0 | 5.14 mrad | 0.0563 | 0.50 Nm |
+| 2.0 | 5.24 | 0.0334 | 0.44 |
+| **4.0** | **5.62** | **0.0206** | **0.44** |
+| 6.0 | 6.08 | 0.0165 | 1.00 |
+| 9.0 | 6.50 | 0.0143 | 1.94 |
+
+Subiendo kd el temblor baja 4× y el error empeora un 26 %, pero lo que decide es
+la última columna: **el par de pico se cuadruplica** de kd = 4 a kd = 9. Eso es
+el término de amortiguación frenando el movimiento que se está pidiendo.
+
+En hombros y codo esa penalización **no aparece a 0.5 Hz** —tienen 40 Nm de
+margen y la misma velocidad—, y por eso allí el barrido empuja kd al máximo del
+rango (13.5). No significa que 13.5 sea buena idea: significa que a esa
+frecuencia no se paga.
+
+### El aviso que acompaña a todos estos kd
+
+Están medidos **con `dq_des` activa**. `xr_teleoperate` manda `dq_des = 0`, y
+entonces el término `kd·(0 − dq)` frena con un par que solo depende de la
+velocidad:
+
+| | `tau_max` | kd | 1 rad/s | 2 rad/s | 3 rad/s |
+|---|---:|---:|---:|---:|---:|
+| hombro | 40 Nm | 13.5 | 13.5 Nm | 27.0 Nm | **satura** |
+| codo | 18 Nm | 13.5 | 13.5 Nm | **satura** | **satura** |
+| codo | 18 Nm | 3.0 | 3.0 Nm | 6.0 Nm | 9.0 Nm |
+
+Con kd = 13.5 y sin velocidad de referencia, **el codo se satura solo con
+frenar, a 2 rad/s**, antes de que kp haya pedido nada.
+
+De ahí que los valores de esta sección vengan con una condición: **son válidos
+si la teleoperación manda la derivada de la consigna**. Si se queda con
+`dq_des = 0`, kd tiene que quedarse cerca de la referencia.
+
+---
+
 ## Qué queda por hacer
 
 - [x] ~~Repetir el barrido con una postura de partida reproducible~~ — hecho,

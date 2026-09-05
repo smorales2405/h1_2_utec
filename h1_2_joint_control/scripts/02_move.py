@@ -146,7 +146,8 @@ def main() -> int:
         posture = {} if a.no_posture else gains.test_posture()
         q0 = float(posture.get(idx, q_ahora))
 
-        amp, nota = pick_amplitude(idx, q0, a.amp, gains.limits(idx), a.direction)
+        amp, nota = pick_amplitude(idx, q0, a.amp, gains.limits(idx),
+                                   gains.direction(idx, a.direction))
         if nota:
             print(f"  ⚠ {nota}  amplitud -> {amp:+.3f} rad")
         if abs(amp) < 1e-3 and a.traj != "hold":
@@ -166,7 +167,8 @@ def main() -> int:
         cli.engage()
         apply_test_posture(cli, a, gains)
         q0 = float(cli.q_base[idx])
-        amp, nota = pick_amplitude(idx, q0, a.amp, gains.limits(idx), a.direction)
+        amp, nota = pick_amplitude(idx, q0, a.amp, gains.limits(idx),
+                                   gains.direction(idx, a.direction))
         if nota:
             print(f"  ⚠ {nota}  amplitud -> {amp:+.3f} rad")
         if a.traj == "hold":

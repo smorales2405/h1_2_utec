@@ -105,7 +105,8 @@ def main() -> int:
         cli.engage()
         apply_test_posture(cli, a, gains)
         q0 = float(cli.q_base[idx])
-        amp, nota = pick_amplitude(idx, q0, a.amp, gains.limits(idx), a.direction)
+        amp, nota = pick_amplitude(idx, q0, a.amp, gains.limits(idx),
+                                   gains.direction(idx, a.direction))
         print(f"  ensayo: {math.degrees(q0):+.1f}° -> "
               f"{math.degrees(q0 + amp):+.1f}°  {nota}\n")
         for n, (kp, kd) in enumerate(grid, 1):

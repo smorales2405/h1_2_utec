@@ -27,7 +27,7 @@ from h1_2_joint_control import crc as crcmod
 from h1_2_joint_control import metrics as mt
 from h1_2_joint_control import trajectories as tr
 from h1_2_joint_control.joints import (ARM_INDICES, ARM_SDK_INDICES, BY_INDEX,
-                                       BY_NAME, JOINTS, resolve)
+                                       BY_NAME, JOINTS, resolve)  # noqa: F401
 
 URDF = Path.home() / "humanoid_ws/src/h1_2_utec/h1_2_description/urdf/h1_2_handless.urdf"
 
@@ -236,6 +236,33 @@ def t_config():
           margen_l > 0.10 and margen_r > 0.10,
           f"L {math.degrees(margen_l):.1f}°  R {math.degrees(margen_r):.1f}° "
           f"(hacen falta ~6.9° para una amplitud de 0.12 rad)")
+    # --- saturación: ninguna ganancia nuestra debe pasar del techo ---
+    # Un kp alto solo estorba cuando la consigna salta. Se exige que un salto
+    # de 0.10 rad no pida más par del que la seguridad tolera. Esto es lo que
+    # habría cazado solo el kp=280 que un barrido sin tope propuso para
+    # L_shoulder_yaw, que es un motor de 18 Nm.
+    SALTO = 0.10
+    def techo(idx):
+        return s.tau_abort_fraction * BY_INDEX[idx].tau_max / SALTO
+
+    excesos = {}
+    for nombre in cfg.load().raw["sets"]:
+        conj = cfg.load(nombre)
+        malos = [(BY_INDEX[i].name, conj.for_index(i)[0], techo(i))
+                 for i in ARM_INDICES if conj.for_index(i)[0] > techo(i) + 1e-6]
+        if malos:
+            excesos[nombre] = malos
+    propios = excesos.get("tuned", [])
+    check("ninguna ganancia de 'tuned' satura con un salto de 0.10 rad",
+          not propios,
+          "  ".join(f"{n} kp={kp:.0f}>{t:.0f}" for n, kp, t in propios) or
+          f"techo: {techo(BY_NAME['L_elbow'].idx):.0f} en el codo, "
+          f"{techo(BY_NAME['L_shoulder_pitch'].idx):.0f} en hombro pitch/roll")
+    for nombre, malos in excesos.items():
+        if nombre != "tuned":
+            print(f"    (informativo) '{nombre}' pasa del techo en: "
+                  + ", ".join(f"{n} kp={kp:.0f}>{t:.0f}" for n, kp, t in malos))
+
     check("las articulaciones sin tope blando usan el del URDF",
           not g.has_soft_limit(BY_NAME["L_elbow"].idx)
           and abs(g.limits(BY_NAME["L_elbow"].idx)[0]

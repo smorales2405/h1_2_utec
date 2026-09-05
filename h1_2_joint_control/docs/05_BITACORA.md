@@ -250,6 +250,53 @@ cuanto más levantado el brazo. Ninguna ganancia razonable lo arregla; hace falt
 
 Robot devuelto a modo `ai` y verificado.
 
+## 2026-09-05 — Sintonización completa de los 14 y barrido final
+
+126 ensayos, sin un solo aborto. Robot colgado, canal `lowcmd`, postura de
+ensayo aplicada. Detalle en [`06_RESULTADOS.md`](06_RESULTADOS.md) §7.
+
+**Resultado**: mejora del 31 al 46 % en error de seguimiento respecto a
+`xr_teleoperate`, y el barrido de comprobación da **14/14** dentro de
+tolerancia. El error permanente de los `shoulder_roll` cae de ±4.2° a ±1.0°.
+
+### Tres cosas que obligaron a cambiar el método sobre la marcha
+
+1. **kp no tiene techo natural.** En hombros y codo el error lo domina la
+   gravedad, `tau_g/kp`, así que baja monótonamente con kp y el barrido se va
+   al borde siempre. El límite lo pone la saturación, no el seguimiento:
+   `kp_max = tau_abort_fraction · tau_max / salto`. Con 0.10 rad: 280 en los
+   hombros de 40 Nm, 126 en codo y hombro-yaw de 18 Nm.
+   Esto descartó un kp = 280 que el barrido sin tope había propuesto para
+   `L_shoulder_yaw`, que es un motor de 18 Nm, y marcó como excesivo el
+   kp = 140 del codo que se había sintonizado el día anterior.
+
+2. **La métrica de sobreimpulso estaba mal.** Ver §7 de resultados: se medía
+   contra la consigna en vez de contra el valor final, y con gravedad eso mete
+   la caída `tau_g/kp` en el denominador. Como la caída crece al bajar kp, el
+   artefacto crecía al bajar kp y el resultado salía invertido respecto a la
+   teoría: 42 % de "sobreimpulso" con kp=280 y 72 % con kp=140. Corregido, los
+   `shoulder_roll` quedan en un 20 % real.
+   Lo delató el propio dato: que bajar kp con kd fijo empeorara el
+   sobreimpulso es imposible.
+
+3. **El kd sintonizado depende de si se manda `dq_des`.** Chirp de 0.2 a 3 Hz
+   en el codo:
+
+   | | `dq_des` activa | `dq_des = 0` |
+   |---|---:|---:|
+   | kd = 13.5 | **16.49 mrad** | 35.49 mrad |
+   | kd = 3.0 | 23.89 mrad | **26.81 mrad** |
+
+   El orden se invierte. Con velocidad de referencia, kd alto gana un 31 %; sin
+   ella pierde un 32 %. El conjunto `tuned` lleva el aviso en `gains.yaml`.
+
+### Lo que NO resultó ser un problema
+
+Sospechaba que los kd altos elegidos a 0.5 Hz estarían sobreajustados y
+fallarían a 3 Hz. Medido con chirp: kd = 13.5 gana a kd = 3 en error (16.5
+contra 23.9 mrad), en temblor y hasta en par de pico. La sospecha era
+razonable y era falsa.
+
 ### Pendiente
 
 - [ ] Repetir el barrido del codo en dos o tres posturas más: todo lo medido lo

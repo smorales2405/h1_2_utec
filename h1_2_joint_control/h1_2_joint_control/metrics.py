@@ -157,7 +157,25 @@ def step_response(samples, idx, kp, kd, t_step: float) -> StepMetrics:
         return float(tp[w[0]]) if w.size else float("nan")
     rise = _first(prog >= 0.9) - _first(prog >= 0.1)
 
-    overshoot = max(0.0, float(np.max(prog)) - 1.0)
+    # Sobreimpulso medido contra el valor FINAL, no contra la consigna.
+    #
+    # Medirlo contra la consigna es lo habitual y aquí está mal, porque con
+    # gravedad la articulación NO parte de la consigna anterior: parte de ella
+    # menos la caída `tau_g/kp`. Ese desfase se cuela en el denominador y sale
+    # un sobreimpulso que no existe. Peor: como la caída crece al bajar kp, el
+    # artefacto crece al bajar kp, y el resultado dice justo lo contrario de lo
+    # que hace el sistema. Medido en `L_shoulder_roll`: 42 % "de sobreimpulso"
+    # con kp=280 y 72 % con kp=140, cuando la física dice que kp bajo con el
+    # mismo kd amortigua MÁS.
+    #
+    # Contra el valor final la pregunta que se responde es la correcta: ¿se
+    # pasa de donde acaba reposando, y cuánto?
+    recorrido = q_final - q_start
+    if abs(recorrido) < 1e-9:
+        overshoot = 0.0
+    else:
+        pico = float(np.max(qp) if recorrido > 0 else np.min(qp))
+        overshoot = max(0.0, (pico - q_final) / recorrido)
 
     # asentamiento: último instante fuera de la banda del ±2 % de la amplitud
     outside = np.flatnonzero(np.abs(qp - q_final) > 0.02 * abs(amp))

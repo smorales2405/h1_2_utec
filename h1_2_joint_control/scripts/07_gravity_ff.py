@@ -106,7 +106,8 @@ def main() -> int:
             j = BY_INDEX[idx]
             kp, kd = gains.for_index(idx)
             q0 = float(cli.q_base[idx])
-            amp, _nota = pick_amplitude(idx, q0, a.amp, gains.limits(idx), a.direction)
+            amp, _nota = pick_amplitude(idx, q0, a.amp, gains.limits(idx),
+                                   gains.direction(idx, a.direction))
             if abs(amp) < 5e-3:
                 print(f"  [{n}/{len(targets)}] {j.name}: sin recorrido, se salta.")
                 continue

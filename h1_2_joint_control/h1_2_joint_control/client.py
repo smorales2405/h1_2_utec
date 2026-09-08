@@ -115,6 +115,9 @@ class H12Client:
         dry_run: bool = False,
         max_weight: float = 1.0,
         legs_policy: str = "free",
+        gravity=None,
+        gravity_ramp: float = 1.0,
+        gravity_frac: float = 0.5,
     ):
         """`dry_run`: publica en un tópico que nadie escucha. El robot no se
         entera de nada; sirve para validar el software.
@@ -138,6 +141,17 @@ class H12Client:
         if legs_policy not in ("free", "damp", "hold"):
             raise ValueError("legs_policy debe ser 'free', 'damp' o 'hold'")
         self.legs_policy = legs_policy
+
+        # Compensación de gravedad. Se evalúa en `q_des` y a la frecuencia del
+        # LAZO, no a la de la trayectoria: el par que hace falta depende de
+        # dónde se le está pidiendo estar en ese instante.
+        self.gravity = gravity
+        self.gravity_ramp = float(gravity_ramp)
+        # Tope propio, independiente del aborto por par: un fallo de signo o un
+        # modelo disparatado no puede meter más de esta fracción del par máximo.
+        self.gravity_frac = float(gravity_frac)
+        self._g_scale = 0.0
+        self._g_clip = 0
         if channel not in ("arm_sdk", "lowcmd"):
             raise ValueError("channel debe ser 'arm_sdk' o 'lowcmd'")
         self.channel = channel
@@ -167,6 +181,7 @@ class H12Client:
         self._q_des = np.zeros(NUM_CMD_MOTOR)
         self._dq_des = np.zeros(NUM_CMD_MOTOR)
         self._tau_ff = np.zeros(NUM_CMD_MOTOR)
+        self._tau_g = np.zeros(NUM_CMD_MOTOR)
         self._kp = np.zeros(NUM_CMD_MOTOR)
         self._kd = np.zeros(NUM_CMD_MOTOR)
         self._weight = 0.0
@@ -328,6 +343,8 @@ class H12Client:
             self._q_prev[:] = self.q0
             self._dq_des[:] = 0.0
             self._tau_ff[:] = 0.0
+            self._tau_g[:] = 0.0
+            self._g_scale = 0.0
             for i in self.commanded:
                 kp, kd = self.gains.for_index(i)
                 self._kp[i], self._kd[i] = kp, kd
@@ -388,6 +405,9 @@ class H12Client:
             self._stop_loop()
             self._log("control devuelto al robot.")
             self._log("  " + self.loop_health())
+            if self.gravity is not None:
+                self._log(f"  gravedad: activa, {self._g_clip} ciclos recortados "
+                          f"al {self.gravity_frac*100:.0f} % del par máximo")
             if self.collision_clamps:
                 self._log(f"  ⚠ la protección de autocolisión recortó la consigna "
                           f"en {self.collision_clamps} ciclos "
@@ -666,6 +686,17 @@ class H12Client:
                 self.wrist_motion, self.commanded)
             self._q_prev[:] = self._q_des
 
+            # gravedad: rampa de entrada para no meter un escalón de par
+            if self.gravity is not None:
+                self._g_scale = min(1.0, self._g_scale + self.dt / max(self.gravity_ramp, 1e-3))
+                g = self.gravity.tau(self._q_des)
+                for i in self.commanded:
+                    tope = self.gravity_frac * BY_INDEX[i].tau_max
+                    v = float(np.clip(g.get(i, 0.0), -tope, tope))
+                    if abs(g.get(i, 0.0)) > tope:
+                        self._g_clip += 1
+                    self._tau_g[i] = v * self._g_scale
+
             # rampa de peso
             step = self._weight_rate * self.dt
             if self._weight < self._weight_target:
@@ -675,7 +706,7 @@ class H12Client:
             weight = self._weight
             q_des = self._q_des.copy()
             dq_des = self._dq_des.copy()
-            tau_ff = self._tau_ff.copy()
+            tau_ff = self._tau_ff + self._tau_g
             kp, kd = self._kp.copy(), self._kd.copy()
             recording = self._recording
             t_rec = now - self._t_record0

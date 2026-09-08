@@ -41,6 +41,16 @@ def add_common_args(ap: argparse.ArgumentParser) -> None:
                     help="no llevar el robot a la postura de ensayo de "
                          "config/gains.yaml (hombros separados del cuerpo) "
                          "antes de medir")
+    ap.add_argument("--kp-scale", type=float, default=1.0,
+                    help="multiplica kp de las articulaciones vigiladas. Con 0.5 "
+                         "es la prueba de humo de la compensación de gravedad: "
+                         "con tau_ff el brazo debe sostenerse igual")
+    ap.add_argument("--gravity-ff", action="store_true",
+                    help="compensar la gravedad con el modelo identificado. "
+                         "Sin esto, el PD solo genera el par de sostenimiento a "
+                         "costa de un error permanente tau_g/kp que no se va")
+    ap.add_argument("--gravity-frac", type=float, default=0.5,
+                    help="tope de tau_ff, como fracción del par máximo")
     ap.add_argument("--direction", choices=["auto", "positive", "negative"],
                     default="auto",
                     help="sentido del ensayo. auto = hacia donde queda más "
@@ -82,6 +92,14 @@ def confirm(args, extra: str = "") -> None:
         raise SystemExit("  cancelado.")
 
 
+def _gravedad(args):
+    """El modelo de gravedad, o None si no se ha pedido."""
+    if not getattr(args, "gravity_ff", False):
+        return None
+    from h1_2_joint_control.gravity import GravityModel
+    return GravityModel()
+
+
 def require_debug_mode(args) -> None:
     """Con `--channel lowcmd`, negarse a arrancar si el servicio sigue activo.
 
@@ -118,11 +136,18 @@ def build_client(args, controlled: list[int], verbose: bool = True) -> H12Client
             kp, kd = gains.for_index(i)
             gains.set_index(i, args.kp if args.kp is not None else kp,
                             args.kd if args.kd is not None else kd)
+    escala = getattr(args, "kp_scale", 1.0)
+    if escala != 1.0:
+        for i in controlled:
+            kp, kd = gains.for_index(i)
+            gains.set_index(i, kp * escala, kd)
     return H12Client(controlled=controlled, gains=gains, channel=args.channel,
                      rate_hz=args.rate, verbose=verbose,
                      dry_run=getattr(args, "dry_run", False),
                      max_weight=getattr(args, "weight", 1.0),
-                     legs_policy=getattr(args, "legs", "free"))
+                     legs_policy=getattr(args, "legs", "free"),
+                     gravity=_gravedad(args),
+                     gravity_frac=getattr(args, "gravity_frac", 0.5))
 
 
 def joint_index(spec: str) -> int:

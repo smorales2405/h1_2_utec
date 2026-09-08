@@ -633,11 +633,57 @@ físicamente imposible. La diferencia es que aquí también se ajustan los
 eslabones del brazo (+0.47 kg repartidos), así que la mano no tiene que absorber
 todo el error.
 
-### Límites de este resultado
+### Los dos brazos, identificados por separado
 
-- **Solo el brazo izquierdo.** Los eslabones del derecho son cuerpos distintos
-  en el modelo; hace falta repetir el mapeo (unos 4 min) para tener su `tau_ff`.
+Repetido el mapeo con el brazo derecho (30 configuraciones, semilla distinta,
+otro conjunto de cuerpos del modelo):
+
+| | izquierdo | derecho |
+|---|---:|---:|
+| rms URDF → identificado | 2.574 → **0.337** Nm | 2.252 → **0.360** Nm |
+| error máximo | 8.167 → 1.126 Nm | 7.494 → 1.438 Nm |
+| **masa de mano identificada** | **1.138 kg** | **1.074 kg** |
+| masa de brazo | 6.866 kg | 7.287 kg |
+
+Los dos ajustes son **independientes** —datos distintos, cuerpos distintos del
+modelo— y coinciden en la masa de la mano al **6 %**. Es la mejor validación
+que hay del método: dos identificaciones separadas convergen al mismo valor
+físico, y ese valor es compatible con una mano Inspire de ~800 g más conector y
+cable.
+
+### Validación en movimiento: escalón con y sin compensación
+
+Escalón suave de 0.12 rad, ganancias `tuned`, canal `lowcmd`:
+
+| articulación | | err final | sobreimp. | establec. | pico τ |
+|---|---|---:|---:|---:|---:|
+| **L_shoulder_roll** | sin compensar | +17.85 mrad | 19.4 % | 506 ms | 13.36 Nm |
+| | con `τ_ff` | **+2.72 mrad** | 18.3 % | 495 ms | 13.80 Nm |
+| | `τ_ff` + kp a la mitad | +13.70 mrad | **5.6 %** | 482 ms | 10.46 Nm |
+| **L_shoulder_pitch** | sin compensar | −14.19 mrad | 8.3 % | 792 ms | 10.11 Nm |
+| | con `τ_ff` | **+0.32 mrad** | 8.0 % | 533 ms | 9.93 Nm |
+| | `τ_ff` + kp a la mitad | −1.01 mrad | **2.3 %** | **464 ms** | **8.79 Nm** |
+
+Con compensación el error permanente cae **un 85 % en el roll y un 98 % en el
+pitch**. Y la última fila de `shoulder_pitch` es el resultado que buscaba el
+protocolo en F2.3: **con la gravedad compensada y la mitad de kp**, el error es
+14 veces menor que sin compensar a kp completo, el sobreimpulso baja del 8.3 %
+al 2.3 %, asienta más rápido y pide menos par. Todo a la vez.
+
+En `shoulder_roll` la rebaja de kp sale peor (13.70 contra 2.72 mrad) porque el
+residuo del modelo en esa articulación es mayor: al dividir kp por dos, el error
+que ese residuo produce se duplica. Aun así el sobreimpulso baja del 19.4 % al
+5.6 %.
+
+**Prueba de humo del protocolo**: `01_hold` con `τ_ff` y kp a la mitad — el
+brazo se sostiene, deriva de 1.63 mrad, cero ciclos recortados por el tope del
+50 % del par. El signo del modelo es correcto.
+
+### Límites de este resultado
 - **Sin objeto en la mano.** Es la condición L0 de F4.
+- **kp sigue sin re-sintonizarse.** La tabla de arriba prueba que con `τ_ff` se
+  puede bajar kp, pero el barrido completo con la gravedad activa (F2.3) está
+  pendiente. Los `tuned` actuales se eligieron sin compensación.
 - El λ elegido (0.003) es el menor probado, pero la curva de error de prueba es
   plana entre 0.03 y 0.003 (0.359 contra 0.354 Nm), así que no es un óptimo en
   el borde: es una meseta.

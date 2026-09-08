@@ -188,6 +188,15 @@ class H12Client:
         # mismo en cuanto se aplica una postura de ensayo.
         self.q0 = np.zeros(NUM_CMD_MOTOR)
         self.q_base = np.zeros(NUM_CMD_MOTOR)
+
+        # Autocolisión hombro-codo. Si el ensayo mueve alguna muñeca se aplica
+        # el margen extra: con los dedos abiertos el pulgar sobresale y es lo
+        # primero que toca la pierna.
+        self.wrist_motion = any(BY_INDEX[i].group == "wrist" for i in controlled)
+        self._cond_pairs = {r: e for r, e in self.gains.cond_pairs().items()
+                            if r in self.commanded and e in self.commanded}
+        self.collision_clamps = 0
+        self._q_prev = np.zeros(NUM_CMD_MOTOR)
         self.cycles = 0
         self.late_cycles = 0
         self._loop_t0 = 0.0
@@ -197,7 +206,17 @@ class H12Client:
         self._owns_rclpy = not rclpy.ok()
         if self._owns_rclpy:
             rclpy.init()
-        self.node = Node(node_name)
+        try:
+            self.node = Node(node_name)
+        except Exception as exc:
+            # "rcl node's rmw handle is invalid" no dice la causa, y la causa
+            # casi siempre es que la NIC del CYCLONEDDS_URI está caída.
+            raise RuntimeError(
+                f"no se pudo crear el nodo ROS ({exc}).\n"
+                f"    Causa habitual: la interfaz de red del CYCLONEDDS_URI\n"
+                f"    está caída. Comprueba con:  ip -br addr show\n"
+                f"    Si el robot está apagado o el cable desconectado, es eso."
+            ) from exc
         self._state: LowState | None = None
         self._state_stamp = 0.0
         self._state_lock = threading.Lock()
@@ -306,6 +325,7 @@ class H12Client:
 
         with self._lock:
             self._q_des[:] = self.q0
+            self._q_prev[:] = self.q0
             self._dq_des[:] = 0.0
             self._tau_ff[:] = 0.0
             for i in self.commanded:
@@ -368,6 +388,11 @@ class H12Client:
             self._stop_loop()
             self._log("control devuelto al robot.")
             self._log("  " + self.loop_health())
+            if self.collision_clamps:
+                self._log(f"  ⚠ la protección de autocolisión recortó la consigna "
+                          f"en {self.collision_clamps} ciclos "
+                          f"({100*self.collision_clamps/max(self.cycles,1):.1f} %). "
+                          f"La postura pedida no era compatible con el codo.")
 
     def emergency_release(self, reason: str) -> None:
         """Suelta ya, sin volver a la postura inicial. Solo para abortos.
@@ -631,6 +656,15 @@ class H12Client:
                 q_rel, dq_rel = func(now - t0)
                 self._q_des[i] = self.gains.clamp(i, base + q_rel)
                 self._dq_des[i] = dq_rel
+
+            # Autocolisión: la restricción acopla hombro y codo, así que se
+            # comprueba sobre la PAREJA y se frena al que se esté moviendo.
+            # Se mira `q_des`, no `q`: cuando la articulación real ha llegado
+            # a una postura en colisión ya es tarde; hay que vetar la orden.
+            self.collision_clamps += self.gains.enforce_pairs(
+                self._q_des, self._q_prev, self._traj,
+                self.wrist_motion, self.commanded)
+            self._q_prev[:] = self._q_des
 
             # rampa de peso
             step = self._weight_rate * self.dt

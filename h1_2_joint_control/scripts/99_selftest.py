@@ -263,6 +263,104 @@ def t_config():
             print(f"    (informativo) '{nombre}' pasa del techo en: "
                   + ", ".join(f"{n} kp={kp:.0f}>{t:.0f}" for n, kp, t in malos))
 
+    # --- tope de hombro condicionado al codo ---
+    lsr = BY_NAME["L_shoulder_roll"].idx
+    rsr = BY_NAME["R_shoulder_roll"].idx
+    check("el tope de hombro depende del codo",
+          g.elbow_of(lsr) == BY_NAME["L_elbow"].idx
+          and g.elbow_of(rsr) == BY_NAME["R_elbow"].idx)
+    r0 = math.degrees(g.roll_min_abs(lsr, 0.0))
+    r80 = math.degrees(g.roll_min_abs(lsr, math.radians(80)))
+    check("codo flexionado (0°) permite acercar el hombro a 5°",
+          abs(r0 - 5.0) < 0.01, f"{r0:.1f}°")
+    check("brazo estirado (80°) exige 10°", abs(r80 - 10.0) < 0.01, f"{r80:.1f}°")
+    check("moviendo muñecas exige 5° más",
+          abs(math.degrees(g.roll_min_abs(lsr, math.radians(80), True)) - 15.0) < 0.01)
+    check("el condicional SUSTITUYE al tope fijo, no se intersecta",
+          abs(math.degrees(g.limits_dynamic(lsr, 0.0)[0]) - 5.0) < 0.01,
+          "si se intersectaran, el fijo de 10° ganaría y el condicional no serviría")
+    check("el signo se invierte en el brazo derecho",
+          abs(math.degrees(g.limits_dynamic(rsr, 0.0)[1]) + 5.0) < 0.01,
+          f"{math.degrees(g.limits_dynamic(rsr, 0.0)[1]):+.1f}°")
+    check("pareja hombro-codo: acepta lo válido y rechaza lo inválido",
+          g.pair_ok(lsr, math.radians(6), 0.0)
+          and not g.pair_ok(lsr, math.radians(4), 0.0)
+          and not g.pair_ok(lsr, math.radians(6), math.radians(80))
+          and g.pair_ok(lsr, math.radians(11), math.radians(80)))
+    # la inversa: con el hombro a 6°, ¿hasta dónde puede estirarse el codo?
+    e_max = math.degrees(g.max_elbow_for_roll(lsr, math.radians(6.0)))
+    check("inversa: con el hombro a 6°, el codo no pasa de ~16°",
+          14.0 < e_max < 18.0, f"{e_max:.1f}°")
+    check("la regla es más conservadora que el modelo de colisión",
+          # peor caso medido con pinocchio el 2026-09-07: codo 85° exige +5°
+          math.degrees(g.roll_min_abs(lsr, math.radians(85))) > 5.0,
+          f"regla {math.degrees(g.roll_min_abs(lsr, math.radians(85))):.1f}° "
+          f"contra +5° del modelo -> 5° de margen")
+
+    # --- el portero, probado sin DDS ---
+    import numpy as _np
+    from h1_2_joint_control.joints import NUM_CMD_MOTOR as _N
+    le, lr = BY_NAME["L_elbow"].idx, BY_NAME["L_shoulder_roll"].idx
+    re_, rr = BY_NAME["R_elbow"].idx, BY_NAME["R_shoulder_roll"].idx
+    mand = set(range(_N))
+
+    def valido(roll_l=18.0, elb_l=85.0, roll_r=-18.0, elb_r=85.0):
+        q = _np.zeros(_N)
+        q[lr], q[le] = math.radians(roll_l), math.radians(elb_l)
+        q[rr], q[re_] = math.radians(roll_r), math.radians(elb_r)
+        return q
+
+    q0_ = valido()
+    check("no toca una postura valida",
+          g.enforce_pairs(valido(), q0_, set(), False, mand) == 0)
+
+    # el codo se estira con el hombro demasiado cerca -> se frena EL CODO
+    prev = valido(roll_l=6.0, elb_l=0.0)
+    q = valido(roll_l=6.0, elb_l=80.0)
+    n = g.enforce_pairs(q, prev, {le}, False, mand)
+    check("frena el CODO cuando es el codo el que se mueve",
+          n == 1 and abs(math.degrees(q[le])) < 1.0
+          and abs(math.degrees(q[lr]) - 6.0) < 0.01,
+          f"codo {math.degrees(q[le]):.1f}° (pedia 80), hombro intacto")
+
+    # el hombro se acerca con el brazo estirado -> se frena EL HOMBRO
+    prev = valido(roll_l=12.0)
+    q = valido(roll_l=6.0)
+    n = g.enforce_pairs(q, prev, {lr}, False, mand)
+    check("frena el HOMBRO cuando es el hombro el que se mueve",
+          n == 1 and abs(math.degrees(q[lr]) - 12.0) < 0.01,
+          f"hombro {math.degrees(q[lr]):.1f}° (pedia 6, venia de 12)")
+
+    # partiendo de una postura que YA incumple, acercarse al tope se permite
+    prev = valido(roll_l=5.0)
+    q = valido(roll_l=6.0)
+    check("permite mejorar desde una postura que ya incumplia",
+          g.enforce_pairs(q, prev, {lr}, False, mand) == 0
+          and abs(math.degrees(q[lr]) - 6.0) < 0.01,
+          "el robot en reposo tiene los hombros a ±5°: el portero no debe "
+          "moverlos ni bloquear la ida a la postura de ensayo")
+
+    # y no debe ORDENAR movimiento sobre una violacion preexistente
+    prev = valido(roll_l=5.0)
+    q = valido(roll_l=5.0)
+    check("no ordena movimiento sobre una violacion preexistente",
+          g.enforce_pairs(q, prev, set(), False, mand) == 0
+          and abs(math.degrees(q[lr]) - 5.0) < 0.01)
+
+    # brazo derecho, signo invertido
+    prev = valido(roll_r=-12.0)
+    q = valido(roll_r=-6.0)
+    n = g.enforce_pairs(q, prev, {rr}, False, mand)
+    check("funciona igual en el brazo derecho",
+          n == 1 and abs(math.degrees(q[rr]) + 12.0) < 0.01,
+          f"hombro {math.degrees(q[rr]):.1f}° (pedia -6)")
+
+    # con muñecas en movimiento el listón sube a 15°
+    prev = valido(roll_l=18.0)
+    q = valido(roll_l=12.0)
+    check("moviendo muñecas, 12° ya no basta",
+          g.enforce_pairs(q, prev, {lr}, True, mand) == 1)
+
     check("las articulaciones sin tope blando usan el del URDF",
           not g.has_soft_limit(BY_NAME["L_elbow"].idx)
           and abs(g.limits(BY_NAME["L_elbow"].idx)[0]

@@ -21,6 +21,15 @@ export CYCLONEDDS_URI="<CycloneDDS><Domain><General><Interfaces>
   <NetworkInterface name=\"${H12_NIC}\"/>
 </Interfaces></General></Domain></CycloneDDS>"
 
+# Si la NIC está caída, CycloneDDS no puede enlazarla y rclpy falla al crear
+# el nodo con "rcl node's rmw handle is invalid", que no dice nada de la causa.
+# Mejor avisar aquí.
+if [ -r "/sys/class/net/${H12_NIC}/carrier" ] \
+   && [ "$(cat /sys/class/net/${H12_NIC}/carrier 2>/dev/null)" != "1" ]; then
+    echo "  ⚠ ${H12_NIC} no tiene portadora: cable desconectado o robot apagado."
+    echo "    Los scripts fallarán al crear el nodo ROS. Revisa el cable."
+fi
+
 # Para poder importar el paquete sin instalarlo
 _here="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )/.." &> /dev/null && pwd )"
 export PYTHONPATH="${_here}:${PYTHONPATH}"

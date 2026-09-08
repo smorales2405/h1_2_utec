@@ -123,6 +123,72 @@ Resultado para los hombros:
 Desde la postura de ensayo (±18°) quedan **8° de recorrido hacia el cuerpo**,
 suficiente para una amplitud de 0.12 rad (6.9°) sin llegar al tope.
 
+## El tope de hombro depende del codo (2026-09-08)
+
+Un número fijo no describe una autocolisión: el límite real depende de dónde
+esté el resto del brazo. Medido con el modelo de colisión del URDF, el mínimo
+de `shoulder_roll` sin choque va de **+5° a −22°** según codo y `shoulder_pitch`
+— 27° de variación.
+
+La regla que se aplica ahora, aportada por el operador y contrastada contra ese
+modelo:
+
+| codo | \|shoulder_roll\| mínimo | con muñecas en movimiento |
+|---:|---:|---:|
+| 0° (flexionado) | **5°** | 10° |
+| 40° | 7.5° | 12.5° |
+| 80° o más (estirado) | **10°** | 15° |
+
+Interpolación lineal entre los extremos, en `shoulder_roll_vs_elbow_deg` de
+`gains.yaml`. El extra por muñecas es porque con los dedos abiertos el pulgar
+sobresale y es lo primero que toca la pierna.
+
+**Convención del codo**, que es contraintuitiva y conviene fijar: el modelo
+sitúa la muñeca a **0.42 m** del hombro con el codo a 0° y a **0.57 m** con el
+codo a 85°. Es decir, **0° es el brazo más flexionado** y ~85° el más estirado.
+Con el brazo flexionado la mano queda adelante y arriba, lejos de la cadera; por
+eso ahí el hombro puede acercarse más al cuerpo.
+
+### Validación contra el modelo
+
+| codo | regla | peor caso del modelo | margen |
+|---:|---:|---:|---:|
+| 0° | 5.0° | −10° | 15.0° |
+| 20° | 6.2° | −6° | 12.2° |
+| 40° | 7.5° | +1° | 6.5° |
+| 60° | 8.8° | +1° | 7.8° |
+| 85° | 10.0° | **+5°** | **5.0°** |
+| 110° | 10.0° | +1° | 9.0° |
+| 140° | 10.0° | −2° | 12.0° |
+| 170° | 10.0° | −10° | 20.0° |
+
+**La regla es más conservadora que el modelo en los ocho casos**, con 5° de
+margen en el peor y 10° si se mueven muñecas. Por eso no hizo falta la fase de
+modelo de colisión completa que proponía el protocolo.
+
+El choque que aparece no es brazo contra torso sino **muñeca contra cadera**.
+
+### Cómo se aplica: el portero
+
+`Gains.enforce_pairs()` corrige `q_des` en cada ciclo, y vive en `config.py` y no
+en el cliente para poder probarlo sin DDS ni robot. Dos decisiones que no son
+obvias:
+
+**Frena a quien se mueve.** Si el codo se estira hacia 80° con el hombro a 6°,
+hay que parar el CODO. Frenar siempre al hombro dejaría pasar un ensayo de codo
+que se salta la restricción.
+
+**No corrige hacia la zona buena, solo impide empeorar.** Un portero que
+«arregle» la postura ORDENA un movimiento que nadie ha pedido. Y esto no es
+teórico: **el robot en reposo tiene los hombros a ±5° con el brazo estirado**,
+que ya incumple la regla de ±10°. Un portero corrector movería los dos brazos
+nada más enganchar. Se compara la violación nueva con la anterior y solo se
+congela si aumenta; acercarse al tope desde fuera siempre se permite, que es lo
+que hace `go_to_test_posture` al llevar los hombros de ±5° a ±18°.
+
+Se comprueba sobre `q_des` y no sobre `q`: cuando la articulación real ha
+llegado a una postura en colisión, ya es tarde.
+
 ## Elegir el sentido del ensayo
 
 `--direction auto` (por defecto) va hacia donde queda **más recorrido

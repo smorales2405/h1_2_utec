@@ -1,0 +1,56 @@
+--- robot_arm_orig.py	2026-09-08 17:05:49.182447592 -0500
++++ robot_arm.py	2026-09-08 17:06:32.469453711 -0500
+@@ -953,6 +953,28 @@
+         self.set_arm_velocity_limit()
+         self.control_dt = 1.0 / 250.0
+ 
++        # --- velocidad de referencia -------------------------------------
++        # El motor calcula tau = kp*(q_des - q) + kd*(dq_des - dq) + tau_ff.
++        # Mandando dq_des = 0, el termino kd frena el movimiento que se esta
++        # pidiendo y hace falta error de posicion extra para vencerlo.
++        #
++        # Medido en el H1-2 con manos Inspire (h1_2_joint_control,
++        # docs/06_RESULTADOS.md secciones 5 y 14): 35 % mas de error rms en un
++        # seno de 0.5 Hz y 45 % en un chirp de 0.2 a 2 Hz.
++        #
++        # No es opcional si se usan las ganancias del conjunto `tuned_gff`, que
++        # llegan a kd = 20.25: se sintonizaron CON velocidad de referencia y
++        # sin ella el orden de preferencia entre candidatos se invierte.
++        #
++        # dq_des se deriva de la consigna YA RECORTADA -la que ve el motor- con
++        # un filtro de primer orden. Sin filtrar, el ruido del IK entraria en
++        # el par multiplicado por kd.
++        self.send_dq = True
++        self.dq_filter_hz = 10.0
++        self.dq_limit = 2.0
++        self._dq_filtered = np.zeros(14)
++        self._prev_clipped_q = None
++
+ 
+         if self.motion_mode:
+             self.lowcmd_publisher = ChannelPublisher(kTopicLowCommand_Motion, hg_LowCmd)
+@@ -1047,9 +1069,23 @@
+             else:
+                 cliped_arm_q_target = self.clip_arm_q_target(arm_q_target, velocity_limit = self.arm_velocity_limit)
+ 
++            if self.send_dq:
++                if self._prev_clipped_q is None:
++                    dq_raw = np.zeros(14)
++                else:
++                    dq_raw = ((cliped_arm_q_target - self._prev_clipped_q)
++                              / self.control_dt)
++                alpha = self.control_dt / (self.control_dt
++                                           + 1.0 / (2.0 * np.pi * self.dq_filter_hz))
++                self._dq_filtered += alpha * (dq_raw - self._dq_filtered)
++                dq_cmd = np.clip(self._dq_filtered, -self.dq_limit, self.dq_limit)
++            else:
++                dq_cmd = np.zeros(14)
++            self._prev_clipped_q = cliped_arm_q_target.copy()
++
+             for idx, id in enumerate(H1_2_JointArmIndex):
+                 self.msg.motor_cmd[id].q = cliped_arm_q_target[idx]
+-                self.msg.motor_cmd[id].dq = 0
++                self.msg.motor_cmd[id].dq = dq_cmd[idx]
+                 self.msg.motor_cmd[id].tau = arm_tauff_target[idx]      
+ 
+             self.msg.crc = self.crc.Crc(self.msg)

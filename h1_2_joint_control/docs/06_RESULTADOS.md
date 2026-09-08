@@ -837,6 +837,83 @@ método: sin `δ_min` no se puede afirmar que un candidato sea mejor que otro.
 
 ---
 
+## 12. F1: la dispersión no era ruido, era un fallo. `δ_min` medido
+
+La §11 concluía que el barrido «no es reproducible» y que hacía falta F1 para
+acotar el ruido. **La conclusión era equivocada, y F1 lo demostró.**
+
+### La medida es muy repetible
+
+Ensayo canónico repetido, `L_shoulder_roll`, escalón de 0.12 rad, kp = 280,
+kd = 13.5, gravedad compensada:
+
+| bloque | n | err rms mediana | IQR | sobreimp. mediana | IQR | err final mediana | IQR |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| base | 6 | 9.69 mrad | 0.20 | 16.4 % | 0.5 | 2.57 mrad | 0.02 |
+| vecinas | 6 | 10.08 | 0.16 | 16.7 % | 0.2 | 2.79 | 0.12 |
+
+**`δ_min` = 1.5 × IQR del bloque base:**
+
+| magnitud | `δ_min` |
+|---|---:|
+| error rms | **0.30 mrad** |
+| sobreimpulso | **0.7 puntos porcentuales** |
+| error permanente | **0.03 mrad** |
+
+Por debajo de eso, ninguna diferencia entre candidatos es defendible. Y son
+valores **pequeños**: el instrumento es bueno.
+
+El bloque «vecinas» —mover las otras seis articulaciones entre repetición y
+repetición— desplaza el sobreimpulso 0.4 pp, dentro del ruido. **No hay efecto
+de contexto.**
+
+### El fallo que producía la dispersión
+
+`wrist_motion` se deducía de la lista de articulaciones **controladas**, no de
+las que se mueven. En un barrido las siete están controladas pero solo una se
+mueve, así que el margen extra por muñeca se aplicaba **siempre** y el tope de
+`shoulder_roll` subía de 10° a 15°.
+
+Un ensayo que va de 18° a 11.1° choca con ese tope. El portero de autocolisión
+lo recortaba —**45.6 % de los ciclos** en la corrida que lo destapó— y el
+escalón se quedaba a medias: `q_final` cerca de `q_start`, y un «sobreimpulso»
+del 61 % que no existía.
+
+Corregido usando las articulaciones con trayectoria activa en vez de las
+controladas. Verificado:
+
+| | antes | después |
+|---|---:|---:|
+| 7 controladas, 1 en movimiento | 61.2 % | **16.4 %** |
+| 1 controlada (aislado) | 16.9 % | 16.9 % |
+
+Coinciden. La dispersión de §11 era **determinista**, no estadística: el mismo
+ensayo daba resultados distintos según cuántas articulaciones hubiera en la
+lista de controladas, y eso no es ruido, es un fallo.
+
+### Qué significa para lo anterior
+
+- **§11 queda corregida.** El barrido sí es reproducible; lo que no era válido
+  era el barrido con el fallo dentro.
+- **El resultado de F2.3 se sostiene y ahora es significativo**: la diferencia
+  entre 1–3 % de sobreimpulso a kp = 70 y 17 % a kp = 280 es **veinte veces
+  `δ_min`**.
+- Los tres artefactos encontrados en dos días —métrica de sobreimpulso contra la
+  consigna, salto de par al cambiar ganancias, y este— tienen la misma forma:
+  **algo que parece un resultado físico y es un fallo de medida**. La regla 7
+  del protocolo («un hallazgo que contradiga la teoría es primero un fallo de
+  medida») acertó tres de tres.
+
+### Un aviso que salió de paso
+
+En la corrida con el fallo, el lazo se quedó en **218.8 Hz de 250, con un 28.4 %
+de ciclos tarde** — con el portero disparándose en el 45 % de los ciclos, siete
+articulaciones registrándose y el modelo de gravedad activo. Sin el fallo el
+portero no se dispara, pero conviene vigilar la frecuencia efectiva cuando se
+acumulan las tres cosas.
+
+---
+
 ## Qué queda por hacer
 
 - [x] ~~Repetir el barrido con una postura de partida reproducible~~ — hecho,

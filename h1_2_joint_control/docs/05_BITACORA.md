@@ -457,9 +457,40 @@ independientes), que `τ_ff` quita el 85-98 % del error permanente, y que con
 gravedad compensada `shoulder_roll` a kp = 70 da ~1-3 % de sobreimpulso contra
 ~17 % a kp = 280.
 
+## 2026-09-08 (cierre real) — F1: no era ruido, era un fallo
+
+Cerrada F1. **La conclusión de la entrada anterior era equivocada.**
+
+La medida resulta ser muy repetible: 6 repeticiones del ensayo canónico dan un
+IQR de 0.5 pp en sobreimpulso y 0.20 mrad en error rms. **`δ_min` = 0.7 pp,
+0.30 mrad, 0.03 mrad.** El instrumento es bueno.
+
+Y mover las otras seis articulaciones entre repeticiones desplaza el resultado
+0.4 pp: dentro del ruido. No hay efecto de contexto.
+
+**El fallo**: `wrist_motion` se deducía de las articulaciones CONTROLADAS, no de
+las que se mueven. En un barrido las siete están controladas pero solo una se
+mueve, así que el margen extra por muñeca se aplicaba siempre y el tope de
+`shoulder_roll` subía de 10° a 15°. El ensayo, que va de 18° a 11.1°, chocaba;
+el portero recortaba el 45.6 % de los ciclos y el escalón se quedaba a medias.
+De ahí el «61 % de sobreimpulso».
+
+Corregido usando las articulaciones con trayectoria activa. Verificado: 61.2 %
+-> 16.4 % con siete controladas, contra 16.9 % aislado. Coinciden.
+
+**Consecuencia**: el resultado de F2.3 se sostiene y ahora es significativo. La
+diferencia entre 1-3 % de sobreimpulso a kp=70 y 17 % a kp=280 es veinte veces
+`δ_min`.
+
+Tres artefactos en dos días —métrica de sobreimpulso contra la consigna, salto
+de par al cambiar ganancias, y éste— con la misma forma: algo que parece un
+resultado físico y es un fallo de medida. La regla 7 del protocolo acertó tres
+de tres.
+
 ### Pendiente
 
-- [ ] **F1 antes de seguir sintonizando.** Sin `δ_min` no se puede afirmar que
+- [ ] **Rehacer el barrido de F2.3** con todo arreglado, para un `tuned_gff`
+      fiable. Sin `δ_min` no se puede afirmar que
       un candidato sea mejor que otro.
 - [ ] Aislar el tercer factor de la dispersión. Sospecha: el residuo del modelo
       de gravedad depende de la configuración por la que se pasa.

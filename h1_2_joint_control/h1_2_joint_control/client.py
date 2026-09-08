@@ -216,10 +216,18 @@ class H12Client:
         self.q0 = np.zeros(NUM_CMD_MOTOR)
         self.q_base = np.zeros(NUM_CMD_MOTOR)
 
-        # Autocolisión hombro-codo. Si el ensayo mueve alguna muñeca se aplica
-        # el margen extra: con los dedos abiertos el pulgar sobresale y es lo
-        # primero que toca la pierna.
-        self.wrist_motion = any(BY_INDEX[i].group == "wrist" for i in controlled)
+        # Autocolisión hombro-codo. El margen extra se aplica cuando de verdad
+        # se MUEVE una muñeca, no cuando simplemente está en la lista de
+        # controladas.
+        #
+        # Deducirlo de `controlled` fue un error caro: en un barrido están las
+        # siete controladas pero solo una se mueve, así que el margen extra se
+        # aplicaba siempre y el tope del hombro subía de 10° a 15°. Un ensayo
+        # que va de 18° a 11.1° chocaba con ese tope, el portero lo recortaba en
+        # el 45 % de los ciclos, y el escalón se quedaba a medias: `q_final` muy
+        # cerca de `q_start` y un "sobreimpulso" del 61 % que no existía.
+        # Es lo que hacía irreproducibles los barridos de F2.3.
+        self._wrist_idx = {i for i in controlled if BY_INDEX[i].group == "wrist"}
         self._cond_pairs = {r: e for r, e in self.gains.cond_pairs().items()
                             if r in self.commanded and e in self.commanded}
         self.collision_clamps = 0
@@ -725,9 +733,10 @@ class H12Client:
             # comprueba sobre la PAREJA y se frena al que se esté moviendo.
             # Se mira `q_des`, no `q`: cuando la articulación real ha llegado
             # a una postura en colisión ya es tarde; hay que vetar la orden.
+            movida = bool(self._wrist_idx & set(self._traj))
             self.collision_clamps += self.gains.enforce_pairs(
                 self._q_des, self._q_prev, self._traj,
-                self.wrist_motion, self.commanded)
+                movida, self.commanded)
             self._q_prev[:] = self._q_des
 
             # gravedad: rampa de entrada para no meter un escalón de par

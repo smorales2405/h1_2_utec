@@ -220,11 +220,25 @@ que hace ejecutables F3 y F6 sin riesgo de golpe.
 **Criterio de aceptación**: cero falsos negativos en las 126 corridas ya
 ejecutadas, y `q_des` en colisión rechazada en menos de 0.5 ms.
 
-### F0 — Temporización (sin robot, ~2 h)
+### F0 — Temporización — **HECHA el 2026-09-08**
 
-Tal como está en el protocolo. Es barata y desbloquea la interpretación de todo
-kd. Añadiría una columna: **coste del chequeo de colisión y de `g(q)` dentro del
-ciclo**, ya que a partir de F-C y F2 los dos van dentro.
+Resultado en `06_RESULTADOS.md`, cabecera. Resumen: **el criterio literal no se
+cumple** (p99/T = 1.45 contra 1.20) **y aun así el sistema es apto**, porque el
+criterio medía lo que no era.
+
+La trayectoria se evalúa contra reloj, así que un ciclo tarde publica la
+consigna correcta; y el lazo lee la última posición conocida, así que perder
+mensajes intermedios es inocuo. Lo que sesga es la **edad del estado al
+usarlo**: máxima 3.17 ms, que a 0.5 rad/s son 1.59 mrad contra errores medidos
+de 5 a 32 mrad.
+
+Lección aplicable al resto del protocolo: **conviene comprobar que cada criterio
+de aceptación mide la magnitud por la que uno se preocupa**, y no una
+correlacionada. Aquí la correlacionada daba un fallo que no lo era.
+
+Nota metodológica: yo había propuesto saltarse F0 con las medidas parciales.
+Era una mala recomendación — la fase produjo una corrección real del criterio.
+Haberla hecho costó 20 minutos.
 
 ### F1 — Estadística (robot, ~4 h)
 

@@ -297,6 +297,46 @@ fallarían a 3 Hz. Medido con chirp: kd = 13.5 gana a kd = 3 en error (16.5
 contra 23.9 mrad), en temblor y hasta en par de pico. La sospecha era
 razonable y era falsa.
 
+## 2026-09-08 — F0, y un criterio de aceptación que medía lo que no era
+
+Ejecutada F0 con el robot conectado (publicación inerte, sin mover nada). El
+criterio literal del protocolo **falla**: p99/T = 1.45 a 250 y a 500 Hz, y de 16
+a 205 «muestras perdidas» de `/lowstate` por bloque de 120 s.
+
+Y sin embargo el sistema es apto. Las dos razones son estructurales:
+
+* la trayectoria se evalúa contra reloj (`func(now - t0)`), no contra contador
+  de ciclos, así que un ciclo tarde publica la consigna correcta para ese
+  instante;
+* el lazo lee la última posición conocida en cada ciclo, así que perderse
+  mensajes intermedios es inocuo.
+
+La magnitud que sí importa es la **edad del estado al usarlo**, que nadie estaba
+midiendo: mediana 0.37 ms, p99 1.23, máxima 3.17. A 0.5 rad/s eso son 1.59 mrad
+en el peor caso, contra errores medidos de 5 a 32 mrad.
+
+`10_loop_timing.py` mide ahora las dos cosas y reporta las dos conclusiones.
+
+### Dos cosas que no se hicieron, a propósito
+
+**No se adoptó la mejora de temporización.** Cuatro estrategias probadas; la
+mejor (sueño + 1 ms girando) dio p99/T = 1.03 contra 1.11. Pero el mismo código
+sin tocar dio 1.11 en una corrida y 1.45 en otra: la varianza entre corridas es
+del tamaño del efecto. Adoptarla con N=1 sería el error que prohíbe la regla 5
+del propio protocolo.
+
+**No se tocó la máquina.** El gobernador está en `powersave` y `ulimit -r = 0`,
+así que `SCHED_FIFO` necesitaría sudo. Ninguna mitigación se aplica porque el
+criterio que importa ya se cumple.
+
+### Corrección de una recomendación mía
+
+Había propuesto saltarse F0 apoyándome en las medidas parciales. Era una mala
+recomendación: la fase costó 20 minutos y produjo una corrección real del
+criterio de aceptación. La lección vale para el resto del protocolo —
+**comprobar que cada criterio mide la magnitud por la que uno se preocupa, y no
+una correlacionada**.
+
 ### Pendiente
 
 - [ ] Repetir el barrido del codo en dos o tres posturas más: todo lo medido lo

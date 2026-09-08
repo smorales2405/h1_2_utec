@@ -1,3 +1,78 @@
+# Resultados de los ensayos
+
+## Temporización del lazo (F0) — 2026-09-08
+
+Cabecera obligatoria de todo lo que sigue: sin estos números, los kd no son
+reproducibles en otra máquina. Portátil `mito`, 8 núcleos, gobernador de CPU en
+**`powersave`**, sin privilegios de tiempo real (`ulimit -r = 0`).
+
+Cuatro bloques de 120 s, publicando en el tópico inerte con el robot conectado
+(carga real de `/lowstate` a 500 Hz):
+
+| bloque | `dt` med | `dt` p99 | `dt` máx | p99/T | tarde | `/lowstate` |
+|---|---:|---:|---:|---:|---:|---:|
+| 250 Hz | 4.000 ms | 5.797 | 16.962 | **1.45** | 0.78 % | 499 Hz |
+| 500 Hz | 1.999 ms | 2.901 | 10.709 | **1.45** | 0.74 % | 498 Hz |
+| 250 Hz + registro | 4.000 ms | 5.175 | 13.859 | 1.29 | 0.35 % | 500 Hz |
+| 250 Hz + `g(q)` | 4.000 ms | 6.454 | 23.799 | 1.61 | 1.05 % | 499 Hz |
+
+**El criterio literal del protocolo (p99 ≤ 1.2·T, cero muestras perdidas) NO se
+cumple.** Y sin embargo la conclusión no es que haya que arreglar la máquina.
+
+### El criterio estaba midiendo lo que no era
+
+Dos razones, las dos estructurales de cómo está escrito este paquete:
+
+**La trayectoria se evalúa contra reloj, no contra contador de ciclos**
+(`func(now - t0)` con `time.monotonic()`, `client.py:652`). Un ciclo que llega
+tarde publica la consigna **correcta para ese instante**. El jitter añade ruido
+de muestreo, no error de fase en el comando — que es el mecanismo por el que el
+protocolo temía que se confundiera con falta de amortiguamiento.
+
+**El lazo lee la última posición conocida en cada ciclo**, así que perderse
+mensajes intermedios de `/lowstate` es inocuo. Lo que sesgaría las métricas es
+que el mensaje más reciente fuera **viejo** al usarlo. Eso es la magnitud que
+había que medir, y no se estaba midiendo.
+
+### La métrica correcta: edad del estado al usarlo
+
+60 s a 250 Hz, 30 176 mensajes recibidos (498 Hz):
+
+| | edad | error aparente a 0.5 rad/s |
+|---|---:|---:|
+| mediana | 0.37 ms | 0.19 mrad |
+| p95 | 1.09 ms | 0.55 mrad |
+| p99 | 1.23 ms | 0.62 mrad |
+| p99.9 | 2.01 ms | 1.01 mrad |
+| **máxima** | **3.17 ms** | **1.59 mrad** |
+
+Contra errores rms medidos de **5 a 32 mrad**. En el peor caso la antigüedad del
+estado aporta 1.59 mrad: un 5 % del error del hombro y un 28 % del de la muñeca
+más limpia. Es el término que hay que tener presente al comparar muñecas entre
+sí, y despreciable para los hombros.
+
+**Criterio adoptado en sustitución**: edad del estado p99 ≤ 2 ms y error
+aparente por antigüedad ≤ 2 mrad. Se cumple.
+
+### Sobre el p99 de `dt`, y por qué no se persigue
+
+El mismo lazo, sin cambiar una línea, dio **p99/T = 1.11 en una corrida y 1.45
+en otra**. La varianza entre corridas es del tamaño del efecto, así que p99/T no
+es una propiedad del código sino del estado de la máquina en ese momento.
+
+Se probaron cuatro estrategias de temporización (sueño completo, sueño + 1.0 ms
+girando, + 0.3 ms, y sin recolector de basura). La mejor fue sueño + 1.0 ms
+girando, con p99/T = 1.03 — **pero con una sola corrida por estrategia, y esa
+diferencia no supera la varianza observada**. Adoptarla sería cometer el error
+que la regla 5 del protocolo prohíbe. Queda como candidata a medir con N
+adecuado, no como mejora aplicada.
+
+Mitigaciones disponibles si alguna vez hiciera falta: gobernador a
+`performance`, `SCHED_FIFO` (hoy imposible, `ulimit -r = 0`), C-states. Ninguna
+se aplica porque el criterio que importa ya se cumple.
+
+---
+
 # Resultados de los ensayos — 2026-09-04
 
 Robot colgado del arnés. Canal `/lowcmd` con el controlador de alto nivel

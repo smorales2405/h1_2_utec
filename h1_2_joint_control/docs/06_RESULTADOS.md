@@ -556,6 +556,94 @@ quiere el modelo para otra cosa.
 
 ---
 
+## 9. Identificación de los parámetros de masa (F2, camino b) — 2026-09-08
+
+Tras descartar que el hueco fuera fricción (§8) o masa de la mano, se cambió de
+enfoque: en vez de corregir el URDF a mano, **identificar los parámetros de masa
+a partir de medidas**.
+
+### El método, y por qué no es una regresión ciega
+
+El par de gravedad es **lineal en los parámetros de masa**:
+
+```
+tau_g(q) = R(q) · pi        pi = [m, m·cx, m·cy, m·cz] por cuerpo
+```
+
+`R(q)` sale de `pinocchio` con velocidad y aceleración nulas y depende solo de
+la **cinemática** del URDF — longitudes y ejes de los eslabones, que es lo que
+un URDF suele tener bien. Lo que estaba mal eran las masas, y es exactamente lo
+que se ajusta. Verificado que el regresor es exacto: `R·pi` reproduce
+`computeGeneralizedGravity` con error de 3.5·10⁻¹⁵.
+
+Frente a una regresión genérica de `tau_g(q)`, esto extrapola a posturas no
+medidas, necesita muchos menos puntos, y de regalo dice cuánto pesa cada
+eslabón.
+
+**Regularización de cresta hacia el URDF.** De las 76 direcciones del espacio de
+parámetros, muchas no son observables con estos datos — el centro de masa de una
+falange no afecta a nada medible. Sin regularizar, el ajuste les asignaría
+valores arbitrarios que encajan el ruido. Con cresta hacia el prior del URDF, lo
+que los datos no ven se queda donde estaba.
+
+### Los datos
+
+`12_gravity_map.py`: **30 configuraciones sorteadas** por el espacio de trabajo
+respetando topes y autocolisión, cada una alcanzada desde los dos sentidos, y en
+cada una se leen **las siete articulaciones a la vez** — el par que sostiene cada
+una está ahí sin coste extra. **210 medidas** con pares de hasta 19.45 Nm, contra
+los 19 puntos agrupados de §8.
+
+### El resultado
+
+| | URDF de partida | identificado |
+|---|---:|---:|
+| rms sobre las 210 medidas | 2.574 Nm | **0.337 Nm** |
+| error máximo | 8.167 Nm | **1.126 Nm** |
+| masa del brazo | 6.399 kg | 6.866 kg |
+| masa de la mano | 0.316 kg | **1.138 kg** |
+
+**Validación cruzada**: rms de entrenamiento 0.330 Nm, de prueba 0.354 Nm. La
+diferencia es despreciable, así que con 76 parámetros y 210 ecuaciones **no hay
+sobreajuste** — la cresta hizo su trabajo. Todas las masas salen positivas.
+
+Por articulación:
+
+| articulación | URDF | identificado | mejora |
+|---|---:|---:|---:|
+| L_shoulder_pitch | 4.508 Nm | 0.439 | **90 %** |
+| L_shoulder_roll | 4.189 | 0.508 | 88 % |
+| L_elbow | 2.346 | 0.309 | 87 % |
+| L_wrist_pitch | 0.735 | 0.112 | 85 % |
+| L_wrist_yaw | 0.556 | 0.122 | 78 % |
+| L_wrist_roll | 0.299 | 0.087 | 71 % |
+| L_shoulder_yaw | 1.442 | 0.463 | 68 % |
+
+`shoulder_yaw` es la que menos mejora, y tiene sentido: es la de mayor fricción
+(0.93 Nm de media, §8), así que buena parte de su residuo no es gravedad.
+
+### La masa de la mano, ahora sí plausible
+
+El ajuste da **1.138 kg** donde el URDF pone 316 g. La mano Inspire sola pesa
+~800 g, y F4.1 del protocolo pide pesar «el conjunto mano + conector + tramo de
+cable que carga la muñeca». 1.14 kg encaja con eso.
+
+Contrástese con el ajuste de un solo parámetro de §8, que pedía **1.9 kg** —
+físicamente imposible. La diferencia es que aquí también se ajustan los
+eslabones del brazo (+0.47 kg repartidos), así que la mano no tiene que absorber
+todo el error.
+
+### Límites de este resultado
+
+- **Solo el brazo izquierdo.** Los eslabones del derecho son cuerpos distintos
+  en el modelo; hace falta repetir el mapeo (unos 4 min) para tener su `tau_ff`.
+- **Sin objeto en la mano.** Es la condición L0 de F4.
+- El λ elegido (0.003) es el menor probado, pero la curva de error de prueba es
+  plana entre 0.03 y 0.003 (0.359 contra 0.354 Nm), así que no es un óptimo en
+  el borde: es una meseta.
+
+---
+
 ## Qué queda por hacer
 
 - [x] ~~Repetir el barrido con una postura de partida reproducible~~ — hecho,

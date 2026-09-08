@@ -368,6 +368,36 @@ que la teleoperación necesita.
 De paso, el portero de autocolisión actuó en 127 ciclos (0.4 %) durante la
 corrida, recortando consignas incompatibles con el ángulo de codo. Funciona.
 
+## 2026-09-08 (tarde, II) — identificación de masas: el modelo pasa el criterio
+
+Cambiado el enfoque de F2 tras los dos fracasos de §8. En vez de corregir el
+URDF a mano, **identificar los parámetros de masa desde medidas**, aprovechando
+que el par de gravedad es lineal en ellos y que `pinocchio` da el regresor.
+
+`12_gravity_map.py` sortea 30 configuraciones por el espacio de trabajo y lee
+**las siete articulaciones en cada una** — el par que sostiene cada una está ahí
+sin coste extra. 210 medidas en 3.5 min, contra los 19 puntos agrupados de la
+mañana. `13_gravity_fit.py` ajusta con cresta hacia el prior del URDF.
+
+**rms 2.574 -> 0.337 Nm. Máximo 8.167 -> 1.126.** Criterio del protocolo
+(< 1.0 Nm): se cumple.
+
+Validación cruzada: entrenamiento 0.330, prueba 0.354. Sin sobreajuste pese a
+76 parámetros y 210 ecuaciones — la regularización hizo su trabajo. Todas las
+masas positivas.
+
+La masa de mano identificada es **1.138 kg**, contra 316 g del URDF. La mano
+sola pesa ~800 g y F4.1 pide pesar «mano + conector + tramo de cable»: encaja.
+Y contrasta con el ajuste de un solo parámetro de la mañana, que pedía 1.9 kg,
+imposible — la diferencia es que aquí también se ajustan los eslabones del brazo
+y la mano no tiene que absorber todo.
+
+`shoulder_yaw` es la que menos mejora (68 % contra 87-90 % del resto), y encaja
+con que sea la de mayor fricción: parte de su residuo no es gravedad.
+
+Pendiente antes de usarlo: el brazo derecho (otros 4 min de mapeo), y meter
+`tau_ff` en el lazo con su prueba de humo.
+
 ### Pendiente
 
 - [ ] Repetir el barrido del codo en dos o tres posturas más: todo lo medido lo

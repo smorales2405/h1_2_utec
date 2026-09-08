@@ -178,16 +178,22 @@ sets:
   # dejan un error permanente `tau_g/kp` mucho mayor.
   # ---------------------------------------------------------------------
   tuned_gff:
+    # ⚠ PROVISIONAL — NO USAR PARA DECIDIR NADA.
+    # Los valores vienen de un barrido cuyos resultados NO son reproducibles:
+    # la misma articulacion con las mismas ganancias dio 0.8 %, 3.0 % y 29.5 %
+    # de sobreimpulso en tres corridas distintas. Ver 06_RESULTADOS.md §11.
+    # Hasta cerrar F1 (delta_min) no hay forma de saber que candidato es mejor.
     description: >-
-      Sintonizado con la gravedad compensada. Requiere --gravity-ff.
+      PROVISIONAL. Barrido no reproducible; pendiente de F1. Requiere
+      --gravity-ff.
     joints:
       L_shoulder_pitch: {kp: 111.1, kd: 20.25}
-      L_shoulder_roll:  {kp: 280.0, kd: 4.05}
-      L_shoulder_yaw:   {kp: 126.0, kd: 13.5}
-      L_elbow:          {kp: 126.0, kd: 20.25}
+      L_shoulder_roll:  {kp: 70.0, kd: 13.5}
+      L_shoulder_yaw:   {kp: 126.0, kd: 8.1}
+      L_elbow:          {kp: 79.4, kd: 20.25}
       L_wrist_roll:     {kp: 100.0, kd: 2.4}
-      L_wrist_pitch:    {kp: 100.0, kd: 4.0}
-      L_wrist_yaw:      {kp: 100.0, kd: 2.7}
+      L_wrist_pitch:    {kp: 100.0, kd: 6.0}
+      L_wrist_yaw:      {kp: 39.7, kd: 13.5}
       R_shoulder_pitch: {kp: 280.0, kd: 13.5}
       R_shoulder_roll:  {kp: 280.0, kd: 9.0}
       R_shoulder_yaw:   {kp: 126.0, kd: 13.5}

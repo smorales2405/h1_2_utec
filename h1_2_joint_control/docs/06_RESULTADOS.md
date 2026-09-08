@@ -914,6 +914,75 @@ acumulan las tres cosas.
 
 ---
 
+## 13. `tuned_gff`: el conjunto definitivo con gravedad compensada
+
+Barrido de aceptación con las ganancias sintonizadas y `--gravity-ff`, escalón
+suave de 0.12 rad, las 14 de una en una. **14/14 dentro de tolerancia.**
+
+| articulación | kp | kd | err final | sobreimp. | subida | par máx |
+|---|---:|---:|---:|---:|---:|---|
+| L_shoulder_pitch | 111 | 20.25 | −0.02° | 0.4 % | 227 ms | 7.82 / 40 Nm |
+| L_shoulder_roll | **70** | 13.50 | +0.61° | **0.1 %** | 179 ms | 9.58 / 40 |
+| L_shoulder_yaw | 126 | 8.10 | +0.41° | 0.2 % | 176 ms | 2.85 / 18 |
+| L_elbow | 79 | 20.25 | −0.33° | 0.1 % | 180 ms | 3.78 / 18 |
+| L_wrist_roll | 100 | 2.40 | −0.03° | 0.0 % | 176 ms | 0.44 / 19 |
+| L_wrist_pitch | 100 | 6.00 | −0.05° | 0.0 % | 181 ms | 0.94 / 19 |
+| L_wrist_yaw | 40 | 13.50 | −0.34° | 0.1 % | 198 ms | 0.69 / 19 |
+| R_shoulder_pitch | 280 | 20.25 | +0.12° | 6.5 % | 167 ms | 6.42 / 40 |
+| R_shoulder_roll | **70** | 13.50 | +0.18° | **0.2 %** | 227 ms | 9.05 / 40 |
+| R_shoulder_yaw | 126 | 13.50 | −0.45° | 0.0 % | 199 ms | 1.57 / 18 |
+| R_elbow | 79 | 20.25 | −0.69° | 1.8 % | 198 ms | 3.52 / 18 |
+| R_wrist_roll | 100 | 5.40 | +0.16° | 0.0 % | 193 ms | 0.56 / 19 |
+| R_wrist_pitch | 100 | 1.80 | −0.11° | 0.0 % | 163 ms | 0.81 / 19 |
+| R_wrist_yaw | 100 | 2.70 | +0.19° | 0.0 % | 177 ms | 0.56 / 19 |
+
+### Frente a `tuned` sin compensación (§7)
+
+| | `tuned` | `tuned_gff` |
+|---|---:|---:|
+| sobreimpulso máximo | **21.0 %** | **6.5 %** |
+| sobreimpulso de los `shoulder_roll` | 20.3 % y 21.0 % | **0.1 % y 0.2 %** |
+| error permanente máximo | 1.09° | 0.69° |
+| par máximo usado (hombro) | 14.06 / 40 Nm (35 %) | 9.58 / 40 Nm (24 %) |
+| kp de `shoulder_roll` | 280 | **70** |
+
+Los dos `shoulder_roll` —las articulaciones que peor estaban desde el primer
+día— pasan de **20 % de sobreimpulso a 0.1 %**, con una cuarta parte del kp y
+4 Nm menos de pico. Todas las diferencias están muy por encima de `δ_min`.
+
+### Coherencia entre brazos
+
+Sintonizados por separado, con datos y ajustes independientes:
+
+| articulación | izquierdo | derecho |
+|---|---|---|
+| `shoulder_roll` | **70 / 13.50** | **70 / 13.50** |
+| `elbow` | **79 / 20.25** | **79 / 20.25** |
+| `shoulder_yaw` | 126 / 8.10 | 126 / 13.50 |
+| `wrist_roll` / `wrist_pitch` | 100 | 100 |
+| `shoulder_pitch` | 111 | 280 |
+| `wrist_yaw` | 40 | 100 |
+
+Coinciden exactamente en `shoulder_roll` y `elbow`, y en kp en cuatro más. Las
+dos que discrepan —`shoulder_pitch` y `wrist_yaw`— son precisamente aquellas en
+las que el criterio es plano: cualquier kp del rango da un resultado dentro de
+tolerancia, así que el ganador lo decide el ruido. Ahí conviene elegir el kp
+**bajo** de los dos por margen de par, no dejar que lo elija el barrido.
+
+### Salud del lazo durante los barridos
+
+197–208 Hz de 250, con 28–44 % de ciclos tarde. El perfil por ciclo dice que el
+trabajo son **952 µs de un presupuesto de 4000** (CRC 508 µs, publicación
+373 µs, gravedad 35 µs, el resto marginal), o sea un techo teórico de 1051 Hz.
+La diferencia es competencia por el GIL entre el hilo de control, el ejecutor
+que procesa `/lowstate` a 500 Hz y el hilo principal.
+
+No invalida las medidas —la trayectoria se evalúa contra reloj (§F0) y F1 midió
+la repetibilidad **en estas mismas condiciones**, con IQR de 0.5 pp— pero es lo
+primero que hay que atacar si alguna vez hace falta más frecuencia.
+
+---
+
 ## Qué queda por hacer
 
 - [x] ~~Repetir el barrido con una postura de partida reproducible~~ — hecho,

@@ -398,6 +398,40 @@ con que sea la de mayor fricción: parte de su residuo no es gravedad.
 Pendiente antes de usarlo: el brazo derecho (otros 4 min de mapeo), y meter
 `tau_ff` en el lazo con su prueba de humo.
 
+## 2026-09-08 (noche) — F2.3, y un fallo del barrido que llevaba dias ahi
+
+Detalle en [`06_RESULTADOS.md`](06_RESULTADOS.md) §10.
+
+**El fallo primero.** La primera pasada de F2.3 dio 52-84 % de sobreimpulso en
+`L_shoulder_roll` contra el 19 % sin compensar. No tenía sentido, así que se
+repitieron los mismos kp aislados: 0.8 %, 1.1 %, 13.5 %, 17.3 %. Los números
+del barrido eran falsos.
+
+La causa es la **regla 1 del propio protocolo**, que `09_tune_all.py` no
+respetaba: cambiar kp con `q_des` desactualizado produce un salto de par
+`(kp'−kp)·e`, y el ensayo siguiente empezaba con la articulación asentándose de
+ese golpe. Corregido igualando la consigna a la posición medida antes de tocar
+las ganancias; verificado que el barrido reproduce ahora los valores aislados.
+
+Afecta a `09_tune_all.py` desde que se escribió, incluida la campaña del 09-05.
+Aquellos usaban seno con `skip=0.5` y hay más de 1 s entre el cambio de
+ganancias y el inicio de la medida, así que **probablemente** no están
+contaminados — pero no se ha verificado, y hasta entonces es «probablemente».
+
+**El resultado de F2.3.** Dos de los tres criterios se cumplen, y con **kp = 70,
+una cuarta parte del actual**: error permanente 0.40° (criterio < 0.5°) y
+sobreimpulso 1.4 % (criterio < 10 %). El tercero —ganador no en el borde— falla
+en la letra, pero el ganador se ha movido del borde superior al inferior, que es
+exactamente lo que predecía la hipótesis: kp estaba alto para tapar la falta de
+compensación.
+
+Codo y muñeca ya no necesitan sintonización: con gravedad compensada dan 0-0.3 %
+de sobreimpulso en todo el rango de kp probado.
+
+**Una sospecha mía más, también falsa**: que evaluar `g()` en `q_des` en vez de
+en la posición medida adelantaría el par durante el movimiento. Medido: 17.9 %
+contra 17.3 % de sobreimpulso. No hay diferencia.
+
 ### Pendiente
 
 - [ ] Repetir el barrido del codo en dos o tres posturas más: todo lo medido lo

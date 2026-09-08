@@ -118,6 +118,7 @@ class H12Client:
         gravity=None,
         gravity_ramp: float = 1.0,
         gravity_frac: float = 0.5,
+        gravity_at: str = "meas",
     ):
         """`dry_run`: publica en un tópico que nadie escucha. El robot no se
         entera de nada; sirve para validar el software.
@@ -150,6 +151,17 @@ class H12Client:
         # Tope propio, independiente del aborto por par: un fallo de signo o un
         # modelo disparatado no puede meter más de esta fracción del par máximo.
         self.gravity_frac = float(gravity_frac)
+        # Dónde se evalúa g(): en la consigna o en la posición MEDIDA.
+        #
+        # El protocolo pide `q_des`, y para sostener una postura da igual. Pero
+        # durante un movimiento la articulación va por detrás de la consigna,
+        # así que g(q_des) es el par que hará falta al LLEGAR, no el que hace
+        # falta ahora: se adelanta, y añade empuje justo cuando el PD ya está
+        # empujando. Evaluar en la posición medida cancela la gravedad que
+        # realmente actúa, que es lo que se quiere de una compensación.
+        if gravity_at not in ("des", "meas"):
+            raise ValueError("gravity_at debe ser 'des' o 'meas'")
+        self.gravity_at = gravity_at
         self._g_scale = 0.0
         self._g_clip = 0
         if channel not in ("arm_sdk", "lowcmd"):
@@ -689,7 +701,11 @@ class H12Client:
             # gravedad: rampa de entrada para no meter un escalón de par
             if self.gravity is not None:
                 self._g_scale = min(1.0, self._g_scale + self.dt / max(self.gravity_ramp, 1e-3))
-                g = self.gravity.tau(self._q_des)
+                if self.gravity_at == "des":
+                    q_ref = self._q_des
+                else:
+                    q_ref = [state.motor_state[k].q for k in range(NUM_CMD_MOTOR)]
+                g = self.gravity.tau(q_ref)
                 for i in self.commanded:
                     tope = self.gravity_frac * BY_INDEX[i].tau_max
                     v = float(np.clip(g.get(i, 0.0), -tope, tope))

@@ -79,21 +79,57 @@ class Args:
         self.__dict__.update(kw)
 
 
-def sweep(cli, idx, gains, base_args, q0, amp, values, fija, es_kp, log):
+def _promedia(ts):
+    """Mediana de las métricas. Mediana y no media: con fricción estática la
+    distribución no es simétrica y un pegado estropea la media."""
+    import statistics as st
+    b = ts[0]
+    campos = ("rms_error", "max_error", "mean_error", "chatter_dq", "chatter_tau",
+              "peak_freq", "rms_tau", "max_tau", "tau_headroom")
+    kw = {f: st.median([getattr(t, f) for t in ts]) for f in campos}
+    return mt.TrackingMetrics(joint=b.joint, kp=b.kp, kd=b.kd, n=b.n, fs=b.fs, **kw)
+
+
+def sweep(cli, idx, gains, base_args, q0, amp, values, fija, es_kp, log,
+          repeats=1):
     """Un barrido de un solo parámetro. Devuelve [(valor, coste, track)]."""
     out = []
     for v in values:
         kp, kd = (v, fija) if es_kp else (fija, v)
+        # Regla 1 del protocolo: nunca cambiar kp con `q_des` desactualizado.
+        # Si la articulación está sosteniendo con un error `e`, pasar de kp a
+        # kp' produce un salto de par `(kp'-kp)·e` en un solo ciclo, y el
+        # ensayo siguiente empieza con la articulación todavía asentándose.
+        # Medido lo que costaba no hacerlo: el barrido daba 52-84 % de
+        # sobreimpulso en `L_shoulder_roll` donde el mismo kp aislado da
+        # 0.8-17 %. Se iguala la consigna a la posición medida antes de tocar
+        # las ganancias, y se deja asentar.
+        cli.set_target(idx, cli.q(idx))
+        cli.sleep(0.15)
         cli.set_gains(idx, kp, kd)
         gains.set_index(idx, kp, kd)
-        cli.ramp_to({idx: q0}, speed=0.3)
-        cli.sleep(base_args.pause)
-        samples, track, _ = _move.run_once(cli, idx, base_args, amp, gains, quiet=True)
-        J = mt.cost(track, None, base_args.w_err, base_args.w_chatter)
+        cli.sleep(0.25)
+        ts, sts = [], []
+        for _ in range(max(repeats, 1)):
+            cli.ramp_to({idx: q0}, speed=0.3)
+            cli.sleep(base_args.pause)
+            samples, track, step = _move.run_once(cli, idx, base_args, amp,
+                                                  gains, quiet=True)
+            ts.append(track)
+            if step is not None:
+                sts.append(step)
+        track = ts[0] if len(ts) == 1 else _promedia(ts)
+        # El sobreimpulso solo entra en el coste si la trayectoria es un
+        # escalón: con seno no hay tal cosa y `cost` lo ignoraría igualmente.
+        step = sts[0] if len(sts) == 1 else (sts[len(sts) // 2] if sts else None)
+        J = mt.cost(track, step, base_args.w_err, base_args.w_chatter,
+                    base_args.w_overshoot)
         out.append((v, J, track))
-        etiqueta = f"kp={kp:6.1f} kd={kd:5.2f}"
-        print(f"      {etiqueta}  J={J:6.2f}  err {track.rms_error*1000:6.2f} mrad  "
-              f"temblor {track.chatter_dq:.4f}  tau máx {track.max_tau:5.2f} Nm")
+        extra = (f"  sobreimp {step.overshoot*100:5.1f}%  "
+                 f"err final {step.steady_error*1000:+7.2f}" if step else "")
+        print(f"      kp={kp:6.1f} kd={kd:5.2f}  J={J:6.2f}  "
+              f"err {track.rms_error*1000:6.2f} mrad  "
+              f"temblor {track.chatter_dq:.4f}  tau máx {track.max_tau:5.2f} Nm{extra}")
         log.append((BY_INDEX[idx].name, kp, kd, J, track))
     return out
 
@@ -104,6 +140,16 @@ def main() -> int:
     add_common_args(ap)
     ap.add_argument("--joints", required=True,
                     help="shoulder, wrist, left_arm, o una lista de nombres")
+    ap.add_argument("--traj", default="sine", choices=["sine", "smooth_step"],
+                    help="seno mide seguimiento; smooth_step añade sobreimpulso "
+                         "y error final al criterio, que es lo que pide F2.3")
+    ap.add_argument("--repeats", type=int, default=1,
+                    help="repeticiones por candidato; se toma la mediana")
+    ap.add_argument("--kp-mult", default=None,
+                    help="múltiplos de kp, separados por comas. Con la gravedad "
+                         "compensada interesa extender hacia abajo")
+    ap.add_argument("--kd-mult", default=None)
+    ap.add_argument("--w-overshoot", type=float, default=0.5)
     ap.add_argument("--amp", type=float, default=0.12)
     ap.add_argument("--freq", type=float, default=0.5)
     ap.add_argument("--cycles", type=float, default=3.0)
@@ -129,25 +175,31 @@ def main() -> int:
     targets = resolve(a.joints)
     gains = cfg.load(a.gains)
     ref = {i: gains.for_index(i) for i in targets}
+    kp_mult = (tuple(float(x) for x in a.kp_mult.split(",")) if a.kp_mult
+               else KP_MULT)
+    kd_mult = (tuple(float(x) for x in a.kd_mult.split(",")) if a.kd_mult
+               else KD_MULT)
 
-    por_art = len(KP_MULT) + len(KD_MULT)
-    seg = por_art * (a.cycles / a.freq + a.pause + 1.6)
+    por_art = (len(kp_mult) + len(kd_mult)) * max(a.repeats, 1)
+    seg = por_art * ((a.cycles / a.freq if a.traj == "sine" else 2.8)
+                     + a.pause + 1.6)
     print(f"\n  Articulaciones : {', '.join(BY_INDEX[i].name for i in targets)}")
     print(f"  Referencia     : '{gains.set_name}'")
     print(f"  Método         : {len(KP_MULT)} valores de kp (kd de referencia), "
           f"luego {len(KD_MULT)} de kd con el kp ganador")
-    print(f"  Múltiplos      : kp {KP_MULT}   kd {KD_MULT}")
-    print(f"  Medida         : seno de {a.amp:.3f} rad a {a.freq} Hz, "
-          f"{a.cycles:.0f} ciclos, dq de referencia "
+    print(f"  Múltiplos      : kp {kp_mult}   kd {kd_mult}")
+    print(f"  Trayectoria    : {a.traj}, {a.repeats} repetición(es) por candidato")
+    print(f"  Gravedad       : {'COMPENSADA' if a.gravity_ff else 'sin compensar'}")
+    print(f"  Medida         : amplitud {a.amp:.3f} rad, dq de referencia "
           f"{'ANULADA (como xr_teleoperate)' if a.zero_dq else 'activa'}")
     print(f"  Duración aprox.: {len(targets)*seg/60:.1f} min "
           f"({por_art} ensayos por articulación)")
     confirm(a)
 
-    base = Args(traj="sine", amp=a.amp, freq=a.freq, cycles=a.cycles,
-                settle=1.0, rise=0.3, f0=0.2, f1=3.0, duration=10.0,
-                zero_dq=a.zero_dq, pause=a.pause,
-                w_err=a.w_err, w_chatter=a.w_chatter)
+    base = Args(traj=a.traj, amp=a.amp, freq=a.freq, cycles=a.cycles,
+                settle=2.0, rise=0.3, f0=0.2, f1=3.0, duration=10.0,
+                zero_dq=a.zero_dq, pause=a.pause, w_err=a.w_err,
+                w_chatter=a.w_chatter, w_overshoot=a.w_overshoot)
 
     cli = build_client(a, targets, verbose=True)
     resultados, log = [], []
@@ -171,11 +223,11 @@ def main() -> int:
                   f"{math.degrees(q0+amp):+.1f}° {nota}")
 
             kp_max = kp_maximo(j, gains.safety, a.kp_step)
-            lo, hi = KP_MULT[0] * kp_ref, min(KP_MULT[-1] * kp_ref, kp_max)
+            lo, hi = kp_mult[0] * kp_ref, min(kp_mult[-1] * kp_ref, kp_max)
             if hi <= lo:
                 # el tope cae por debajo del barrido: se explora lo que quepa
                 lo, hi = 0.5 * kp_max, kp_max
-            n_pts = len(KP_MULT)
+            n_pts = len(kp_mult)
             # rejilla geométrica: kp actúa como 1/error, así que interesa
             # muestrear en proporción, no en diferencia
             razon = (hi / lo) ** (1.0 / (n_pts - 1))
@@ -186,16 +238,18 @@ def main() -> int:
             if kp_ref <= hi:
                 recortados.add(round(kp_ref, 1))
             recortados = sorted(recortados)
-            if hi < KP_MULT[-1] * kp_ref - 1e-6:
+            if hi < kp_mult[-1] * kp_ref - 1e-6:
                 print(f"    (kp acotado a {kp_max:.0f}: por encima, un salto de "
                       f"{a.kp_step:.2f} rad saturaría los {j.tau_max:.0f} Nm)")
             print(f"    barrido de kp (kd={kd_ref:.1f}):")
-            kps = sweep(cli, idx, gains, base, q0, amp, recortados, kd_ref, True, log)
+            kps = sweep(cli, idx, gains, base, q0, amp, recortados, kd_ref,
+                        True, log, a.repeats)
             kp_best = min(kps, key=lambda r: r[1])[0]
 
             print(f"    barrido de kd (kp={kp_best:.0f}):")
             kds = sweep(cli, idx, gains, base, q0, amp,
-                        [round(m * kd_ref, 2) for m in KD_MULT], kp_best, False, log)
+                        [round(m * kd_ref, 2) for m in kd_mult], kp_best,
+                        False, log, a.repeats)
             kd_best = min(kds, key=lambda r: r[1])[0]
 
             t_best = min(kds, key=lambda r: r[1])[2]

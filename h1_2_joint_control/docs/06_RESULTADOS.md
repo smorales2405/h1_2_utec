@@ -690,6 +690,90 @@ brazo se sostiene, deriva de 1.63 mrad, cero ciclos recortados por el tope del
 
 ---
 
+## 10. Re-sintonización con la gravedad compensada (F2.3) — 2026-09-08
+
+### Un fallo del propio barrido, encontrado por el camino
+
+La primera pasada de F2.3 dio sobreimpulsos de **52 a 84 %** en
+`L_shoulder_roll`, contra el 19 % medido sin compensar. Como no tenía sentido
+—compensar gravedad no puede empeorar el sobreimpulso tanto—, se repitieron los
+mismos kp en corridas **aisladas**:
+
+| kp | en el barrido | aislado |
+|---:|---:|---:|
+| 70 | 51.8 % | **0.8 %** |
+| 111 | 83.6 % | **1.1 %** |
+| 176 | 69.2 % | 13.5 % |
+| 280 | 67.1 % | 17.3 % |
+
+Los números del barrido eran falsos. La causa es la **regla 1 del protocolo**,
+que `09_tune_all.py` no estaba respetando: *nunca cambiar kp con `q_des`
+desactualizado*. Si la articulación sostiene con un error `e`, pasar de `kp` a
+`kp'` produce un salto de par `(kp'−kp)·e` en un solo ciclo, y el ensayo
+siguiente empezaba con la articulación aún asentándose de ese golpe.
+
+Corregido igualando la consigna a la posición medida antes de tocar las
+ganancias. Verificado: el barrido reproduce ahora los valores aislados (1.4 %
+contra 0.8 %, 13.3 % contra 13.5 %, 17.0 % contra 17.3 %).
+
+> **Alcance del fallo.** Afectaba a `09_tune_all.py` desde que se escribió, y
+> por tanto a la campaña del 09-05. Aquellos barridos usaban seguimiento
+> sinusoidal con `skip=0.5`, y entre el cambio de ganancias y el inicio de la
+> medida hay más de 1 s (rampa + pausa + descarte), así que **probablemente** no
+> están contaminados. No se ha verificado, y hasta que se haga la afirmación es
+> «probablemente», no «seguro».
+
+### El resultado, con el barrido arreglado
+
+`L_shoulder_roll`, escalón suave de 0.12 rad, kd = 13.5, gravedad compensada:
+
+| kp | err rms | err final | sobreimp. | pico τ |
+|---:|---:|---:|---:|---:|
+| **70** | 11.99 mrad | **+7.01 mrad (0.40°)** | **1.4 %** | **8.79 Nm** |
+| 111 | 14.91 | +13.96 (0.80°) | 0.4 % | 8.88 |
+| 176 | 14.09 | +4.65 (0.27°) | 13.3 % | 10.37 |
+| 280 | 8.52 | +2.77 (0.16°) | 17.0 % | 13.45 |
+
+Para comparar, **sin** compensar a kp = 280: err final +16.94 mrad (0.97°),
+sobreimpulso 19.9 %, pico 13.10 Nm.
+
+**Criterios de aceptación de F2.3:**
+
+| criterio | resultado |
+|---|---|
+| Error permanente < 0.5° con kp ≤ 140 | ✔ **0.40° con kp = 70** |
+| Sobreimpulso < 10 % (hoy 20 % con kp = 280) | ✔ **1.4 % con kp = 70** |
+| Ganador de kp no en el borde en 2 de 3 | ✗ sigue en el borde, pero ahora en el **inferior** |
+
+Los dos primeros se cumplen, y con **kp = 70: una cuarta parte del kp actual**.
+El tercero falla en la letra, pero el ganador se ha movido del borde superior al
+inferior, que es lo que predecía la hipótesis: kp estaba alto **para tapar la
+falta de compensación**.
+
+Con la gravedad compensada, `shoulder_roll` a kp = 70 da un sobreimpulso 14
+veces menor, la mitad de error permanente y 4.7 Nm menos de pico que a kp = 280
+sin compensar.
+
+### Codo y muñeca: ya no hay nada que sintonizar
+
+Con gravedad compensada, `L_elbow` da **0.0–0.3 % de sobreimpulso y 0.35–1.4
+mrad de error final en todo el rango de kp de 31.5 a 126**, y `L_wrist_pitch`
+otro tanto. El error rms mejora solo un 30 % al cuadruplicar kp. Para esas
+articulaciones la elección de kp ha dejado de importar: cualquier valor
+razonable va bien.
+
+### Dónde evaluar `g()`: no importa
+
+El protocolo pide `τ_ff = g(q_des)`. Se sospechó que evaluar en la consigna
+adelanta durante el movimiento y añade empuje de más. Medido en
+`L_shoulder_roll` a kp = 280: sobreimpulso 17.9 % con `q_des` y 17.3 % con la
+posición medida, error final +2.48 contra +2.70 mrad. **No hay diferencia
+apreciable.** Se deja `meas` por defecto, por principio —cancelar la gravedad
+que actúa, no la que actuará—, pero la opción existe y ninguna de las dos es
+mejor con estos datos.
+
+---
+
 ## Qué queda por hacer
 
 - [x] ~~Repetir el barrido con una postura de partida reproducible~~ — hecho,

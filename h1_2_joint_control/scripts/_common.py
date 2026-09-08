@@ -49,6 +49,10 @@ def add_common_args(ap: argparse.ArgumentParser) -> None:
                     help="compensar la gravedad con el modelo identificado. "
                          "Sin esto, el PD solo genera el par de sostenimiento a "
                          "costa de un error permanente tau_g/kp que no se va")
+    ap.add_argument("--gravity-at", choices=["meas", "des"], default="meas",
+                    help="dónde evaluar g(): en la posición medida (por defecto) "
+                         "o en la consigna, como pide el protocolo. En la "
+                         "consigna se adelanta durante el movimiento")
     ap.add_argument("--gravity-frac", type=float, default=0.5,
                     help="tope de tau_ff, como fracción del par máximo")
     ap.add_argument("--direction", choices=["auto", "positive", "negative"],
@@ -147,7 +151,8 @@ def build_client(args, controlled: list[int], verbose: bool = True) -> H12Client
                      max_weight=getattr(args, "weight", 1.0),
                      legs_policy=getattr(args, "legs", "free"),
                      gravity=_gravedad(args),
-                     gravity_frac=getattr(args, "gravity_frac", 0.5))
+                     gravity_frac=getattr(args, "gravity_frac", 0.5),
+                     gravity_at=getattr(args, "gravity_at", "meas"))
 
 
 def joint_index(spec: str) -> int:

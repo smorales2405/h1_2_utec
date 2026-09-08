@@ -31,7 +31,8 @@ echo " Interfaz DDS   : $NET_IF"
 echo " Entrada XR     : $INPUT_MODE     Display: $DISPLAY_MODE"
 echo " Extra          : ${EXTRA:-(ninguno)}"
 echo "──────────────────────────────────────────────────────────────"
-echo " En el Quest 3 abre:  https://$(ip -4 -o addr show scope global | awk '{split($4,a,"/"); print a[1]}' | paste -sd'  o  ' -):8012"
+echo " En el Quest 3 abre:"
+ip -4 -o addr show scope global | awk '{split($4,a,"/"); print "     https://" a[1] ":8012"}'
 echo " ADVERTENCIA: manten distancia de seguridad del robot."
 echo "──────────────────────────────────────────────────────────────"
 

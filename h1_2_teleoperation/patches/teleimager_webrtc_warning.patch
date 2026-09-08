@@ -1,0 +1,17 @@
+diff --git a/src/teleimager/image_server.py b/src/teleimager/image_server.py
+index b387a6b..6637d45 100644
+--- a/src/teleimager/image_server.py
++++ b/src/teleimager/image_server.py
+@@ -1183,8 +1183,10 @@ class IsaacSimCamera(BaseCamera):
+             # For WebRTC: use BGR frames directly
+             if self._enable_webrtc:
+                 self._webrtc_buffer.write(frame_data)
+-            else:
+-                logger_mp.warning(f"[IsaacSimCamera] Failed to encode to WebRTC for {self._cam_topic}")
++            # Aqui habia un `else` que avisaba "Failed to encode to WebRTC" cada
++            # vez que WebRTC estaba simplemente DESACTIVADO, que no es un fallo.
++            # Con enable_webrtc: false salian ~90 avisos por segundo (3 camaras
++            # a 30 fps), quemando CPU y ahogando el log.
+             if not self._ready.is_set():
+                 self._ready.set()
+         else:

@@ -40,7 +40,10 @@ h1_2_teleoperation/
 │       └── wait_for_camera.py            vigila la RealSense por si se conecta al PC2
 └── patches/
     ├── inspire_sdkpy_uint16.patch              corrige un fallo de inspire_sdkpy (ver abajo)
-    └── unitree_sim_isaaclab_inspire_ftp.patch  añade las manos RH56DFTP (FTP) al simulador
+    ├── unitree_sim_isaaclab_inspire_ftp.patch  añade las manos RH56DFTP (FTP) al simulador
+    ├── xr_teleoperate_sim.patch                 control de flujo aiohttp + regulador de fps
+    ├── televuer_image_format_knob.patch         formato de la imagen hacia el visor
+    └── teleimager_webrtc_warning.patch          quita un aviso falso a 90/s
 ```
 
 ## Qué NO está aquí, y por qué
@@ -113,7 +116,7 @@ teleoperación es idéntico al del robot real salvo por el flag `--sim`, porque
 este repo añade al simulador el protocolo **FTP** de las RH56DFTP —el simulador
 de Unitree solo hablaba el de las manos DFX del G1—.
 
-La guía completa, con las ocho incidencias del procedimiento oficial, está en
+La guía completa, con las once incidencias del procedimiento oficial, está en
 [`README_SIM.md`](h1_2_teleoperation/README_SIM.md).
 
 ```bash

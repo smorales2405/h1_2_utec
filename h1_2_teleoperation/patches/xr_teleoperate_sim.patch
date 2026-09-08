@@ -1,0 +1,126 @@
+diff --git a/teleop/teleop_hand_and_arm.py b/teleop/teleop_hand_and_arm.py
+index b33ac81..990e751 100644
+--- a/teleop/teleop_hand_and_arm.py
++++ b/teleop/teleop_hand_and_arm.py
+@@ -12,6 +12,13 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
+ parent_dir = os.path.dirname(current_dir)
+ sys.path.append(parent_dir)
+ 
++# Antes de tocar nada de red: en Python < 3.11 el reenvio de control de flujo de
++# asyncio.sslproto a aiohttp viene desemparejado y congela la sesion WebXR a los
++# pocos segundos. Ver teleop/utils/aiohttp_flowcontrol_fix.py.
++from teleop.utils.aiohttp_flowcontrol_fix import apply as _apply_aiohttp_flowcontrol_fix
++if _apply_aiohttp_flowcontrol_fix():
++    logger_mp.info("Parche de control de flujo aiohttp/sslproto aplicado (Python < 3.11)")
++
+ from unitree_sdk2py.core.channel import ChannelFactoryInitialize # dds 
+ from televuer import TeleVuerWrapper
+ from teleop.robot_control.robot_arm import G1_29_ArmController, G1_29_Arm_Internal_Dex1_Controller, G1_23_ArmController, H1_2_ArmController, H1_ArmController, H2_ArmController, R1_A5_ArmController, R1_A7_ArmController
+@@ -128,9 +135,14 @@ if __name__ == '__main__':
+         tv_wrapper = TeleVuerWrapper(use_hand_tracking=args.input_mode == "hand", 
+                                      binocular=camera_config['head_camera']['binocular'],
+                                      img_shape=camera_config['head_camera']['image_shape'],
+-                                     # maybe should decrease fps for better performance?
+-                                     # https://github.com/unitreerobotics/xr_teleoperate/issues/172
+-                                     # display_fps=camera_config['head_camera']['fps'] ? args.frequency? 30.0?
++                                     # Regulador de fotogramas hacia el visor. Con el camino ZMQ,
++                                     # televuer manda un JPEG entero por el websocket a este ritmo:
++                                     # 640x480 q80 son ~40 kB, o sea ~9,7 Mbps a 30 fps. Sobre TCP no
++                                     # se descartan fotogramas, se acumulan, asi que en un enlace WiFi
++                                     # justo el socket se llena y la sesion XR se atasca. Bajarlo es
++                                     # lineal en ancho de banda. La duda ya estaba en el codigo de
++                                     # Unitree: https://github.com/unitreerobotics/xr_teleoperate/issues/172
++                                     display_fps=float(os.environ.get("XR_DISPLAY_FPS", 30.0)),
+                                      display_mode=args.display_mode,
+                                      zmq=camera_config['head_camera']['enable_zmq'],
+                                      webrtc=camera_config['head_camera']['enable_webrtc'],
+diff --git a/teleop/utils/aiohttp_flowcontrol_fix.py b/teleop/utils/aiohttp_flowcontrol_fix.py
+new file mode 100644
+index 0000000..0bdbea0
+--- /dev/null
++++ b/teleop/utils/aiohttp_flowcontrol_fix.py
+@@ -0,0 +1,84 @@
++# Copyright (c) 2025, Unitree Robotics Co., Ltd. All Rights Reserved.
++# License: Apache License, Version 2.0
++"""
++Arregla el congelamiento de la sesion WebXR en Python < 3.11.
++
++Sintoma
++-------
++Con el visor puesto, a los pocos segundos la sesion de Vuer se queda helada:
++el seguimiento de manos deja de actualizarse y la imagen no vuelve. En la
++consola aparece, una sola vez:
++
++    protocol.resume_writing() failed
++      File ".../asyncio/sslproto.py", line 522, in resume_writing
++        self._app_protocol.resume_writing()
++      File ".../aiohttp/base_protocol.py", line 36, in resume_writing
++        assert self._paused
++    AssertionError
++
++Causa
++-----
++`asyncio.sslproto.SSLProtocol` de Python 3.10 reenvia `pause_writing()` y
++`resume_writing()` al protocolo de la aplicacion **sin llevar la cuenta de si
++llego a pausarlo**:
++
++    def resume_writing(self):
++        self._app_protocol.resume_writing()   # a pelo, sin estado
++
++Python 3.11 reescribio sslproto y añadio `_app_writing_paused` justo para
++esto. Como aqui las llamadas llegan desemparejadas y `BaseProtocol` de aiohttp
++las valida con `assert`, salta la excepcion.
++
++Y no es solo ruido en el log. `BaseProtocol` usa `_paused` junto con
++`_drain_waiter`: si el desemparejamiento cae del lado contrario —un `pause`
++cuyo `resume` se pierde porque la excepcion lo aborta— `_paused` se queda en
++`True` para siempre, y cualquier corrutina que espere en `_drain_helper()` no
++despierta nunca. El escritor del websocket se para en seco: la sesion XR se
++congela.
++
++Salta cuando el control de flujo de TCP entra en juego, o sea cuando la red no
++drena el socket tan rapido como se escribe. Con el visor por WiFi es cuestion
++de segundos.
++
++Arreglo
++-------
++Quitar los `assert` y dejar los dos metodos idempotentes, que es lo que hace
++Python 3.11 de fabrica. `resume_writing` sigue resolviendo el `_drain_waiter`,
++asi que nadie se queda esperando.
++
++No hace nada en Python >= 3.11, donde el fallo no existe.
++"""
++
++import sys
++
++
++def apply() -> bool:
++    """Aplica el parche. Devuelve True si se aplico."""
++    if sys.version_info >= (3, 11):
++        return False   # sslproto ya lleva la cuenta del estado
++
++    try:
++        from aiohttp.base_protocol import BaseProtocol
++    except ImportError:
++        return False
++
++    if getattr(BaseProtocol, "_h12_flowcontrol_patched", False):
++        return False
++
++    def pause_writing(self) -> None:
++        # sin `assert not self._paused`: una pausa repetida no cambia nada
++        self._paused = True
++
++    def resume_writing(self) -> None:
++        # sin `assert self._paused`: lo importante es soltar al que espera
++        self._paused = False
++        waiter = self._drain_waiter
++        if waiter is not None:
++            self._drain_waiter = None
++            if not waiter.done():
++                waiter.set_result(None)
++
++    BaseProtocol.pause_writing = pause_writing
++    BaseProtocol.resume_writing = resume_writing
++    BaseProtocol._h12_flowcontrol_patched = True
++    return True

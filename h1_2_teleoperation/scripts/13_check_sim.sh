@@ -55,6 +55,15 @@ CAMCFG="$SIM/teleimager/cam_config_server.yaml"
 if [ -f "$CAMCFG" ]; then
   grep -q "type: isaacsim"            "$CAMCFG" && ok "type: isaacsim"            || no "type != isaacsim en $CAMCFG"
   grep -q "image_shape: \[480, 640\]" "$CAMCFG" && ok "image_shape: [480, 640]"   || no "image_shape != [480, 640] en $CAMCFG"
+  # El visor no consigue el video por WebRTC: la peticion del :8012 al :60001 es
+  # cruzada y con certificado autofirmado, y el navegador la rechaza en silencio
+  # dentro de la sesion WebXR. Con enable_webrtc: false la imagen va por el mismo
+  # websocket que ya funciona para el seguimiento de manos (README_SIM §3.7).
+  if grep -q "enable_webrtc: false" "$CAMCFG"; then
+    ok "enable_webrtc: false (imagen por ZMQ, un solo origen)"
+  else
+    no "enable_webrtc: true — el visor se quedara sin imagen dentro de VR (README_SIM §3.7)"
+  fi
 else
   no "falta $CAMCFG (¿submodulo sin inicializar?)"
 fi
@@ -64,6 +73,14 @@ echo "== 6. Puente FTP de las manos (parche de este repo) =="
 [ -f "$SIM/dds/inspire_ftp_idl.py" ] && ok "dds/inspire_ftp_idl.py" || no "falta dds/inspire_ftp_idl.py"
 grep -q "enable_inspire_ftp_dds" "$SIM/sim_main.py"     && ok "--enable_inspire_ftp_dds en sim_main.py"  || no "sim_main.py sin el flag FTP"
 grep -q "InspireFTPDDS"          "$SIM/dds/dds_create.py" && ok "InspireFTPDDS registrado en dds_create.py" || no "dds_create.py sin InspireFTPDDS"
+grep -q "por nombre" "$SIM/tasks/common_observations/inspire_state.py" && ok "indices Inspire resueltos por nombre" || no "inspire_state.py con los indices fijos del G1"
+# Se busca la LLAMADA, no el texto: el parche deja la frase en un comentario.
+grep -q 'logger_mp.warning(f"\[IsaacSimCamera\] Failed to encode to WebRTC' "$SIM/teleimager/src/teleimager/image_server.py" \
+    && no "teleimager sin parchear: avisara ~90 veces/s con WebRTC desactivado" \
+    || ok "aviso espurio de WebRTC corregido en teleimager"
+grep -q "aiohttp_flowcontrol_fix" "$ROOT/xr_teleoperate/teleop/teleop_hand_and_arm.py" 2>/dev/null \
+    && ok "parche de control de flujo aiohttp aplicado en xr_teleoperate" \
+    || no "xr_teleoperate sin el parche aiohttp: la sesion XR se congelara"
 
 echo "== 7. Aislamiento de PYTHONPATH =="
 # Solo es un problema si el entorno global mete /opt/ros o /opt/openrobots.

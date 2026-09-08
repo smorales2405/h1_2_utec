@@ -180,7 +180,19 @@ inspire_joint_indices = [36, 37, 35, 34, 48, 38, 31, 32, 30, 29, 43, 33]
 ```
 
 Son los del **G1 de 29 DoF**. El H1-2 tiene otro orden de articulaciones, así
-que cada ranura de estado lee el dedo equivocado. El camino de **comando** no
+que cada ranura de estado lee el dedo equivocado. Sacando
+`env.scene["robot"].data.joint_names` del H1-2 se ve el desfase:
+
+| articulación | índice real (H1-2) | índice fijo (G1) |
+|---|---|---|
+| `R_pinky_proximal_joint` | 34 | 36 |
+| `R_ring_proximal_joint` | 35 | 37 |
+| `L_pinky_proximal_joint` | 29 | 31 |
+| `L_index_proximal_joint` | 27 | 29 |
+| `L_thumb_proximal_pitch_joint` | 41 | 43 |
+
+Dos posiciones de más en todos: el H1-2 tiene dos articulaciones de cuerpo
+menos que el G1 antes de llegar a las manos. El camino de **comando** no
 tiene el problema: `action_provider_dds.py` resuelve por nombre
 (`inspire_hand_joint_mapping`). Resultado: la teleoperación **mandaba bien y
 leía mal**, en silencio.
@@ -290,7 +302,119 @@ máquina, así que el HTTPS del `:60001` valida igual que el del `:8012`.
 > poner `enable_webrtc: false` en `unitree_sim_isaaclab/teleimager/cam_config_server.yaml`
 > y volver al camino ZMQ, pero WebRTC da bastante menos latencia en el visor.
 
-### 3.7 La caché de pinocchio no sobrevive a un cambio de versión
+### 3.7 El cliente de Vuer pierde el puerto del websocket cuando la página va por HTTPS
+
+**Esta es la causa de que el visor no muestre nada.** Cuesta encontrarla porque
+no da ningún error visible: la página carga, se ve la rejilla por defecto, los
+botones responden, y la imagen no llega nunca. Parece que se ha congelado.
+
+En el bundle del cliente que sirve `vuer` 0.0.60:
+
+```js
+const DEFAULT_PORT = 8012;
+function getSocketURI(K) {
+  return K || (window.location.hostname == "vuer.ai"
+    ? `ws://localhost:${DEFAULT_PORT}`
+    : window.location.protocol == "https:"
+      ? `wss://${window.location.hostname}`                              // <-- sin puerto
+      : `ws://${window.location.hostname}:${window.location.port || DEFAULT_PORT}`);
+}
+```
+
+Por HTTP concatena el puerto; **por HTTPS no**. Así que al abrir
+`https://<ip>:8012` el cliente intenta `wss://<ip>` — es decir, el puerto 443,
+donde no escucha nada. **El websocket no llega a conectarse.** Y como por ese
+websocket viaja la escena entera, no llega ni la imagen ni nada más.
+
+Se ve a simple vista en el panel de la derecha de la página, campo
+**Socket URI**: si pone `wss://<ip>` sin puerto, es esto.
+
+WebXR obliga a contexto seguro, así que por HTTPS hay que pasar sí o sí y el
+fallo se dispara siempre con el visor.
+
+El arreglo no necesita parchear nada: el cliente acepta la URI explícita en el
+parámetro `ws` (`getSocketURI(query.ws)`). Hay que abrir **la URL entera**:
+
+```
+https://192.168.0.101:8012/?ws=wss://192.168.0.101:8012
+```
+
+`12_launch_teleop_sim.sh` ya la imprime así en el banner. También se puede
+corregir a mano en el campo *Socket URI* de la página y pulsar *reconnect*.
+
+> Afecta igual al **despliegue físico**: mismo entorno `tv`, mismo Vuer, misma
+> necesidad de HTTPS para WebXR.
+
+### 3.8 Dos diagnósticos que resultaron falsos
+
+Se documentan porque son callejones sin salida caros y conviene no repetirlos.
+Los dos venían de §3.7: al no conectarse el websocket, **cualquier** camino de
+imagen fallaba, y eso apuntaba a culpables equivocados.
+
+**El vídeo WebRTC y el certificado cruzado.** Con `enable_webrtc: true` la
+imagen tampoco aparecía, y parecía que el navegador rechazaba en silencio la
+petición del origen `:8012` al `:60001` por el certificado autofirmado. Falso:
+el plano de vídeo WebRTC también se anuncia **por el websocket**, así que nunca
+llegó a pedirse. Comprobado además en el propio visor: `createImageBitmap` sobre
+un `Blob` con el tipo MIME `"image"` —el que usa Vuer, y que no es un tipo
+válido— decodifica sin problema tanto en el Quest como en Firefox.
+
+**El congelamiento y aiohttp.** En el log salía de verdad este error:
+
+```
+protocol.resume_writing() failed
+  File ".../aiohttp/base_protocol.py", line 36, in resume_writing
+    assert self._paused
+AssertionError
+```
+
+y es un fallo real: `asyncio.sslproto` de Python 3.10 reenvía el control de
+flujo a aiohttp sin llevar la cuenta del estado (Python 3.11 lo arregló con
+`_app_writing_paused`), y si el desemparejamiento cae del lado malo, `_paused`
+se queda en `True` y el escritor se queda esperando para siempre. Pero **no era
+la causa del congelamiento** que se estaba investigando: eso era simplemente que
+no llegaba nada nunca. El parche
+[`patches/xr_teleoperate_sim.patch`](patches/xr_teleoperate_sim.patch)
+se mantiene porque el fallo latente existe y salta con enlaces lentos, pero no
+esperes que arregle una sesión que no se ve.
+
+**Cómo se acotó, por si sirve de método.** Midiendo cada eslabón en vez de
+suponer:
+
+| Eslabón | Comprobación | Resultado |
+|---|---|---|
+| Isaac Sim genera la imagen | leer `/dev/shm` donde televuer la deja | ✔ la vista real del H1-2 |
+| El servidor la empaqueta | descodificar el mensaje | ✔ JPEG válido, `tag: ImageBackground` |
+| El websocket la envía | conectarse como cliente con aiohttp | ✔ 441 mensajes, 9,64 Mbps en 15 s |
+| El navegador la decodifica | página de prueba servida por HTTP | ✔ en el Quest y en Firefox |
+| El cliente de Vuer la pinta | Vuer mínimo por **HTTP** | ✔ se ve |
+| Lo mismo por **HTTPS** | la teleoperación real | ✘ **aquí estaba** |
+
+Que funcionara por HTTP y no por HTTPS fue lo que llevó a `getSocketURI`.
+
+### 3.9 Un aviso que miente 90 veces por segundo
+
+Al desactivar WebRTC aparece esto por consola, por cada cámara y fotograma:
+
+```
+[IsaacSimCamera] Failed to encode to WebRTC for head_camera
+```
+
+No es un fallo. En `teleimager/src/teleimager/image_server.py` el `else` está
+mal puesto y avisa cuando WebRTC está simplemente **desactivado**:
+
+```python
+if self._enable_webrtc:
+    self._webrtc_buffer.write(frame_data)
+else:
+    logger_mp.warning(f"[IsaacSimCamera] Failed to encode to WebRTC for {self._cam_topic}")
+```
+
+Con tres cámaras a 30 fps son ~90 avisos por segundo quemando CPU y ahogando el
+log justo cuando hace falta leerlo. Lo quita
+[`patches/teleimager_webrtc_warning.patch`](patches/teleimager_webrtc_warning.patch).
+
+### 3.10 La caché de pinocchio no sobrevive a un cambio de versión
 
 `robot_arm_ik.py` guarda el modelo con `pickle` en
 `xr_teleoperate/teleop/h1_2_model_cache.pkl`. Pinocchio serializa con
@@ -307,7 +431,7 @@ rm -f xr_teleoperate/teleop/*_model_cache.pkl
 
 `00_check_host.sh` da la pista cuando detecta ese error.
 
-### 3.8 El resto que ya estaba documentado
+### 3.11 El resto que ya estaba documentado
 
 Las cuatro incidencias del lado laptop del despliegue físico
 ([`README_DEPLOY.md` §4](README_DEPLOY.md)) siguen aplicando, porque el entorno
@@ -377,6 +501,14 @@ git clone https://github.com/NaCl-1374/inspire_hand_ws.git
 # --- parches ---
 cd inspire_hand_ws && git apply ../patches/inspire_sdkpy_uint16.patch && cd ..
 cd unitree_sim_isaaclab && git apply ../patches/unitree_sim_isaaclab_inspire_ftp.patch && cd ..
+cd xr_teleoperate && git apply ../patches/xr_teleoperate_sim.patch && cd ..
+cd xr_teleoperate/teleop/televuer && git apply ../../../patches/televuer_image_format_knob.patch && cd ../../..
+cd unitree_sim_isaaclab/teleimager && git apply ../../patches/teleimager_webrtc_warning.patch && cd ../..
+
+# --- imagen por ZMQ en vez de WebRTC (§3.8): el visor no consigue el video
+#     WebRTC dentro de la sesion WebXR con certificado autofirmado ---
+sed -i 's/^\(\s*\)enable_webrtc: true/\1enable_webrtc: false/' \
+    unitree_sim_isaaclab/teleimager/cam_config_server.yaml
 
 # --- assets USD del simulador (~1.7 GB, HuggingFace + git-lfs) ---
 sudo apt install -y git-lfs unzip cmake build-essential openssl
@@ -468,10 +600,19 @@ INPUT_MODE=controller ./scripts/12_launch_teleop_sim.sh   # mandos en vez de man
 
 **En el Quest 3**
 
-1. Misma WiFi que la laptop; activar seguimiento de manos en Ajustes.
-2. Navegador → `https://<ip-wifi-de-la-laptop>:8012` → *Advanced* →
-   *Proceed to … (unsafe)*. Solo la primera vez.
-3. Botón **Virtual Reality** y aceptar permisos.
+1. Misma red que la máquina; activar seguimiento de manos en Ajustes.
+2. Navegador → la **URL completa que imprime el lanzador**, con su `?ws=`:
+
+   ```
+   https://<ip>:8012/?ws=wss://<ip>:8012
+   ```
+
+   Sin el `?ws=` no conecta el websocket y no se ve nada (§3.7). Aceptar el
+   certificado: *Advanced* → *Proceed to … (unsafe)*, solo la primera vez.
+3. Comprobar en el panel de la derecha que **Socket URI** pone
+   `wss://<ip>:8012` **con el puerto**. Si falta, corregirlo ahí y pulsar
+   *reconnect*.
+4. Botón **Virtual Reality** y aceptar permisos.
 
 **Secuencia de control**: `r` para que el robot empiece a seguir, `s` para
 iniciar/guardar grabación (con `--record`), `q` para salir.
@@ -526,6 +667,19 @@ que no se tocan, y el anular izquierdo del robot simulado responde:
 |---|---|---|
 | DOF que se leían en la ranura correcta | 1 de 12 | **12 de 12** |
 | DOF que no aparecían en ningún sitio | 2 | 0 |
+
+### Sesión XR
+
+| | |
+|---|---|
+| Imagen de Isaac Sim en la escena | ✔ verificada en Firefox y en el Quest 3, con la URL `?ws=` |
+| Enlace al visor por **WiFi** (Archer C50) | 39–122 ms, 35 ms de fluctuación — insuficiente |
+| Enlace al visor por **ethernet** | **1,7 ms, 0,013 ms de fluctuación** |
+| Carga de la imagen por el websocket | 41 kB/fotograma (`jpeg`) · 54 kB (`b64jpeg`) |
+
+Con el visor por cable el ancho de banda deja de ser un problema: a 30 fps son
+~9,7 Mbps, que el enlace absorbe de sobra. `DISPLAY_FPS` solo hace falta bajarlo
+si se teleopera por WiFi.
 
 ### Rendimiento observado
 

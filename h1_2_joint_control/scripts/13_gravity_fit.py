@@ -40,7 +40,28 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from h1_2_joint_control import config as cfg
 from h1_2_joint_control.joints import BY_INDEX, BY_NAME, NUM_CMD_MOTOR
 
-URDF = Path.home() / "humanoid_ws/src/h1_2_utec/h1_2_description/urdf/h1_2.urdf"
+def _urdf() -> Path:
+    """Ruta del URDF con las manos Inspire.
+
+    Viene del repositorio `oscar-ramos/h1_2_utec` (el paquete de descripción),
+    que NO es este. En otra máquina la ruta cambia, así que se puede fijar con
+    la variable de entorno `H12_URDF`.
+    """
+    import os
+    v = os.environ.get("H12_URDF")
+    if v:
+        return Path(v)
+    for c in (Path.home() / "humanoid_ws/src/h1_2_utec/h1_2_description/urdf/h1_2.urdf",
+              Path.home() / "h1_2_utec/h1_2_description/urdf/h1_2.urdf",
+              Path.home() / "ros2_ws/src/h1_2_utec/h1_2_description/urdf/h1_2.urdf"):
+        if c.exists():
+            return c
+    raise FileNotFoundError(
+        "no encuentro el URDF del H1-2 con manos Inspire.\n"
+        "  Viene de github.com/oscar-ramos/h1_2_utec (h1_2_description).\n"
+        "  Clónalo, o indica la ruta con:  export H12_URDF=/ruta/a/h1_2.urdf")
+
+
 
 
 def main() -> int:
@@ -62,7 +83,8 @@ def main() -> int:
     pts = d["puntos"]
     print(f"\n  mapa: {ruta.name}  ({len(pts)} configuraciones)")
 
-    m = pin.buildModelFromUrdf(str(URDF))
+    urdf = _urdf()
+    m = pin.buildModelFromUrdf(str(urdf))
     dat = m.createData()
     nb = m.njoints - 1
     prior = np.concatenate([I.toDynamicParameters()[:4] for I in list(m.inertias)[1:]])
@@ -159,7 +181,7 @@ def main() -> int:
 
     salida = cfg.LOG_DIR / f"gravity_params_{d['stamp']}.json"
     salida.write_text(json.dumps({
-        "urdf": str(URDF), "map": ruta.name, "lambda": lam, "arm": brazo,
+        "urdf": str(urdf), "map": ruta.name, "lambda": lam, "arm": brazo,
         "rms_prior": float(np.sqrt(np.mean(e0 ** 2))),
         "rms_fit": float(np.sqrt(np.mean(e1 ** 2))),
         "params": pi.tolist(), "bodies": cuerpos,

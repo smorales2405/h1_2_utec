@@ -50,7 +50,28 @@ from h1_2_joint_control import recorder as rec
 from h1_2_joint_control.client import SafetyAbort
 from h1_2_joint_control.joints import BY_INDEX, NUM_CMD_MOTOR, resolve
 
-URDF = (Path.home() / "humanoid_ws/src/h1_2_utec/h1_2_description/urdf/h1_2.urdf")
+def _urdf() -> Path:
+    """Ruta del URDF con las manos Inspire.
+
+    Viene del repositorio `oscar-ramos/h1_2_utec` (el paquete de descripción),
+    que NO es este. En otra máquina la ruta cambia, así que se puede fijar con
+    la variable de entorno `H12_URDF`.
+    """
+    import os
+    v = os.environ.get("H12_URDF")
+    if v:
+        return Path(v)
+    for c in (Path.home() / "humanoid_ws/src/h1_2_utec/h1_2_description/urdf/h1_2.urdf",
+              Path.home() / "h1_2_utec/h1_2_description/urdf/h1_2.urdf",
+              Path.home() / "ros2_ws/src/h1_2_utec/h1_2_description/urdf/h1_2.urdf"):
+        if c.exists():
+            return c
+    raise FileNotFoundError(
+        "no encuentro el URDF del H1-2 con manos Inspire.\n"
+        "  Viene de github.com/oscar-ramos/h1_2_utec (h1_2_description).\n"
+        "  Clónalo, o indica la ruta con:  export H12_URDF=/ruta/a/h1_2.urdf")
+
+
 
 
 def medir(cli, idx, q_obj, retroceso, asentar, medir_s, speed):
@@ -79,9 +100,11 @@ def modelo_gravedad():
         import pinocchio as pin
     except ImportError:
         return None, "pinocchio no disponible"
-    if not URDF.exists():
-        return None, f"no está {URDF}"
-    m = pin.buildModelFromUrdf(str(URDF))
+    try:
+        urdf = _urdf()
+    except FileNotFoundError as exc:
+        return None, str(exc).splitlines()[0]
+    m = pin.buildModelFromUrdf(str(urdf))
     d = m.createData()
     # mapa de nuestros 27 motores a las juntas del modelo
     idx_q, idx_v = {}, {}
@@ -186,7 +209,7 @@ def main() -> int:
         return 1
 
     salida = cfg.LOG_DIR / f"gravity_id_{stamp}.json"
-    rec.save_meta({"stamp": stamp, "gains": gains.set_name, "urdf": str(URDF),
+    rec.save_meta({"stamp": stamp, "gains": gains.set_name, "urdf": str(_urdf()),
                    "puntos": filas}, salida)
 
     print("\n\n  ═══ Gravedad y fricción por articulación ══════════════════════")

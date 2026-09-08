@@ -21,7 +21,29 @@ import numpy as np
 from .config import LOG_DIR
 from .joints import BY_INDEX, NUM_CMD_MOTOR
 
-URDF = Path.home() / "humanoid_ws/src/h1_2_utec/h1_2_description/urdf/h1_2.urdf"
+def _urdf() -> Path:
+    """Ruta del URDF con las manos Inspire.
+
+    Viene del repositorio `oscar-ramos/h1_2_utec` (el paquete de descripción),
+    que NO es este. En otra máquina la ruta cambia, así que se puede fijar con
+    la variable de entorno `H12_URDF`.
+    """
+    import os
+    v = os.environ.get("H12_URDF")
+    if v:
+        return Path(v)
+    for c in (Path.home() / "humanoid_ws/src/h1_2_utec/h1_2_description/urdf/h1_2.urdf",
+              Path.home() / "h1_2_utec/h1_2_description/urdf/h1_2.urdf",
+              Path.home() / "ros2_ws/src/h1_2_utec/h1_2_description/urdf/h1_2.urdf"):
+        if c.exists():
+            return c
+    raise FileNotFoundError(
+        "no encuentro el URDF del H1-2 con manos Inspire.\n"
+        "  Viene de github.com/oscar-ramos/h1_2_utec (h1_2_description).\n"
+        "  Clónalo, o indica la ruta con:  export H12_URDF=/ruta/a/h1_2.urdf")
+
+
+URDF = None   # se resuelve al construir el modelo
 
 
 class GravityModel:
@@ -35,9 +57,8 @@ class GravityModel:
     def __init__(self, params_files=None, verbose=True):
         import pinocchio as pin
         self._pin = pin
-        if not URDF.exists():
-            raise FileNotFoundError(f"no está {URDF}")
-        self.model = pin.buildModelFromUrdf(str(URDF))
+        self.urdf = _urdf()
+        self.model = pin.buildModelFromUrdf(str(self.urdf))
         self.data = self.model.createData()
         self.fuentes: dict[str, str] = {}
 

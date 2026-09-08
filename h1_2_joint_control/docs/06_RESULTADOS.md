@@ -465,6 +465,97 @@ si la teleoperación manda la derivada de la consigna**. Si se queda con
 
 ---
 
+---
+
+## 8. Gravedad y fricción separadas (F2.1) — 2026-09-08
+
+19 puntos del brazo izquierdo, cada uno alcanzado **desde los dos sentidos**
+para separar `τ_g` de la fricción estática. Canal `lowcmd`, ganancias `tuned`,
+configuración completa registrada en cada medida (`logs/gravity_id_*.json`).
+
+### La fricción, medida por primera vez
+
+| articulación | \|f\| medio | \|f\| máx | como fracción de `τ_max` |
+|---|---:|---:|---:|
+| L_shoulder_pitch | 0.14 Nm | 0.29 | 0.7 % |
+| L_shoulder_roll | 0.83 Nm | 1.46 | 3.7 % |
+| **L_shoulder_yaw** | **0.95 Nm** | 1.36 | **5.3 %** |
+| **L_elbow** | **0.81 Nm** | 0.86 | **4.5 %** |
+| L_wrist_roll | 0.16 Nm | 0.27 | 1.4 % |
+| L_wrist_pitch | 0.28 Nm | 0.28 | 1.5 % |
+| L_wrist_yaw | 0.23 Nm | 0.30 | 1.6 % |
+
+Las dos peores son `shoulder_yaw` y `elbow`, los motores de 18 Nm: ahí la
+fricción vale un 5 % del par disponible. Eso explica dos cosas que estaban
+sueltas: la dispersión entre pasadas de §6 (21.2 contra 35.8 mrad en el mismo
+ensayo) y la banda de pegado del codo.
+
+### Mi hipótesis era falsa
+
+En [`08_PLAN.md`](08_PLAN.md) §1.3 escribí que «una parte apreciable de los
+3.74 Nm de discrepancia es fricción, no masa», y lo dejé escrito antes de medir
+precisamente para poder contrastarlo. **No se sostiene.** Separando la fricción,
+el error del modelo contra la gravedad limpia sigue siendo de **0.96 Nm de media
+y 4.63 Nm máximo**, contra un criterio de 1.0 Nm.
+
+La fricción es real pero pequeña; no explica el hueco.
+
+### Y la masa de la mano tampoco lo explica
+
+Ajuste de un solo parámetro sobre la gravedad limpia:
+
+| factor sobre la masa del URDF | masa de mano | error medio | error máx |
+|---:|---:|---:|---:|
+| ×1.0 | 316 g | 0.96 Nm | 4.63 |
+| ×2.5 | 789 g (≈ la real) | 0.72 Nm | 3.16 |
+| ×4.0 | 1263 g | 0.50 Nm | 1.85 |
+| ×6.0 | **1895 g** | 0.41 Nm | 1.43 |
+
+El óptimo pide **1.9 kg de mano**, más del doble de la real. Un parámetro que
+para ajustar los datos tiene que tomar un valor físicamente imposible está
+absorbiendo otra cosa.
+
+Y el residuo con ese mejor factor tiene **estructura**, no ruido:
+
+| articulación | residuos | medio |
+|---|---|---:|
+| L_shoulder_pitch | −1.13, −1.43, −0.96 | **1.17 Nm** |
+| L_shoulder_yaw | −0.45, −0.96, −0.30 | 0.57 |
+| L_shoulder_roll | −0.66, +0.27 | 0.46 |
+| L_wrist_yaw | +0.38, +0.30, +0.37 | 0.35 |
+| L_elbow | +0.13, −0.08, +0.00 | **0.07** |
+| L_wrist_roll / pitch | ≈ 0 | 0.08 |
+
+Los residuos de `shoulder_pitch` y `wrist_yaw` son **casi constantes con el
+ángulo**. Un desplazamiento constante en un par de gravedad no es un error de
+masa: es una masa que el modelo no tiene, o un sesgo del propio `tau_est`.
+
+### Consecuencia para el protocolo: F2.1 no puede cerrarse como está escrito
+
+El protocolo plantea F2.1 como «verificar la masa de la mano, corregirla, y
+seguir», con una rama de contingencia para desmontar una mano. Los datos dicen
+que **ninguna de las dos ramas aplica**: no es la mano, y el residuo tiene
+estructura en más de una articulación a la vez.
+
+Dos caminos, y el segundo es el que recomiendo:
+
+**(a) Identificación inercial completa.** Ajustar los parámetros base del brazo,
+no un escalar. Es el procedimiento estándar, pero necesita una trayectoria de
+excitación diseñada para que el problema esté bien condicionado. Los 19 puntos
+de aquí están agrupados alrededor de una postura y no lo están.
+
+**(b) Regresión empírica de `τ_g(q)`, sin modelo físico.** Para lo que hace
+falta —un `tau_ff` que funcione— no se necesita un modelo correcto, se necesita
+una buena predicción. Y acabamos de demostrar que `τ_g` se puede medir limpia.
+Muestrear el espacio de trabajo y ajustar una regresión da el `tau_ff` sin
+pelearse con parámetros inerciales que el URDF tiene mal.
+
+La (b) es más barata, no depende de que el URDF sea correcto, y da exactamente
+el número que la teleoperación necesita. La (a) solo compensa si además se
+quiere el modelo para otra cosa.
+
+---
+
 ## Qué queda por hacer
 
 - [x] ~~Repetir el barrido con una postura de partida reproducible~~ — hecho,

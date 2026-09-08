@@ -337,6 +337,37 @@ criterio de aceptación. La lección vale para el resto del protocolo —
 **comprobar que cada criterio mide la magnitud por la que uno se preocupa, y no
 una correlacionada**.
 
+## 2026-09-08 (tarde) — F2.1: dos hipótesis mías, las dos falsas
+
+19 puntos del brazo izquierdo con `11_gravity_id.py`, cada uno alcanzado desde
+los dos sentidos. Detalle en [`06_RESULTADOS.md`](06_RESULTADOS.md) §8.
+
+**Hipótesis 1, mía, escrita antes de medir**: «una parte apreciable de los
+3.74 Nm de discrepancia es fricción, no masa». **Falsa.** La fricción existe
+—0.14 a 0.95 Nm según la articulación— pero separarla deja el error del modelo
+en 0.96 Nm de media y 4.63 máximo. No explica el hueco.
+
+**Hipótesis 2, del protocolo**: es la masa de la mano, que el URDF pone en 316 g
+cuando la real son ~800 g. **También falsa.** El ajuste por mínimos cuadrados
+sobre la gravedad limpia pide **1.9 kg**, más del doble de la real, y aun así
+deja residuos estructurados: −1.13, −1.43, −0.96 Nm en `shoulder_pitch`, casi
+constantes con el ángulo. Un parámetro que necesita un valor imposible está
+absorbiendo otra cosa.
+
+Lo que sí quedó medido y sirve: **el mapa de fricción estática**. Las peores son
+`shoulder_yaw` (0.95 Nm) y `elbow` (0.81), los dos motores de 18 Nm, donde eso
+es un 5 % del par disponible. Explica la dispersión entre pasadas de §6 y la
+banda de pegado del codo, que llevaban sueltas desde el 09-05.
+
+**Consecuencia**: F2.1 no se puede cerrar como está escrita. Ni es la mano ni
+hay una rama de contingencia que aplique. Propuesta en §8 de resultados:
+sustituir el modelo físico por una **regresión empírica de `τ_g(q)`**, que es
+más barata, no depende de que el URDF sea correcto, y da exactamente el número
+que la teleoperación necesita.
+
+De paso, el portero de autocolisión actuó en 127 ciclos (0.4 %) durante la
+corrida, recortando consignas incompatibles con el ángulo de codo. Funciona.
+
 ### Pendiente
 
 - [ ] Repetir el barrido del codo en dos o tres posturas más: todo lo medido lo

@@ -432,8 +432,37 @@ de sobreimpulso en todo el rango de kp probado.
 en la posición medida adelantaría el par durante el movimiento. Medido: 17.9 %
 contra 17.3 % de sobreimpulso. No hay diferencia.
 
+## 2026-09-08 (cierre) — el barrido no es reproducible; F1 deja de ser opcional
+
+Al extender F2.3 a las siete articulaciones, `L_shoulder_roll` con las MISMAS
+ganancias dio sobreimpulsos de 0.8 %, 3.0 % y 29.5 % en tres corridas
+distintas. Detalle en [`06_RESULTADOS.md`](06_RESULTADOS.md) §11.
+
+Por el camino se encontraron y corrigieron dos artefactos de medida reales
+—cambio de ganancias con `q_des` desactualizado, y repeticiones que empezaban
+sin asentar— y aun así la dispersión persiste. Hay un tercer factor sin
+identificar; la pista es que el error permanente a kp = 70 pasa de +8.00 a
++31.03 mrad, o sea que el residuo del modelo de gravedad es 4× mayor en la
+corrida completa.
+
+**Con esa dispersión ningún barrido puede elegir entre candidatos.** Las mejoras
+del 0 al 20 % del resumen del brazo izquierdo están por debajo del ruido.
+
+Es la hipótesis H1 del protocolo, y F1 —bloqueante -- es la fase que se saltó.
+`tuned_gff` queda marcado como PROVISIONAL en `gains.yaml` y `tuned` sin tocar.
+
+Lo que sí se sostiene de F2, porque viene de corridas aisladas y repetidas que
+concuerdan entre sí: la identificación de masas (validada por dos brazos
+independientes), que `τ_ff` quita el 85-98 % del error permanente, y que con
+gravedad compensada `shoulder_roll` a kp = 70 da ~1-3 % de sobreimpulso contra
+~17 % a kp = 280.
+
 ### Pendiente
 
+- [ ] **F1 antes de seguir sintonizando.** Sin `δ_min` no se puede afirmar que
+      un candidato sea mejor que otro.
+- [ ] Aislar el tercer factor de la dispersión. Sospecha: el residuo del modelo
+      de gravedad depende de la configuración por la que se pasa.
 - [ ] Repetir el barrido del codo en dos o tres posturas más: todo lo medido lo
       está con el codo a 85° y el brazo colgando.
 - [ ] Sintonizar hombros y muñecas con el mismo método.

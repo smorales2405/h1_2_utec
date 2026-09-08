@@ -167,6 +167,52 @@ sets:
       R_wrist_pitch:    {kp: 100.0, kd: 6.0}
       R_wrist_yaw:      {kp: 100.0, kd: 9.0}
       waist_yaw:        {kp: 200.0, kd: 2.0}
+
+  # ---------------------------------------------------------------------
+  # Sintonizado CON la gravedad compensada (fase F2.3). Es el sucesor de
+  # `tuned`, cuyos kp altos existian para tapar la falta de compensacion:
+  # con `--gravity-ff`, `L_shoulder_roll` baja de kp 280 a 70 y su
+  # sobreimpulso del 17 % al 1.4 %, con 4.7 Nm menos de pico.
+  #
+  # SOLO valido con `--gravity-ff` activo. Sin compensacion, estos kp
+  # dejan un error permanente `tau_g/kp` mucho mayor.
+  # ---------------------------------------------------------------------
+  tuned_gff:
+    # ⚠ PROVISIONAL — NO USAR PARA DECIDIR NADA.
+    # Los valores vienen de un barrido cuyos resultados NO son reproducibles:
+    # la misma articulacion con las mismas ganancias dio 0.8 %, 3.0 % y 29.5 %
+    # de sobreimpulso en tres corridas distintas. Ver 06_RESULTADOS.md §11.
+    # Hasta cerrar F1 (delta_min) no hay forma de saber que candidato es mejor.
+    description: >-
+      PROVISIONAL. Barrido no reproducible; pendiente de F1. Requiere
+      --gravity-ff.
+    joints:
+      L_shoulder_pitch: {kp: 111.1, kd: 20.25}
+      L_shoulder_roll:  {kp: 280.0, kd: 8.1}
+      L_shoulder_yaw:   {kp: 126.0, kd: 8.1}
+      L_elbow:          {kp: 126.0, kd: 20.25}
+      L_wrist_roll:     {kp: 63.0, kd: 1.2}
+      L_wrist_pitch:    {kp: 100.0, kd: 6.0}
+      L_wrist_yaw:      {kp: 39.7, kd: 13.5}
+      R_shoulder_pitch: {kp: 280.0, kd: 13.5}
+      R_shoulder_roll:  {kp: 280.0, kd: 9.0}
+      R_shoulder_yaw:   {kp: 126.0, kd: 13.5}
+      R_elbow:          {kp: 126.0, kd: 13.5}
+      R_wrist_roll:     {kp: 100.0, kd: 9.0}
+      R_wrist_pitch:    {kp: 100.0, kd: 6.0}
+      R_wrist_yaw:      {kp: 100.0, kd: 9.0}
+      waist_yaw:        {kp: 200.0, kd: 2.0}
+# ═══════════════════════════════════════════════════════════════════════════
+# Postura de ensayo
+# ═══════════════════════════════════════════════════════════════════════════
+# A dónde llevar ciertas articulaciones ANTES de medir, para que los brazos no
+# se golpeen con el torso. Sin esto, la postura de partida era «donde estuviera
+# el robot al arrancar», que no es reproducible y puede ser peligrosa: con los
+# hombros cerca de cero, un ensayo de `shoulder_roll` mete el brazo contra el
+# cuerpo (medido: 6.3° de error y 29.6 Nm, saltó la protección de par).
+#
+# En GRADOS, no en radianes: es como se especifican estos ángulos en la
+# práctica y así no hay que convertir a ojo al leer el fichero.
 legs_hold:
   description: Sostener piernas y cintura en su postura actual. Solo se aplican en
     canal `lowcmd`. Valores de H1_2_ArmController (kp_high/kd_high, y kp_low/kd_low
@@ -193,18 +239,6 @@ safety:
   joint_limit_margin: 0.05
   max_ref_velocity: 1.0
   lowstate_timeout: 0.5
-
-# ═══════════════════════════════════════════════════════════════════════════
-# Postura de ensayo
-# ═══════════════════════════════════════════════════════════════════════════
-# A dónde llevar ciertas articulaciones ANTES de medir, para que los brazos no
-# se golpeen con el torso. Sin esto, la postura de partida era «donde estuviera
-# el robot al arrancar», que no es reproducible y puede ser peligrosa: con los
-# hombros cerca de cero, un ensayo de `shoulder_roll` mete el brazo contra el
-# cuerpo (medido: 6.3° de error y 29.6 Nm, saltó la protección de par).
-#
-# En GRADOS, no en radianes: es como se especifican estos ángulos en la
-# práctica y así no hay que convertir a ojo al leer el fichero.
 test_posture_deg:
   description: >-
     Brazos separados del cuerpo para que los ensayos de las demás

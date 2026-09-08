@@ -583,6 +583,38 @@ class H12Client:
                 return
             time.sleep(self.dt)
 
+    def wait_settled(self, idx: int, dq_tol: float = 0.02,
+                     timeout: float = 3.0, estable: float = 0.15) -> bool:
+        """Espera a que la articulación esté REALMENTE quieta.
+
+        Una pausa fija no basta y el precio de suponer que sí lo es está
+        medido: los barridos con `--repeats 2` daban 29-69 % de sobreimpulso en
+        `L_shoulder_roll` donde el mismo kp con una sola repetición da 1.4-17 %.
+        La segunda repetición empezaba con la articulación aún volviendo de la
+        primera, y `step_response` tomaba como punto de partida una posición
+        que se estaba moviendo.
+
+        Devuelve False si se agota el plazo, para que quien llame pueda decidir.
+        """
+        t0 = time.monotonic()
+        quieta_desde = None
+        while time.monotonic() - t0 < timeout:
+            self._raise_if_aborted()
+            # Solo la VELOCIDAD. Comparar q con q_des no vale como criterio de
+            # reposo: con gravedad hay un error permanente legítimo, mayor que
+            # cualquier tolerancia razonable a kp bajo, y la condición no se
+            # cumpliría nunca.
+            ok = abs(self.dq(idx)) < dq_tol
+            if ok:
+                if quieta_desde is None:
+                    quieta_desde = time.monotonic()
+                elif time.monotonic() - quieta_desde >= estable:
+                    return True
+            else:
+                quieta_desde = None
+            time.sleep(0.02)
+        return False
+
     def sleep(self, seconds: float) -> None:
         """Como time.sleep, pero corta si salta la seguridad."""
         t_end = time.monotonic() + seconds

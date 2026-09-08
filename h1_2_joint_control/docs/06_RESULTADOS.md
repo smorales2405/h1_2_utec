@@ -774,6 +774,69 @@ mejor con estos datos.
 
 ---
 
+## 11. El barrido no es reproducible — F1 deja de ser opcional
+
+Al extender F2.3 a las siete articulaciones apareció algo que invalida el
+procedimiento, no un resultado concreto.
+
+`L_shoulder_roll`, escalón de 0.12 rad, kd = 13.5, gravedad compensada, **las
+mismas ganancias en las tres corridas**:
+
+| corrida | kp = 70 | kp = 111 | kp = 176 | kp = 280 |
+|---|---:|---:|---:|---:|
+| aislada, `02_move.py` | 0.8 % | 1.1 % | 13.5 % | 17.3 % |
+| `09_tune_all.py`, una articulación | 3.0 % | 0.3 % | 13.4 % | 17.6 % |
+| `09_tune_all.py`, las siete | **29.5 %** | **47.9 %** | **68.2 %** | **63.3 %** |
+
+Las dos primeras coinciden. La tercera no se parece en nada.
+
+El error permanente cuenta la misma historia: a kp = 70 da +8.00 mrad en la
+corrida enfocada y **+31.03 mrad** en la completa. Como el error permanente es
+`residuo/kp`, eso significa que el residuo del modelo de gravedad es **cuatro
+veces mayor** en la corrida completa. La hipótesis natural es que la
+compensación funciona peor en las configuraciones por las que pasa el brazo
+cuando se barren siete articulaciones seguidas, pero **no está aislada**.
+
+### Dos artefactos ya corregidos, y aun así
+
+Por el camino se encontraron y arreglaron dos fallos reales de medida:
+
+1. **Cambio de ganancias con `q_des` desactualizado** (regla 1 del protocolo).
+   Pasar de kp a kp' con un error `e` mete un salto de par `(kp'−kp)·e`.
+   Corregido igualando la consigna a la posición medida antes de tocar nada.
+2. **Repeticiones sin asentar.** La segunda repetición empezaba mientras la
+   articulación volvía de la primera, y `step_response` tomaba como punto de
+   partida una posición en movimiento. Corregido con `wait_settled()`, que
+   espera a velocidad baja de verdad en vez de a una pausa fija.
+
+Los dos eran reales y los dos están verificados. **Y aun así queda esta
+dispersión**, así que hay un tercer factor sin identificar.
+
+### La conclusión que toca
+
+Esto es exactamente la hipótesis **H1** del protocolo: «N = 1 en casi todo… la
+dispersión es del orden de las mejoras que se reportan». Y **F1 — la fase que
+cuantifica `δ_min` y que el protocolo declara bloqueante — es la que se saltó**.
+
+Con una dispersión de 0.8 % a 29.5 % en el sobreimpulso, **ningún barrido puede
+elegir entre candidatos**. Las mejoras del 0 al 20 % que reporta el resumen del
+brazo izquierdo están por debajo del ruido y no significan nada.
+
+Por eso el conjunto `tuned_gff` queda marcado como **provisional** en
+`gains.yaml`, y no se ha tocado `tuned`. Lo que sí se sostiene de F2 son los
+resultados medidos con corridas aisladas y repetidas:
+
+- la identificación de masas (§9), validada por dos brazos independientes;
+- que `τ_ff` reduce el error permanente un 85–98 % (§9);
+- que con gravedad compensada `shoulder_roll` a kp = 70 da ~1–3 % de
+  sobreimpulso contra ~17 % a kp = 280 (medido tres veces en corridas aisladas
+  y enfocadas, que sí concuerdan entre sí).
+
+**Antes de seguir sintonizando hay que cerrar F1.** No es una recomendación de
+método: sin `δ_min` no se puede afirmar que un candidato sea mejor que otro.
+
+---
+
 ## Qué queda por hacer
 
 - [x] ~~Repetir el barrido con una postura de partida reproducible~~ — hecho,

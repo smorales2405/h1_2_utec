@@ -110,18 +110,32 @@ def sweep(cli, idx, gains, base_args, q0, amp, values, fija, es_kp, log,
         gains.set_index(idx, kp, kd)
         cli.sleep(0.25)
         ts, sts = [], []
+        sin_asentar = 0
         for _ in range(max(repeats, 1)):
             cli.ramp_to({idx: q0}, speed=0.3)
             cli.sleep(base_args.pause)
+            # No basta una pausa fija: si la articulación sigue volviendo de la
+            # repetición anterior, `step_response` toma como punto de partida
+            # una posición en movimiento y el sobreimpulso sale inflado.
+            if not cli.wait_settled(idx):
+                sin_asentar += 1
             samples, track, step = _move.run_once(cli, idx, base_args, amp,
                                                   gains, quiet=True)
             ts.append(track)
             if step is not None:
                 sts.append(step)
+        if sin_asentar:
+            print(f"      ⚠ {sin_asentar} repetición(es) empezaron sin asentar")
         track = ts[0] if len(ts) == 1 else _promedia(ts)
         # El sobreimpulso solo entra en el coste si la trayectoria es un
         # escalón: con seno no hay tal cosa y `cost` lo ignoraría igualmente.
-        step = sts[0] if len(sts) == 1 else (sts[len(sts) // 2] if sts else None)
+        if not sts:
+            step = None
+        elif len(sts) == 1:
+            step = sts[0]
+        else:
+            # la de sobreimpulso MEDIANO, no una arbitraria
+            step = sorted(sts, key=lambda x: x.overshoot)[len(sts) // 2]
         J = mt.cost(track, step, base_args.w_err, base_args.w_chatter,
                     base_args.w_overshoot)
         out.append((v, J, track))

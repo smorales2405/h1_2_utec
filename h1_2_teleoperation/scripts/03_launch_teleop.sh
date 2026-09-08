@@ -7,6 +7,8 @@
 #   3) Robot en modo debug / amortiguacion, segun corresponda
 #
 # Variables sobreescribibles:  IMG_SERVER_IP, NET_IF, INPUT_MODE, DISPLAY_MODE, EXTRA
+# Resolucion de conda: busca la instalacion en vez de cablearla.
+source "$(dirname "${BASH_SOURCE[0]}")/_conda.sh"
 set -euo pipefail
 
 # ROOT = la carpeta h1_2_teleoperation (la que contiene scripts/). Se deduce de la
@@ -18,7 +20,7 @@ INPUT_MODE="${INPUT_MODE:-hand}"                     # hand | controller
 DISPLAY_MODE="${DISPLAY_MODE:-immersive}"            # immersive | ego | pass-through
 EXTRA="${EXTRA:-}"                                   # p.ej. --record  --motion  --headless
 
-source /home/utec/miniconda3/etc/profile.d/conda.sh
+source ${CONDA_BASE}/etc/profile.d/conda.sh
 conda activate tv
 
 cd "$ROOT/xr_teleoperate/teleop"

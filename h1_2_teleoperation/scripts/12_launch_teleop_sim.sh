@@ -18,12 +18,14 @@
 #
 # Variables sobreescribibles:  XR_IP, EE, INPUT_MODE, DISPLAY_MODE, IMG_SERVER_IP,
 #                              NET_IF, EXTRA
+# Resolucion de conda: busca la instalacion en vez de cablearla.
+source "$(dirname "${BASH_SOURCE[0]}")/_conda.sh"
 set -euo pipefail
 
 # ROOT = la carpeta h1_2_teleoperation (la que contiene scripts/). Se deduce de la
 # ubicacion de este script, asi que el repo se puede clonar donde sea.
 ROOT="${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-CONDA_BASE="${CONDA_BASE:-/home/utec/miniconda3}"
+CONDA_BASE="${CONDA_BASE}"
 
 EE="${EE:-inspire_ftp}"                              # inspire_ftp | inspire_dfx
 

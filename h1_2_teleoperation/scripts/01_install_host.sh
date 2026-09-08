@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Instalación de dependencias del Host (laptop) para xr_teleoperate — entorno conda "tv"
+# Resolucion de conda: busca la instalacion en vez de cablearla.
+source "$(dirname "${BASH_SOURCE[0]}")/_conda.sh"
 set -x
 # ROOT = la carpeta h1_2_teleoperation (la que contiene scripts/). Se deduce de la
 # ubicacion de este script, asi que el repo se puede clonar donde sea.
@@ -7,8 +9,25 @@ ROOT="${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 # `env -u PYTHONPATH`: llamar a pip por su ruta absoluta NO dispara los hooks de
 # conda, y con el PYTHONPATH de ROS puesto pip ve /opt/ros/humble/.../python3.10
 # y da por "already satisfied" paquetes que no estan en el entorno.
-PIP="env -u PYTHONPATH /home/utec/miniconda3/envs/tv/bin/pip"
-PY="env -u PYTHONPATH /home/utec/miniconda3/envs/tv/bin/python"
+# La ruta del entorno conda NO se cablea: se busca. En la maquina original era
+# ${CONDA_BASE}, pero el repo se clona en otras y ahi la ruta cambia
+# (miniforge3, anaconda3, otro usuario). Se puede forzar con CONDA_ENV_TV.
+ENV_TV="${CONDA_ENV_TV:-}"
+if [ -z "$ENV_TV" ]; then
+    for base in "$HOME/miniforge3" "$HOME/miniconda3" "$HOME/anaconda3" \
+                "$HOME/mambaforge" /opt/conda; do
+        if [ -x "$base/envs/tv/bin/pip" ]; then ENV_TV="$base/envs/tv"; break; fi
+    done
+fi
+if [ -z "$ENV_TV" ] || [ ! -x "$ENV_TV/bin/pip" ]; then
+    echo "No encuentro el entorno conda 'tv'." >&2
+    echo "  Crealo con:  conda create -y -n tv python=3.10 pinocchio=3.1.0 numpy=1.26.4 -c conda-forge" >&2
+    echo "  O indica su ruta con:  export CONDA_ENV_TV=/ruta/a/envs/tv" >&2
+    exit 1
+fi
+echo "== entorno conda: $ENV_TV =="
+PIP="env -u PYTHONPATH $ENV_TV/bin/pip"
+PY="env -u PYTHONPATH $ENV_TV/bin/python"
 
 set -e
 # 0) SDK de comunicacion con el robot y SDK de las manos FTP. No estan en PyPI y

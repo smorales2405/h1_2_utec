@@ -78,7 +78,15 @@ git clone https://github.com/NaCl-1374/inspire_hand_ws.git     # de aquí sale i
 cd inspire_hand_ws && git apply ../patches/inspire_sdkpy_uint16.patch && cd ..
 
 # entorno + certificados + comprobación
-conda create -y -n tv python=3.10 pinocchio=3.1.0 numpy=1.26.4 -c conda-forge
+# OJO con pinocchio: el README de xr_teleoperate fija 3.1.0, pero las tres
+# compilaciones de 3.1.0 que hay hoy en conda-forge para python 3.10 tienen el
+# binding de `buildReducedModel` roto — falla con CUALQUIER combinacion de
+# argumentos, incluida la que usa el propio `robot_wrapper.py` de pinocchio, y
+# sin ella `H1_2_ArmIK` no se puede construir. Comprobado en 2026-09-08 con las
+# builds py310hed69631_0/_1 y py310h4a8bb0c_2.
+#   3.2.0 y 3.3.1 funcionan. Se usa 3.2.0, la mas cercana a la fijada.
+#   Arrastra numpy 2.x; los imports funcionales pasan igual.
+conda create -y -n tv python=3.10 pinocchio=3.2.0 -c conda-forge
 bash scripts/01_install_host.sh
 bash scripts/02_gen_certs.sh
 bash scripts/00_check_host.sh

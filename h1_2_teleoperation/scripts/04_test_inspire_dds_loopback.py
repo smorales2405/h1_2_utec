@@ -19,10 +19,11 @@ mezcla con ningun robot que haya en la red.
 import multiprocessing as mp
 import os
 import sys
+from pathlib import Path
 import tempfile
 import time
 
-REPO = "/home/utec/Documents/h1_2_teleoperation/xr_teleoperate"
+REPO = str(Path(__file__).resolve().parent.parent / "xr_teleoperate")
 
 # CycloneDDS confinado a loopback: sin multicast y con un unico peer local.
 CYCLONE_XML = """<?xml version="1.0" encoding="UTF-8"?>

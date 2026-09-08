@@ -16,13 +16,15 @@
 # encendido en la misma red sin saber lo que haces.
 #
 # Variables sobreescribibles:  TASK, HAND_DDS, DEVICE, ENV_NAME, EXTRA
+# Resolucion de conda: busca la instalacion en vez de cablearla.
+source "$(dirname "${BASH_SOURCE[0]}")/_conda.sh"
 set -euo pipefail
 
 # ROOT = la carpeta h1_2_teleoperation (la que contiene scripts/). Se deduce de la
 # ubicacion de este script, asi que el repo se puede clonar donde sea.
 ROOT="${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 ENV_NAME="${ENV_NAME:-unitree_sim_env}"
-CONDA_BASE="${CONDA_BASE:-/home/utec/miniconda3}"
+CONDA_BASE="${CONDA_BASE}"
 
 # Tareas disponibles para el H1-2 con manos Inspire:
 #   Isaac-PickPlace-Cylinder-H12-27dof-Inspire-Joint

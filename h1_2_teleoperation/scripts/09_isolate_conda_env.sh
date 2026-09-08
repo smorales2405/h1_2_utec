@@ -32,9 +32,11 @@
 # el resto (gazebo, drivers) se conserva.
 #
 # Uso:  ./09_isolate_conda_env.sh [env1 env2 ...]      (por defecto: tv unitree_sim_env)
+# Resolucion de conda: busca la instalacion en vez de cablearla.
+source "$(dirname "${BASH_SOURCE[0]}")/_conda.sh"
 set -euo pipefail
 
-CONDA_BASE="${CONDA_BASE:-/home/utec/miniconda3}"
+CONDA_BASE="${CONDA_BASE}"
 ENVS=("$@")
 [ ${#ENVS[@]} -eq 0 ] && ENVS=(tv unitree_sim_env)
 

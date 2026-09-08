@@ -8,13 +8,15 @@
 # Es idempotente: se puede volver a lanzar sin romper nada.
 #
 # Variables sobreescribibles:  ROOT, ENV_NAME, CONDA_BASE
+# Resolucion de conda: busca la instalacion en vez de cablearla.
+source "$(dirname "${BASH_SOURCE[0]}")/_conda.sh"
 set -euo pipefail
 
 # ROOT = la carpeta h1_2_teleoperation (la que contiene scripts/). Se deduce de la
 # ubicacion de este script, asi que el repo se puede clonar donde sea.
 ROOT="${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 ENV_NAME="${ENV_NAME:-unitree_sim_env}"
-CONDA_BASE="${CONDA_BASE:-/home/utec/miniconda3}"
+CONDA_BASE="${CONDA_BASE}"
 
 # `env -u PYTHONPATH`: llamar a pip/python por su ruta absoluta NO dispara los
 # hooks de conda, y con el PYTHONPATH de ROS puesto pip ve

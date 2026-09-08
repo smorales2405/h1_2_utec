@@ -1,6 +1,8 @@
---- robot_arm_orig.py	2026-09-08 17:05:49.182447592 -0500
-+++ robot_arm.py	2026-09-08 17:06:32.469453711 -0500
-@@ -953,6 +953,28 @@
+diff --git a/teleop/robot_control/robot_arm.py b/teleop/robot_control/robot_arm.py
+index 8530375..e72148e 100644
+--- a/teleop/robot_control/robot_arm.py
++++ b/teleop/robot_control/robot_arm.py
+@@ -953,6 +953,28 @@ class H1_2_ArmController:
          self.set_arm_velocity_limit()
          self.control_dt = 1.0 / 250.0
  
@@ -29,7 +31,7 @@
  
          if self.motion_mode:
              self.lowcmd_publisher = ChannelPublisher(kTopicLowCommand_Motion, hg_LowCmd)
-@@ -1047,9 +1069,23 @@
+@@ -1047,9 +1069,23 @@ class H1_2_ArmController:
              else:
                  cliped_arm_q_target = self.clip_arm_q_target(arm_q_target, velocity_limit = self.arm_velocity_limit)
  

@@ -46,6 +46,7 @@ Ejemplos:
 """
 import argparse
 import sys
+from pathlib import Path
 import time
 
 import numpy as np
@@ -172,7 +173,8 @@ def main():
     print("!" * 72)
     cuenta_atras(5, "Empezando en")
 
-    sys.path.insert(0, "/home/utec/Documents/h1_2_teleoperation/xr_teleoperate")
+    # La ruta NO se cablea: xr_teleoperate se clona junto a este repo.
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "xr_teleoperate"))
 
     # Postura de los brazos ANTES de tomar el control, para medir la deriva.
     q_antes = np.array([msg.motor_state[MOTOR_DE_ARRAY[i]].q

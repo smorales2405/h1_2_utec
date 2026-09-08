@@ -2,8 +2,10 @@
 # Diagnostico del Host (esta laptop): entorno, dependencias, certificados y red.
 # ROOT = la carpeta h1_2_teleoperation (la que contiene scripts/). Se deduce de la
 # ubicacion de este script, asi que el repo se puede clonar donde sea.
+# Resolucion de conda: busca la instalacion en vez de cablearla.
+source "$(dirname "${BASH_SOURCE[0]}")/_conda.sh"
 ROOT="${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-PYBIN=/home/utec/miniconda3/envs/tv/bin/python
+PYBIN=${CONDA_ENV_TV}/bin/python
 # `env -u PYTHONPATH` reproduce lo que ve el entorno una vez activado: los
 # hooks de 09_isolate_conda_env.sh quitan el PYTHONPATH global de ROS/robotpkg.
 PY="env -u PYTHONPATH $PYBIN"
@@ -11,13 +13,13 @@ ok(){ printf "  \033[32m✔\033[0m %s\n" "$1"; }
 no(){ printf "  \033[31m\u2717\033[0m %s\n" "$1"; }
 
 echo "== 1. Entorno conda 'tv' =="
-if [ -x "$PYBIN" ]; then ok "$($PY --version 2>&1)"; else no "falta /home/utec/miniconda3/envs/tv"; exit 1; fi
+if [ -x "$PYBIN" ]; then ok "$($PY --version 2>&1)"; else no "falta ${CONDA_ENV_TV}"; exit 1; fi
 
 echo "== 2. Paquetes clave =="
 $PY - <<'EOF'
 import importlib.metadata as md
 esperado = {
- "pinocchio":"3.1.0 (conda)","numpy":"1.26.4","torch":"2.3.0+cpu","vuer":"0.0.60",
+ "pinocchio":"3.2.0 (conda)","numpy":">=1.26","torch":"2.3.0+cpu","vuer":"0.0.60",
  "params_proto":"2.13.2 (>=3 rompe vuer)","cyclonedds":"0.10.2","televuer":"4.0.0",
  "teleimager":"1.6.0","dex_retargeting":"0.4.7","unitree_sdk2py":"1.0.1",
  "inspire_sdkpy":"1.0.0","pymodbus":"3.6.9","rerun-sdk":"0.20.1","meshcat":"0.3.2",
@@ -25,11 +27,24 @@ esperado = {
 }
 import glob, os
 def conda_pkg_version(name):
-    hits = glob.glob(f"/home/utec/miniconda3/envs/tv/conda-meta/{name}-*.json")
+    # La ruta del entorno se lee de la VARIABLE, no se interpola en la
+    # f-string: este heredoc esta entrecomillado y bash no expande dentro.
+    base = os.environ.get("CONDA_ENV_TV", "")
+    hits = glob.glob(f"{base}/conda-meta/{name}-*.json")
     return os.path.basename(hits[0]).rsplit("-", 2)[1] if hits else "?"
 for p, exp in esperado.items():
     try:
-        v = conda_pkg_version("pinocchio") if p=="pinocchio" else md.version(p)
+        if p == "pinocchio":
+            # conda-meta no siempre refleja la version tras un cambio en
+            # caliente; lo que importa es la que se importa de verdad
+            v = conda_pkg_version("pinocchio")
+            if v in (None, "", "?"):
+                try:
+                    import pinocchio as _pin; v = _pin.__version__
+                except Exception:
+                    v = None
+        else:
+            v = md.version(p)
         print(f"  \033[32m✔\033[0m {p:<18} {v:<14} {('esperado: '+exp) if exp else ''}")
     except Exception:
         print(f"  \033[31m✗\033[0m {p:<18} NO INSTALADO")
@@ -38,7 +53,7 @@ EOF
 echo "== 3. Aislamiento de PYTHONPATH =="
 # Solo es un problema si el entorno global mete /opt/ros o /opt/openrobots.
 if printf '%s:%s' "${PYTHONPATH:-}" "${LD_LIBRARY_PATH:-}" | grep -q "/opt/ros\|/opt/openrobots"; then
-  if [ -f /home/utec/miniconda3/envs/tv/etc/conda/activate.d/00_isolate_from_ros.sh ]; then
+  if [ -f ${CONDA_ENV_TV}/etc/conda/activate.d/00_isolate_from_ros.sh ]; then
     ok "hook activate.d instalado (quita ROS Humble / robotpkg del entorno)"
   else
     no "esta maquina exporta /opt/ros o /opt/openrobots y el entorno no esta aislado — corre scripts/09_isolate_conda_env.sh"
@@ -46,7 +61,7 @@ if printf '%s:%s' "${PYTHONPATH:-}" "${LD_LIBRARY_PATH:-}" | grep -q "/opt/ros\|
 else
   ok "el entorno global no mete /opt/ros ni /opt/openrobots: no hace falta aislar"
 fi
-PINO_SRC=$(bash -lc 'source /home/utec/miniconda3/etc/profile.d/conda.sh && conda activate tv && python -c "import pinocchio; print(pinocchio.__version__, pinocchio.__file__)"' 2>/dev/null | tail -1)
+PINO_SRC=$(bash -lc 'source ${CONDA_BASE}/etc/profile.d/conda.sh && conda activate tv && python -c "import pinocchio; print(pinocchio.__version__, pinocchio.__file__)"' 2>/dev/null | tail -1)
 case "$PINO_SRC" in
   *envs/tv/*) ok "pinocchio resuelto en el entorno: $PINO_SRC" ;;
   "")         no "no se pudo importar pinocchio tras 'conda activate tv'" ;;
@@ -88,10 +103,14 @@ done
 
 echo "== 6. Red (solo aplica al despliegue FISICO) =="
 ip -4 -brief addr | grep -v '^lo' | sed 's/^/    /'
-if ip -4 addr show enp0s31f6 2>/dev/null | grep -q 192.168.123.222; then
-  ok "enp0s31f6 = 192.168.123.222 (perfil unitree-h1_2 activo)"
+# La NIC hacia el robot NO se cablea: se busca la que tenga IP en 192.168.123.0/24.
+# En la maquina original era enp0s31f6 con .222; en otras cambia.
+H12_NIC_FOUND=$(ip -br -4 addr | awk '$3 ~ /^192\.168\.123\./ {print $1; exit}')
+H12_IP_FOUND=$(ip -br -4 addr | awk '$3 ~ /^192\.168\.123\./ {split($3,a,"/"); print a[1]; exit}')
+if [ -n "$H12_NIC_FOUND" ]; then
+  ok "$H12_NIC_FOUND = $H12_IP_FOUND (red del robot activa)"
 else
-  no "enp0s31f6 sin 192.168.123.222 — cable desconectado o perfil inactivo"
+  no "ninguna interfaz con IP en 192.168.123.0/24 — cable desconectado o perfil inactivo"
   echo "      activar con: nmcli con up unitree-h1_2"
 fi
 echo "  Alcance del robot:"

@@ -4,9 +4,11 @@
 # Variables sobreescribibles:  ROOT, ENV_NAME, CONDA_BASE
 # ROOT = la carpeta h1_2_teleoperation (la que contiene scripts/). Se deduce de la
 # ubicacion de este script, asi que el repo se puede clonar donde sea.
+# Resolucion de conda: busca la instalacion en vez de cablearla.
+source "$(dirname "${BASH_SOURCE[0]}")/_conda.sh"
 ROOT="${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 ENV_NAME="${ENV_NAME:-unitree_sim_env}"
-CONDA_BASE="${CONDA_BASE:-/home/utec/miniconda3}"
+CONDA_BASE="${CONDA_BASE}"
 PYBIN="$CONDA_BASE/envs/$ENV_NAME/bin/python"
 # `env -u PYTHONPATH` reproduce lo que ve el entorno activado: los hooks de
 # 09_isolate_conda_env.sh quitan el PYTHONPATH global de ROS/robotpkg.

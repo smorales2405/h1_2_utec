@@ -311,6 +311,48 @@ shoulder_roll_vs_elbow_deg:
 # moverse hacia el cuerpo, hasta el tope de autocolisión de ±10°. Ahí el brazo
 # está más vertical, la gravedad pesa menos, y además es el recorrido cuyo
 # límite importa.
+# ═══════════════════════════════════════════════════════════════════════════
+# Postura de reposo
+# ═══════════════════════════════════════════════════════════════════════════
+# Dónde dejar los brazos al TERMINAR una sesión, y por dónde pasar para llegar.
+# No es la postura de ensayo al revés: aquí lo que importa es el ORDEN.
+#
+# El problema, observado el 2026-09-09: al soltar los brazos con el codo
+# flexionado y el hombro cerca de 0°, el antebrazo cae hasta quedar colgando
+# —0° de codo NO es el mínimo de gravedad— y en esa caída LA MANO GOLPEA LA
+# PIERNA. Medido: los codos pasan solos de 1° a 79° y 85° en segundos.
+#
+# La secuencia que lo evita, en tres tramos:
+#
+#   1. el shoulder_roll sale a ±`roll_salida_deg`, apartando la mano de la
+#      pierna ANTES de que el brazo se mueva a lo largo del cuerpo;
+#   2. el codo se estira hasta `elbow`, ya lejos de la pierna;
+#   3. los hombros vuelven a `joints`, con el brazo ya estirado, que es el
+#      mínimo de gravedad: al bajar las ganancias no cae nada.
+#
+# El signo del roll lo pone el lado, como en `test_direction`: positivo separa
+# el brazo izquierdo del cuerpo y negativo el derecho.
+rest_posture_deg:
+  roll_salida_deg: 10.0
+  joints:
+    # Brazos estirados y pegados al cuerpo, que es donde quedan colgados del
+    # arnés por su propio peso. Los 5° de roll mantienen la mano despejada de
+    # la pierna sin separar el brazo de forma apreciable.
+    L_shoulder_pitch:  0.0
+    L_shoulder_roll:   5.0
+    L_shoulder_yaw:    0.0
+    L_elbow:          80.0
+    L_wrist_roll:      0.0
+    L_wrist_pitch:     0.0
+    L_wrist_yaw:       0.0
+    R_shoulder_pitch:  0.0
+    R_shoulder_roll:  -5.0
+    R_shoulder_yaw:    0.0
+    R_elbow:          80.0
+    R_wrist_roll:      0.0
+    R_wrist_pitch:     0.0
+    R_wrist_yaw:       0.0
+
 test_direction:
   description: >-
     Sobrescribe el `auto` de `--direction` en articulaciones concretas.

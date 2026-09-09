@@ -41,7 +41,7 @@ for arg in "$@"; do
     esac
 done
 
-echo "══ 1/2 · llevando los brazos a 0° a ${VEL_POSTURA} rad/s ══"
+echo "══ 1/3 · llevando los brazos a 0° a ${VEL_POSTURA} rad/s ══"
 (
     cd "$JC"
     source scripts/env.sh >/dev/null
@@ -59,7 +59,7 @@ if [ -z "$NIC" ]; then
 fi
 
 echo
-echo "══ 2/2 · arrancando la teleoperación ══"
+echo "══ 2/3 · arrancando la teleoperación ══"
 echo "  arm_velocity_limit = ${VEL} rad/s   (de fábrica: 30)"
 echo "  ganancias tuned_gff + gravedad, desde $JC"
 echo "  DDS por ${NIC}"
@@ -70,10 +70,22 @@ echo "  Pulsa [r] en esta terminal cuando quieras que empiece a seguirte."
 echo "  Paro de emergencia del mando: L2 + B."
 echo
 
+reposo() {
+    echo
+    echo "══ 3/3 · devolviendo los brazos a la postura de reposo ══"
+    (
+        cd "$JC"
+        source scripts/env.sh >/dev/null
+        python3 scripts/16_postura_reposo.py --yes
+    ) || echo "  ⚠ el retorno falló; comprueba los brazos ANTES de soltar el arnés."
+}
+trap reposo EXIT
+
 source "$AQUI/_conda.sh"
 export H12_ARM_VELOCITY_LIMIT="$VEL"
 export H12_JOINT_CONTROL="$JC"
 cd "$XR/teleop"
-exec "$CONDA_ENV_TV/bin/python" teleop_hand_and_arm.py \
-     --arm H1_2 --network-interface "$NIC" \
-     ${EE:+--ee "$EE"} ${TELEOP_ARGS[@]+"${TELEOP_ARGS[@]}"}
+# sin `exec`: el trap tiene que poder correr después
+"$CONDA_ENV_TV/bin/python" teleop_hand_and_arm.py \
+    --arm H1_2 --network-interface "$NIC" \
+    ${EE:+--ee "$EE"} ${TELEOP_ARGS[@]+"${TELEOP_ARGS[@]}"} || true

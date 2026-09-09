@@ -42,32 +42,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from _common import add_common_args, build_client, confirm
+from _common import (add_common_args, build_client, confirm,
+                     relaja_topes_de_ensayo)
 from h1_2_joint_control.joints import ARM_INDICES, BY_INDEX
-
-
-def relaja_topes_de_ensayo(gains, log) -> None:
-    """Quita los topes de autocolisión de los `shoulder_roll`, solo para ir a 0°.
-
-    Los topes de `soft_limits_deg` (±10°) y la tabla
-    `shoulder_roll_vs_elbow_deg` (±5° con el codo flexionado) están puestos
-    para los ENSAYOS, donde una articulación barre sola y hace falta margen
-    porque la trayectoria pasa por muchas posturas.
-
-    La postura cero no es un barrido: es un punto fijo, y el operador la
-    verificó FÍSICAMENTE el 2026-09-09 —los siete ángulos de cada brazo a 0°,
-    sin colisión—. Además el modelo ya lo decía: con el codo a 0° y el pitch a
-    0°, el `shoulder_roll` llega a −10° sin chocar (tabla de 08_PLAN.md §2.2);
-    el caso peor de +5° es con el codo ESTIRADO, que no es donde acabamos.
-
-    Se relaja aquí y solo aquí. El resto de scripts conserva los topes.
-    """
-    rolls = [i for i in ARM_INDICES if BY_INDEX[i].name.endswith("shoulder_roll")]
-    for i in rolls:
-        gains._soft.pop(i, None)
-    gains._cond_pares = {}
-    log("  topes de autocolisión de los shoulder_roll relajados para esta "
-        "postura\n  (verificada físicamente por el operador; ver la docstring)")
 
 
 def main() -> int:

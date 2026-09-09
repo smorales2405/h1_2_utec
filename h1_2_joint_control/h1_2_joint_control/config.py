@@ -49,6 +49,16 @@ class Gains:
             for n, v in (raw.get("test_posture_deg", {}).get("joints", {}) or {}).items()
             if n in BY_NAME
         }
+        # Postura de reposo: dónde dejar los brazos al TERMINAR, y por dónde
+        # pasar para llegar. No es la de ensayo al revés: importa el orden.
+        _rest = raw.get("rest_posture_deg", {}) or {}
+        self._reposo = {
+            BY_NAME[n].idx: math.radians(float(v))
+            for n, v in (_rest.get("joints", {}) or {}).items() if n in BY_NAME
+        }
+        self._reposo_roll_salida = math.radians(
+            float(_rest.get("roll_salida_deg", 10.0)))
+
         # Tope de hombro condicionado al codo. La autocolisión no es un número
         # fijo: depende de dónde esté el resto del brazo.
         cond = raw.get("shoulder_roll_vs_elbow_deg", {}) or {}
@@ -98,6 +108,15 @@ class Gains:
     def test_posture(self) -> dict[int, float]:
         """{índice: ángulo en rad} al que llevar el robot antes de medir."""
         return dict(self._posture)
+
+    def rest_posture(self) -> dict[int, float]:
+        """{índice: rad} donde dejar los brazos al terminar la sesión."""
+        return dict(self._reposo)
+
+    @property
+    def rest_roll_exit(self) -> float:
+        """|shoulder_roll| al que salir ANTES de estirar el codo, en rad."""
+        return self._reposo_roll_salida
 
     def limits(self, idx: int) -> tuple[float, float]:
         """Topes efectivos de una articulación, en rad.

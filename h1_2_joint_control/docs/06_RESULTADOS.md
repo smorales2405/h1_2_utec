@@ -1082,6 +1082,57 @@ presencial.
 
 ---
 
+## 15. Entrar y salir de la teleoperación — 2026-09-09
+
+### Qué hace `xr_teleoperate` por su cuenta
+
+| momento | qué pasa | dónde |
+|---|---|---|
+| al construir el controlador | los 14 a **0°** a `arm_velocity_limit` | `robot_arm.py`, hilo publicador |
+| esperando `[r]` | los mantiene en 0° | `teleop_hand_and_arm.py:273` |
+| tras `[r]` | salta a resolver IK contra tus muñecas, **sin transición** | `:370` |
+| al parar (`q`, Ctrl-C) | `ctrl_dual_arm_go_home()`: los 14 a 0°, tolerancia 0.05 rad, 5 s | `robot_arm.py:310` |
+| después de eso | en `lowcmd` **no baja ganancias**: el proceso muere y los motores quedan libres | — |
+
+Las dos veces que no hay transición suave, la única protección es
+`arm_velocity_limit`. De fábrica son 30 rad/s.
+
+### Soltar en 0° hace que la mano golpee la pierna
+
+Medido. Tras dejar los catorce a 0° y bajar las ganancias:
+
+| | al soltar | 3 s después |
+|---|---:|---:|
+| `L_elbow` | 1.09° | **79.3°** |
+| `R_elbow` | 1.51° | **85.4°** |
+
+Las otras doce se quedan a menos de 6° de cero. El codo no, porque **0° es la
+posición flexionada y no es el mínimo de gravedad**: sin ganancia el antebrazo
+cae hasta quedar colgando, y con el hombro cerca de 0° ese recorrido lleva la
+mano contra la pierna.
+
+### La secuencia que lo evita
+
+`16_postura_reposo.py`, en tres tramos, y el orden es lo único que importa:
+
+1. `shoulder_roll` sale a **±10°** — aparta la mano de la pierna *antes* de que
+   el brazo recorra nada a lo largo del cuerpo;
+2. los codos se estiran a **80°**, ya lejos de la pierna;
+3. todo vuelve a la postura de reposo (`rest_posture_deg`), con el brazo ya
+   estirado, que **es** el mínimo de gravedad.
+
+Verificado en el robot. Deriva tras soltar:
+
+| | soltando en 0° | soltando en reposo |
+|---|---:|---:|
+| movimiento máximo | **84°** (`R_elbow`) | **1.7°** (`R_shoulder_roll`) |
+| codos | caen a 79° y 85° | se quedan en 79.3° y 81.5° |
+
+Acabar en el equilibrio de la gravedad hace que bajar las ganancias no mueva
+nada. Es la diferencia entre los dos casos.
+
+---
+
 ## Qué queda por hacer
 
 - [x] ~~Repetir el barrido con una postura de partida reproducible~~ — hecho,

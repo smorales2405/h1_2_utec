@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from h1_2_joint_control import config as cfg          # noqa: E402
 from h1_2_joint_control.client import H12Client       # noqa: E402
-from h1_2_joint_control.joints import BY_INDEX, BY_NAME  # noqa: E402
+from h1_2_joint_control.joints import ARM_INDICES, BY_INDEX, BY_NAME  # noqa: E402
 
 BANNER = """
 ╔══════════════════════════════════════════════════════════════════════════╗
@@ -237,3 +237,31 @@ def describe(idx: int, gains) -> str:
         f"-> satura el motor con {sat:.3f} rad ({math.degrees(sat):.1f}°) de error",
     ]
     return "\n".join(lineas)
+
+
+def relaja_topes_de_ensayo(gains, log) -> None:
+    """Quita los topes de autocolisión de los `shoulder_roll`, solo para ir a 0°.
+
+    Los topes de `soft_limits_deg` (±10°) y la tabla
+    `shoulder_roll_vs_elbow_deg` (±5° con el codo flexionado) están puestos
+    para los ENSAYOS, donde una articulación barre sola y hace falta margen
+    porque la trayectoria pasa por muchas posturas.
+
+Las dos posturas fijas de la teleoperación no son barridos:
+
+    * la **cero**, verificada FÍSICAMENTE por el operador el 2026-09-09 —los
+      siete ángulos de cada brazo a 0°, sin colisión—, y que además el modelo
+      ya admitía: con codo y pitch a 0° el `shoulder_roll` llega a −10° sin
+      chocar (tabla de 08_PLAN.md §2.2);
+    * la de **reposo**, que es donde el brazo cuelga por su propio peso, ±5°
+      medidos con el robot en el arnés. Acabar exactamente ahí hace que soltar
+      las ganancias no mueva nada.
+
+    Se relaja solo en esos dos scripts. El resto conserva los topes.
+    """
+    rolls = [i for i in ARM_INDICES if BY_INDEX[i].name.endswith("shoulder_roll")]
+    for i in rolls:
+        gains._soft.pop(i, None)
+    gains._cond_pares = {}
+    log("  topes de autocolisión de los shoulder_roll relajados para esta "
+        "postura\n  (verificada físicamente por el operador; ver la docstring)")

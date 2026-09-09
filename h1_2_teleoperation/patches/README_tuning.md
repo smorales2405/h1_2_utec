@@ -80,10 +80,13 @@ que los métodos nuevos cargan lo que deben:
 **Lo que NO se ha probado**: la teleoperación completa con el visor y el robot
 colgado. Eso requiere supervisión presencial.
 
-## Una decisión pendiente
+## No igualar las ganancias entre brazos
 
-`R_shoulder_pitch` sale con kp = 280 y `L_shoulder_pitch` con kp = 111. La
-diferencia no es física: en esa articulación el criterio es plano —cualquier kp
-del rango queda dentro de tolerancia— y el ganador lo decidió el ruido. Lo mismo
-con `wrist_yaw` (40 contra 100). Conviene fijar a mano el **kp bajo** de cada
-par, por margen de par, en vez de dejarlo como está.
+`R_shoulder_pitch` sale kp 280 y `L_shoulder_pitch` 111; `wrist_yaw`, 100 contra
+40. **Parece una asimetría a corregir y no lo es.** Bajar el kp del derecho al
+del izquierdo cuesta 26 y 10 veces `δ_min` y casi duplica su error: el brazo
+derecho es peor en las siete articulaciones, de 1.06× a 2.18×, y necesita más
+kp. El barrido detectó una diferencia física real entre los dos brazos.
+
+Se queda como está. Detalle en
+[`06_RESULTADOS.md` §13](../../h1_2_joint_control/docs/06_RESULTADOS.md).

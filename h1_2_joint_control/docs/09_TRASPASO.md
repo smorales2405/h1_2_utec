@@ -139,10 +139,12 @@ Requiere el camino ROS.
   sintonizaron **con** velocidad de referencia. Sin ella el orden entre
   candidatos se invierte (medido: kd 13.5 gana a kd 3 por un 31 % con `dq_des`,
   y pierde por un 32 % sin ella).
-- **Los valores de `shoulder_pitch` y `wrist_yaw` de `tuned_gff`** difieren
-  entre brazos (111 contra 280, y 40 contra 100) porque en esas dos el criterio
-  es plano y el ganador lo decidió el ruido. Conviene elegir a mano el kp
-  **bajo** de los dos por margen de par.
+- **NO igualar entre brazos los `shoulder_pitch` ni los `wrist_yaw`.** Difieren
+  (111 contra 280, y 40 contra 100) y una versión anterior de este documento
+  decía que era ruido y recomendaba bajar el kp. Es falso: bajarlos cuesta 26 y
+  10 veces `δ_min`, casi duplica el error del brazo derecho. El derecho es peor
+  en las siete articulaciones, de 1.06× a 2.18×, y necesita más kp de verdad.
+  Detalle en §13 de resultados.
 
 ---
 

@@ -963,11 +963,47 @@ Sintonizados por separado, con datos y ajustes independientes:
 | `shoulder_pitch` | 111 | 280 |
 | `wrist_yaw` | 40 | 100 |
 
-Coinciden exactamente en `shoulder_roll` y `elbow`, y en kp en cuatro más. Las
-dos que discrepan —`shoulder_pitch` y `wrist_yaw`— son precisamente aquellas en
-las que el criterio es plano: cualquier kp del rango da un resultado dentro de
-tolerancia, así que el ganador lo decide el ruido. Ahí conviene elegir el kp
-**bajo** de los dos por margen de par, no dejar que lo elija el barrido.
+Coinciden exactamente en `shoulder_roll` y `elbow`, y en kp en cuatro más.
+
+> **Corregido el 2026-09-09.** Aquí decía que las dos que discrepan
+> —`shoulder_pitch` y `wrist_yaw`— eran aquellas en las que «el criterio es
+> plano, así que el ganador lo decide el ruido», y recomendaba bajar el kp de
+> las dos. **Es falso**, y el error de razonamiento fue confundir *«todos los
+> candidatos pasan la tolerancia»* con *«las diferencias entre ellos están
+> dentro del ruido»*. No es lo mismo. Los datos del barrido:
+
+| articulación | kp elegido | el kp bajo del par | coste de bajar |
+|---|---|---|---|
+| `R_shoulder_pitch` | 280 → 8.93 mrad | 111 → 16.65 mrad | +7.72 = **26·δ_min** |
+| `R_wrist_yaw` | 100 → 4.82 mrad | 40 → 7.95 mrad | +3.13 = **10·δ_min** |
+| `L_shoulder_pitch` | 111 → 5.63 mrad | (280 → 6.76) | el bajo ya gana |
+| `L_wrist_yaw` | 40 → 3.21 mrad | (100 → 3.06) | +0.15 = 0.5·δ_min |
+
+Bajar esos dos kp casi **duplicaría** el error del brazo derecho. Solo en
+`L_wrist_yaw` la diferencia queda por debajo de `δ_min`, y ahí el «plano» sí
+vale — pero es la única de las cuatro.
+
+**La asimetría es real, no ruido del barrido.** El brazo derecho es peor en
+**las siete** articulaciones, con la ganancia que cada una eligió:
+
+| | pitch | roll | yaw | codo | w.roll | w.pitch | w.yaw |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| der/izq | 1.59× | 1.06× | 1.20× | 1.14× | 2.18× | 1.76× | 1.50× |
+
+Más fricción o más carga en el derecho, así que necesita más kp de verdad. El
+barrido no se equivocó: detectó una diferencia física entre los dos brazos.
+
+**No hay que tocar nada.** Si alguna vez interesa la simetría por otra razón,
+la única jugada gratis es `L_wrist_yaw` de 40/13.50 a **100/2.70**, que deja la
+pareja idéntica y cuesta 0.15 mrad —por debajo de `δ_min`—; requeriría repetir
+el barrido de aceptación de esa articulación, porque el kd cambia mucho y el
+seno no mide sobreimpulso.
+
+Lo que sí es cierto de `R_shoulder_pitch` a kp 280 es otra cosa: es **el techo
+de seguridad exacto** que fija `kp_maximo()`, 0.70·40 Nm / 0.10 rad = 280. Está
+en el límite por construcción, así que es la primera que satura si la consigna
+de teleoperación pega un salto mayor que ese. Eso es un argumento para vigilar
+el `clip` de la consigna, no para bajarle el kp.
 
 ### Salud del lazo durante los barridos
 

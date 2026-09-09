@@ -53,6 +53,23 @@ falta `pinocchio` o si no hay parámetros identificados, **avisa por el log y
 sigue** con las ganancias por defecto y sin compensación. Es peor, pero
 funciona. Los tres avisos empiezan por `[H1_2]`.
 
+## El movimiento inicial, que es lo peligroso
+
+`H1_2_ArmController` se construye en la línea 174 de `teleop_hand_and_arm.py` y
+el `Press [r] to start` está en la 265. Al construirse arranca ya el hilo
+publicador con `q_target = zeros(14)` y `arm_velocity_limit = 30 rad/s`: **el
+robot se mueve 91 líneas antes de que te pregunte nada**, y la `[r]` solo decide
+cuándo empieza a seguirte a ti. Con los codos estirados son 80° de recorrido.
+
+El parche añade `H12_ARM_VELOCITY_LIMIT` (rad/s) para bajar ese límite, y va lo
+primero del método, antes de cualquier import que pueda fallar, porque es lo
+único ahí dentro que protege al robot.
+
+Mejor aún, colocar los brazos antes con
+[`scripts/arranca_teleop.sh`](../scripts/arranca_teleop.sh), que los lleva a 0°
+a 0.15 rad/s con la protección de `h1_2_joint_control` puesta y luego lanza la
+teleoperación. Así el movimiento inicial no tiene recorrido que hacer.
+
 ## Parámetros
 
 | atributo | valor | para qué |
@@ -64,6 +81,13 @@ funciona. Los tres avisos empiezan por `[H1_2]`.
 | `gains_set` | `"tuned_gff"` | otro conjunto de `gains.yaml` |
 | `_grav_ramp_s` | 1.0 s | rampa de entrada del par, sin escalón |
 | `_grav_frac` | 0.5 | tope de `tau_ff` como fracción del par máximo |
+
+Y una variable de entorno:
+
+| variable | para qué |
+|---|---|
+| `H12_ARM_VELOCITY_LIMIT` | rad/s del movimiento inicial (de fábrica 30) |
+| `H12_JOINT_CONTROL` | ruta del paquete, si no se deduce sola |
 
 ## Verificado
 

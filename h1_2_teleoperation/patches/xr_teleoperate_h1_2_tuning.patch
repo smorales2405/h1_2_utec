@@ -1,5 +1,5 @@
 diff --git a/teleop/robot_control/robot_arm.py b/teleop/robot_control/robot_arm.py
-index 8530375..64f90d0 100644
+index 8530375..d0a9429 100644
 --- a/teleop/robot_control/robot_arm.py
 +++ b/teleop/robot_control/robot_arm.py
 @@ -953,6 +953,28 @@ class H1_2_ArmController:
@@ -61,7 +61,7 @@ index 8530375..64f90d0 100644
          # initialize publish thread
          self.publish_thread = threading.Thread(target=self._ctrl_motor_state)
          self.ctrl_lock = threading.Lock()
-@@ -1011,6 +1056,82 @@ class H1_2_ArmController:
+@@ -1011,6 +1056,100 @@ class H1_2_ArmController:
  
          logger_mp.info("Initialize H1_2_ArmController OK!")
  
@@ -80,6 +80,24 @@ index 8530375..64f90d0 100644
 +        import os
 +        import sys
 +        from pathlib import Path
++
++        # Limite de velocidad del movimiento inicial. Va lo PRIMERO, antes de
++        # cualquier import que pueda fallar, porque es lo unico de este metodo
++        # que protege al robot: en cuanto __init__ termina, el hilo publicador
++        # lleva los brazos a q_target = zeros(14) a esta velocidad, y eso pasa
++        # 91 lineas ANTES del "Press [r] to start". Con los codos estirados son
++        # 80 grados de recorrido; a los 30 rad/s de fabrica, decenas de ms.
++        lim = os.environ.get("H12_ARM_VELOCITY_LIMIT")
++        if lim:
++            try:
++                self.set_arm_velocity_limit(float(lim))
++                logger_mp.info("[H1_2] arm_velocity_limit = %s rad/s "
++                               "(H12_ARM_VELOCITY_LIMIT)" % lim)
++            except Exception as exc:
++                logger_mp.warning("[H1_2] H12_ARM_VELOCITY_LIMIT no vale "
++                                  "(%s); se deja %s rad/s"
++                                  % (exc, self.arm_velocity_limit))
++
 +        ruta = os.environ.get("H12_JOINT_CONTROL")
 +        if not ruta:
 +            ruta = str(Path(__file__).resolve().parents[4] / "h1_2_joint_control")
@@ -144,7 +162,7 @@ index 8530375..64f90d0 100644
      def _subscribe_motor_state(self):
          while True:
              msg = self.lowstate_subscriber.Read()
-@@ -1047,10 +1168,27 @@ class H1_2_ArmController:
+@@ -1047,10 +1186,27 @@ class H1_2_ArmController:
              else:
                  cliped_arm_q_target = self.clip_arm_q_target(arm_q_target, velocity_limit = self.arm_velocity_limit)
  

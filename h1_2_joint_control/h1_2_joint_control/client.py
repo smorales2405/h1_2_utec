@@ -398,22 +398,31 @@ class H12Client:
         self._log(f"control tomado. Deriva al ceder: {drift:.4f} rad "
                   f"({math.degrees(drift):.2f}°) {flag}")
 
-    def release(self, home_speed: float = 0.4, weight_ramp: float = 2.0) -> None:
+    def release(self, home_speed: float = 0.4, weight_ramp: float = 2.0,
+                home_to: dict[int, float] | None = None) -> None:
         """Devuelve el brazo a la postura inicial y suelta el control.
 
         Primero vuelve despacio a `q0` (la postura que había al llamar a
         `engage`), que es también la que el servicio del robot estaba
         sosteniendo; así, al bajar el peso a 0, no hay tirón.
+
+        `home_to` cambia ese destino. Lo necesita quien coloca el robot a
+        propósito y NO quiere que se deshaga al soltar: un ensayo mide y
+        devuelve, pero preparar una postura para la teleoperación es lo
+        contrario. Pasar `{}` suelta donde esté, sin mover nada.
         """
         if not self._running:
             return
         try:
-            self._log("volviendo a la postura inicial…")
-            # Todas las comandadas, no solo las que se estaban midiendo: si se
-            # aplicó una postura de ensayo (p. ej. hombros a ±18°), esas
-            # articulaciones también hay que devolverlas a donde estaban.
-            self.ramp_to({i: float(self.q0[i]) for i in self.commanded},
-                         speed=home_speed)
+            destino = ({i: float(self.q0[i]) for i in self.commanded}
+                       if home_to is None else dict(home_to))
+            if destino:
+                self._log("volviendo a la postura inicial…"
+                          if home_to is None else "colocando la postura de salida…")
+                # Todas las comandadas, no solo las que se estaban midiendo: si se
+                # aplicó una postura de ensayo (p. ej. hombros a ±18°), esas
+                # articulaciones también hay que devolverlas a donde estaban.
+                self.ramp_to(destino, speed=home_speed)
             self._log(("bajando el peso a 0" if self.channel == "arm_sdk"
                        else "bajando las ganancias a 0")
                       + f" en {weight_ramp:.1f} s…")

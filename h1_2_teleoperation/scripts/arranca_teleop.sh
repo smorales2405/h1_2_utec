@@ -47,7 +47,13 @@ for arg in "$@"; do
     esac
 done
 
-IP_WIFI="$(ip -br -4 addr | awk '$1!="lo" && $3 !~ /^192\.168\.123\./ {print $3; exit}' | cut -d/ -f1)"
+# Direcciones por las que el visor puede alcanzar a esta laptop. NO se elige
+# una sola automáticamente: esta máquina tiene a la vez el cable del robot, el
+# del router y el WiFi del campus, y la buena es la del segmento donde esté el
+# visor —que no se puede adivinar sin escanear—. Se listan todas y se marca
+# cuáles cubre el certificado. `HOST_IP=...` fuerza una.
+CERT="$HOME/.config/xr_teleoperate/cert.pem"
+candidatos=$(ip -br -4 addr | awk '$1!="lo" && $3 !~ /^192\.168\.123\./ {split($3,a,"/"); print $1" "a[1]}')
 # La NIC del robot, no la de salida a Internet: por defecto xr_teleoperate usa
 # la interfaz por defecto, que aquí es el WiFi, y DDS no llegaría al robot.
 NIC="${H12_NIC:-$(ip -br -4 addr | awk '$3 ~ /^192\.168\.123\./ {print $1; exit}')}"
@@ -64,7 +70,18 @@ echo "  ganancias tuned_gff + gravedad, desde $JC"
 echo "  DDS por ${NIC}"
 if [ -n "$EE" ]; then echo "  manos Inspire activas"; else echo "  SIN manos (solo brazos)"; fi
 echo
-echo "  En el Quest:  https://${IP_WIFI:-<ip-wifi>}:8012"
+if [ -n "${HOST_IP:-}" ]; then
+    echo "  En el Quest:  https://${HOST_IP}:8012"
+else
+    echo "  En el Quest, abre UNA de estas (la del segmento donde esté el visor;"
+    echo "  si no sabes cuál, ejecuta ./scripts/busca_quest.sh):"
+    while read -r _if _ip; do
+        if openssl x509 -in "$CERT" -noout -ext subjectAltName 2>/dev/null \
+           | grep -q "IP Address:${_ip}\b"; then marca="✔ certificado"
+        else marca="⚠ el certificado NO la cubre: ./scripts/02_gen_certs.sh"; fi
+        printf "      https://%-16s:8012   (%s)  %s\n" "$_ip" "$_if" "$marca"
+    done <<< "$candidatos"
+fi
 echo "  Pulsa [r] en esta terminal cuando quieras que empiece a seguirte."
 echo "  Paro de emergencia del mando: L2 + B."
 echo

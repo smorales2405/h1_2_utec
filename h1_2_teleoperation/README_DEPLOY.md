@@ -77,32 +77,68 @@ tarjeta de cuatro puertos.
    └────────────────────────────────────────────────────────┘
 ```
 
-### Direcciones confirmadas
+### Direcciones confirmadas — montaje con router, 2026-09-10
 
-| Nodo | IP | Comprobado |
+Tres interfaces a la vez, y **cuál es cuál importa**:
+
+| interfaz | tipo | va a | IP | cómo |
+|---|---|---|---|---|
+| `enp12s0` | puerto integrado | **robot** | `192.168.123.51/24` | fija, perfil `Unitree H1-2` |
+| `enx68da73a1bd4f` | adaptador USB-C | **router** | `192.168.0.101/24` | DHCP, perfil `Wired connection 1` |
+| `wlp0s20f3` | WiFi | campus | `10.100.204.x/22` | DHCP, salida a Internet |
+
+En la red del router, solo dos dispositivos:
+
+| | IP | MAC |
 |---|---|---|
-| Laptop ↔ robot (`enp0s31f6`) | `192.168.123.222/24` | perfil NM `unitree-h1_2`, `never-default` |
-| Laptop ↔ WiFi (`wlp0s20f3`) | DHCP (asignada por el router) | por aquí entra el Quest 3 |
-| H1-2 PC1 | `192.168.123.161` | ping ✔ |
-| H1-2 PC2 `eth0` | `192.168.123.164` | ping ✔ · SSH ✔ |
-| H1-2 PC2 `br0` | `192.168.124.164` | ✔ |
-| Mano **DERECHA** → tópico `r` | `192.168.124.210` | Modbus :6000 ✔ · confirmada visualmente |
-| Mano **IZQUIERDA** → tópico `l` | `192.168.124.211` | Modbus :6000 ✔ · confirmada visualmente |
+| puerta de enlace | `192.168.0.254` | `40:ed:00:23:10:ea` |
+| **Meta Quest 3** | `192.168.0.100` | `20:7b:d2:44:19:4b` |
 
-> ⚠️ **La lateralidad va al revés de la convención de Unitree.** Sus ejemplos
-> asignan `.210 → left`, `.211 → right`. En este robot es lo contrario,
-> comprobado moviendo un dedo a la vez y mirando cuál se movía. Ambas manos
-> reportan `HAND_ID = 1` y **no existe registro Modbus que distinga izquierda de
-> derecha**: la única forma de saberlo es mirar.
+El robot **no** cuelga del router: va por su cable dedicado, que es el que
+lleva DDS y conviene exclusivo. El visor solo necesita alcanzar el `:8012` de
+la laptop, o sea la IP del segmento del router: `https://192.168.0.101:8012`.
+
+> ⚠️ **Los perfiles de NetworkManager se cruzan solos.** El perfil
+> `Unitree H1-2` no estaba atado a ninguna interfaz, así que se enganchó al
+> **adaptador USB** —el del router— y le puso la IP del robot; y
+> `Wired connection 1` estaba atado a `enp12s0` pidiendo DHCP a un segmento sin
+> servidor. Resultado: ninguna de las dos funcionaba, y la IP `192.168.0.100`
+> que aparecía en la laptop estaba puesta **a mano**, no asignada por el router
+> — y encima chocaba con la que el router le da al visor.
 >
-> Si se hubiera dejado la convención por defecto, la teleoperación habría salido
-> **espejada**: la mano izquierda del operador moviendo la derecha del robot.
-> `inspire_ftp_dual_driver.py` ya lleva la asignación correcta en `LEFT_IP` /
-> `RIGHT_IP`. Si alguna vez se cambian las manos de sitio, repetir:
+> Arreglado atando cada perfil **por MAC**, que no se puede volver a cruzar:
 >
 > ```bash
-> ~/teleop_venv/bin/python ~/hand_test.py wiggle 192.168.124.210 --dof 3
+> sudo nmcli connection modify "Unitree H1-2" \
+>      802-3-ethernet.mac-address 88:a4:c2:40:9e:b5 \
+>      connection.interface-name "" ipv4.never-default yes
+> sudo nmcli connection modify "Wired connection 1" \
+>      802-3-ethernet.mac-address 68:da:73:a1:bd:4f \
+>      connection.interface-name ""
 > ```
+
+### Encontrar el visor
+
+El Quest no enseña su propia IP por ningún menú accesible. Hay que escanear:
+
+```bash
+./scripts/busca_quest.sh
+```
+
+Descarta la laptop y la puerta de enlace de cada segmento privado que no sea el
+del robot, y lo que queda es el visor. Además comprueba si el certificado cubre
+la IP por la que habría que entrar.
+
+### Cada vez que cambie la red
+
+La IP de la laptop en el segmento del router es **DHCP**, así que puede cambiar.
+Cuando lo haga:
+
+```bash
+./scripts/02_gen_certs.sh      # detecta las IP vivas y las mete en el cert
+```
+
+y volver a aceptar el aviso del navegador en el visor.
 
 El perfil ethernet de la laptop lleva `ipv4.never-default yes`, así que el robot
 no se lleva la ruta por defecto y la laptop conserva Internet por WiFi mientras

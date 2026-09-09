@@ -983,6 +983,69 @@ primero que hay que atacar si alguna vez hace falta más frecuencia.
 
 ---
 
+## 14. F7.2 y F7.3: el puente a `xr_teleoperate` — 2026-09-09
+
+`patches/xr_teleoperate_h1_2_tuning.patch`. Lleva las tres cosas a la vez —
+`dq_des`, gravedad y ganancias por articulación— porque son inseparables: los kd
+de `tuned_gff` se sintonizaron con velocidad de referencia, y sus kp bajos
+funcionan porque el par de sostenimiento lo da el feedforward.
+
+### Lo que se comprobó sin mover el robot
+
+`H1_2_ArmController.__init__` lleva los brazos a 0° a 30 rad/s en cuanto se
+construye, así que no se instancia para probar. Se montó un objeto mínimo y se
+llamaron sueltos los dos métodos nuevos:
+
+| comprobación | resultado |
+|---|---|
+| las 14 ganancias entran en `msg.motor_cmd` | coinciden con `tuned_gff` |
+| el modelo carga con los parámetros de los dos brazos | sí |
+| topes de `tau_ff` = 0.5·`tau_max` | 9 a 20 Nm |
+| la rampa sube de 0 a 1 | 250 ciclos = 1 s a 250 Hz |
+| `tau_ff` en la postura de reposo | −1.93 a +1.60 Nm, sin recortes |
+
+### El mapeo de índices, que era el riesgo real
+
+Dentro de `_gravity_tauff` la traducción es `t.get(int(jid), 0.0)`: las claves
+de `t` son índices de `h1_2_joint_control` y `jid` es un `H1_2_JointArmIndex`.
+Si esa correspondencia estuviera desplazada, los pares saldrían plausibles pero
+**en la articulación equivocada**, que es peor que no compensar.
+
+Comprobado de forma exacta, no estadística: los 14 `int(jid)` coinciden uno a
+uno con `ARM_INDICES`. Ojo con `kLeftElbowRoll = 17`, que es el
+`left_wrist_roll` —el nombre de `xr_teleoperate` es erróneo, el índice no—.
+
+Y una prueba de perturbación: con un brazo estirado y el hombro a 90°, el par
+mayor cae donde debe, `L_shoulder_pitch` −23.00 Nm y `R_shoulder_pitch` −22.66
+Nm según el brazo movido.
+
+### La comprobación contra el par medido NO vale, y por qué
+
+Se intentó validar el modelo contra `tau_est` del robot real, con la idea de
+que en equilibrio estático el par del motor iguala al de la gravedad. Salió rms
+0.739 Nm, máximo 2.107 Nm, y el número es **inservible**: los pares medidos son
+todos de unos 0.2 Nm, que no sostienen un brazo estirado.
+
+En modo `ai` los brazos van con ganancia cero. Están flácidos: han caído hasta
+apoyarse y siguen desplazándose a 0.031 rad/s. No hay equilibrio que comparar,
+sino un transitorio. El propio script lo detectó por la velocidad y lo avisó.
+
+Dato de seguridad que sale de paso: con el robot colgado y en `ai`, los brazos
+**se van solos hacia dentro** —los `shoulder_roll` estaban en +6.0° y −1.9°,
+por debajo del tope de ±10° que corresponde al codo estirado—. La postura de
+partida no es segura por sí sola; hay que llevarlos a la postura de prueba
+antes de nada.
+
+Validar la magnitud sobre el robot exige sostener una postura, o sea mandar, y
+eso ya es un ensayo con el robot en marcha.
+
+### Lo que queda sin probar
+
+La teleoperación completa, con visor y robot colgado. Requiere supervisión
+presencial.
+
+---
+
 ## Qué queda por hacer
 
 - [x] ~~Repetir el barrido con una postura de partida reproducible~~ — hecho,
@@ -991,8 +1054,9 @@ primero que hay que atacar si alguna vez hace falta más frecuencia.
       cambian las ganancias óptimas con la configuración del brazo.
 - [ ] Sintonizar hombros y muñecas con el mismo método (aquí solo se validaron
       con las ganancias de `xr_teleoperate`, que salen bien).
-- [ ] Compensación de gravedad con `pinocchio` en vez del par medido punto a
-      punto, y llevarla a `tauff_target` de `H1_2_ArmController`.
-- [ ] Mandar la velocidad de referencia en la teleoperación.
+- [x] Compensación de gravedad con `pinocchio` en vez del par medido punto a
+      punto, y llevarla a `tauff_target` de `H1_2_ArmController`. (§14)
+- [x] Mandar la velocidad de referencia en la teleoperación. (§14)
+- [ ] Probar el parche combinado con el visor y el robot colgado.
 - [ ] Comprobar si `arm_sdk` funciona con el robot activo (de pie). Si
       funcionara, evitaría tener que soltar la locomoción.

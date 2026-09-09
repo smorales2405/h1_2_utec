@@ -80,7 +80,15 @@ Lo primero que hay que comprobar allí es que la teleoperación arranca y que el
 brazo no vibra. Si vibra, el sospechoso es el ruido del IK entrando por `kd`:
 bajar `dq_filter_hz` de 10 a 5 o 3 (la tabla del README dice lo que cuesta).
 
-### F7.2 — conectar la compensación de gravedad (pendiente, es lo de más valor)
+### F7.2 y F7.3 — HECHAS el 2026-09-09
+
+Ambas están en `patches/xr_teleoperate_h1_2_tuning.patch`, que incluye
+también el de `dq_des`. Ver [`README_tuning.md`](../../h1_2_teleoperation/patches/README_tuning.md).
+Falta probarlo con el visor y el robot colgado, que necesita supervisión.
+
+<details><summary>Cómo se planteó (ya no aplica)</summary>
+
+### F7.2 — conectar la compensación de gravedad
 
 `H1_2_ArmController.ctrl_dual_arm(q, tauff)` ya acepta el par por articulación
 y la teleoperación le pasa ceros. Falta el puente:
@@ -97,6 +105,10 @@ Cuesta 28 µs por evaluación. Vale el **85–98 % del error permanente** (§9 d
 resultados). Cautelas: rampa de 1 s al activar para no meter un escalón de par,
 y saturación a `0.5·tau_max` como red independiente.
 
+</details>
+
+<details><summary>F7.3, cómo se planteó (ya no aplica)</summary>
+
 ### F7.3 — ganancias por articulación
 
 `xr_teleoperate` usa **cuatro constantes** para las catorce articulaciones
@@ -107,6 +119,8 @@ parche con una tabla.
 
 **No está escrito.** Lo dejo así a propósito: es un parche que conviene
 escribir con la teleoperación delante para poder probarlo, no a ciegas.
+
+</details>
 
 ### F7.4 — aceptación
 

@@ -1,0 +1,132 @@
+diff --git a/teleop/robot_control/robot_arm.py b/teleop/robot_control/robot_arm.py
+index 8530375..62c47c7 100644
+--- a/teleop/robot_control/robot_arm.py
++++ b/teleop/robot_control/robot_arm.py
+@@ -1003,6 +1003,29 @@ class H1_2_ArmController:
+             self.msg.motor_cmd[id].q  = self.all_motor_q[id]
+         logger_mp.info("Lock OK!")
+ 
++        # --- compensacion de gravedad y ganancias por articulacion ---------
++        #
++        # El PD del motor no tiene termino integral: para sostener una postura
++        # contra la gravedad necesita un error permanente tau_g/kp que no se va
++        # nunca. Medido en este robot: 0.97 grados en shoulder_roll con kp=280.
++        # Metiendo el par de gravedad como tau_ff, ese error cae un 85-98 %.
++        #
++        # Los parametros de masa NO son los del URDF, que da 2.57 Nm de error
++        # rms. Se identificaron sobre el robot (h1_2_joint_control, fase F2) y
++        # dan 0.34 Nm. Los dos brazos, ajustados por separado con datos
++        # distintos, coinciden en la masa de la mano al 6 %.
++        #
++        # Si algo falla al cargar, la teleoperacion sigue SIN compensacion en
++        # vez de caerse: es peor, pero funciona.
++        self.use_gravity_ff = True
++        self.gains_set = "tuned_gff"
++        self._grav = None
++        self._grav_scale = 0.0          # rampa de entrada, sin escalon de par
++        self._grav_ramp_s = 1.0
++        self._grav_frac = 0.5           # tope propio, por si el modelo desvaria
++        self._grav_max = np.zeros(14)
++        self._setup_h1_2_joint_control()
++
+         # initialize publish thread
+         self.publish_thread = threading.Thread(target=self._ctrl_motor_state)
+         self.ctrl_lock = threading.Lock()
+@@ -1011,6 +1034,82 @@ class H1_2_ArmController:
+ 
+         logger_mp.info("Initialize H1_2_ArmController OK!")
+ 
++    def _setup_h1_2_joint_control(self):
++        """Carga el modelo de gravedad identificado y las ganancias por
++        articulacion desde el paquete `h1_2_joint_control` de este repositorio.
++
++        `xr_teleoperate` usa cuatro constantes (kp_low/kd_low para hombros y
++        codo, kp_wrist/kd_wrist para munecas) para las catorce articulaciones.
++        El conjunto sintonizado va de kp 40 a 280 y kd 1.8 a 20.25, asi que no
++        cabe en cuatro numeros.
++
++        La ruta del paquete se deduce de la de este fichero; se puede forzar
++        con la variable de entorno H12_JOINT_CONTROL.
++        """
++        import os
++        import sys
++        from pathlib import Path
++        ruta = os.environ.get("H12_JOINT_CONTROL")
++        if not ruta:
++            ruta = str(Path(__file__).resolve().parents[4] / "h1_2_joint_control")
++        if ruta not in sys.path:
++            sys.path.insert(0, ruta)
++        try:
++            from h1_2_joint_control import config as _cfg
++            from h1_2_joint_control.joints import ARM_INDICES as _ARM
++            from h1_2_joint_control.joints import BY_INDEX as _BY
++            from h1_2_joint_control.gravity import GravityModel
++        except Exception as exc:
++            logger_mp.warning("[H1_2] sin h1_2_joint_control (%s): ganancias por "
++                              "defecto y SIN compensacion de gravedad" % exc)
++            self.use_gravity_ff = False
++            return
++
++        try:
++            g = _cfg.load(self.gains_set)
++            for idx, jid in zip(_ARM, H1_2_JointArmIndex):
++                kp, kd = g.for_index(idx)
++                self.msg.motor_cmd[jid].kp = kp
++                self.msg.motor_cmd[jid].kd = kd
++            logger_mp.info("[H1_2] ganancias del conjunto '%s'" % self.gains_set)
++        except Exception as exc:
++            logger_mp.warning("[H1_2] no se pudieron cargar las ganancias '%s' "
++                              "(%s); se dejan las de por defecto"
++                              % (self.gains_set, exc))
++
++        self._grav_max = np.array([self._grav_frac * _BY[i].tau_max for i in _ARM])
++
++        if not self.use_gravity_ff:
++            return
++        try:
++            self._grav = GravityModel(verbose=False)
++            logger_mp.info("[H1_2] compensacion de gravedad activa (%s)"
++                           % ", ".join(sorted(self._grav.fuentes)))
++        except Exception as exc:
++            logger_mp.warning("[H1_2] sin compensacion de gravedad (%s)" % exc)
++            self._grav = None
++            self.use_gravity_ff = False
++
++    def _gravity_tauff(self):
++        """Par de gravedad de los 14 motores de brazo, con rampa y tope.
++
++        Se evalua en la posicion MEDIDA, no en la consigna: lo que hay que
++        cancelar es la gravedad que actua ahora. Medido, la diferencia entre
++        una y otra es despreciable (17.3 % contra 17.9 % de sobreimpulso), asi
++        que se elige la que es correcta por principio.
++        """
++        if self._grav is None:
++            return np.zeros(14)
++        try:
++            q = self.get_current_motor_q()[:27]
++            t = self._grav.tau(q)
++        except Exception:
++            return np.zeros(14)
++        tau = np.array([t.get(int(jid), 0.0) for jid in H1_2_JointArmIndex])
++        self._grav_scale = min(1.0, self._grav_scale
++                               + self.control_dt / max(self._grav_ramp_s, 1e-3))
++        return np.clip(tau, -self._grav_max, self._grav_max) * self._grav_scale
++
+     def _subscribe_motor_state(self):
+         while True:
+             msg = self.lowstate_subscriber.Read()
+@@ -1047,10 +1146,13 @@ class H1_2_ArmController:
+             else:
+                 cliped_arm_q_target = self.clip_arm_q_target(arm_q_target, velocity_limit = self.arm_velocity_limit)
+ 
++            tau_g = (self._gravity_tauff() if self.use_gravity_ff
++                     else np.zeros(14))
++
+             for idx, id in enumerate(H1_2_JointArmIndex):
+                 self.msg.motor_cmd[id].q = cliped_arm_q_target[idx]
+                 self.msg.motor_cmd[id].dq = 0
+-                self.msg.motor_cmd[id].tau = arm_tauff_target[idx]      
++                self.msg.motor_cmd[id].tau = arm_tauff_target[idx] + tau_g[idx]
+ 
+             self.msg.crc = self.crc.Crc(self.msg)
+             self.lowcmd_publisher.Write(self.msg)

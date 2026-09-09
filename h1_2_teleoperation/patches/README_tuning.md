@@ -65,10 +65,14 @@ El parche añade `H12_ARM_VELOCITY_LIMIT` (rad/s) para bajar ese límite, y va l
 primero del método, antes de cualquier import que pueda fallar, porque es lo
 único ahí dentro que protege al robot.
 
-Mejor aún, colocar los brazos antes con
-[`scripts/arranca_teleop.sh`](../scripts/arranca_teleop.sh), que los lleva a 0°
-a 0.15 rad/s con la protección de `h1_2_joint_control` puesta y luego lanza la
-teleoperación. Así el movimiento inicial no tiene recorrido que hacer.
+[`scripts/arranca_teleop.sh`](../scripts/arranca_teleop.sh) lo pone y además
+coloca los brazos en 0° a 0.15 rad/s antes de lanzar la teleoperación.
+
+Pero **colocarlos antes no sustituye al límite de velocidad**, y esto está
+medido: al soltar, los codos vuelven solos a 79° y 85° en segundos, porque 0°
+es *flexionado* y no es el mínimo de gravedad. Las otras doce se quedan a menos
+de 6°. Para el codo —el del recorrido de 80°— lo único que protege es bajar el
+límite.
 
 ## Parámetros
 

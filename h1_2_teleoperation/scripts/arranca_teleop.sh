@@ -8,14 +8,15 @@
 #
 # Hace dos cosas que no se pueden hacer desde dentro de `xr_teleoperate`:
 #
-#   1. Deja los catorce motores de los brazos en 0° DESPACIO, con toda la
-#      protección de `h1_2_joint_control` puesta (aborto por par, por
-#      temperatura, por estado rancio, apagado ordenado). Sin esto el primer
+#   1. Baja `arm_velocity_limit`. ES LA DEFENSA PRINCIPAL: el primer
 #      movimiento lo hace el propio controlador al construirse —91 líneas
-#      antes de pedirte que pulses [r]— a 30 rad/s.
+#      antes de pedirte que pulses [r]— y de fábrica va a 30 rad/s.
 #
-#   2. Baja `arm_velocity_limit` para el resto de la sesión, como red por si
-#      la consigna del visor pega un salto.
+#   2. Deja los catorce motores de los brazos en 0° DESPACIO, con toda la
+#      protección de `h1_2_joint_control` puesta. Ojo: MEDIDO que los codos
+#      vuelven solos a ~80° al soltar, porque 0° es flexionado y no es el
+#      mínimo de gravedad. Así que esto vale para las otras doce y para
+#      partir de una postura conocida, no para evitar el recorrido del codo.
 #
 # Requiere modo debug; `15_postura_cero.py` se niega a arrancar si no lo está
 # y dice qué ejecutar.

@@ -10,8 +10,19 @@ son 80° de recorrido en decenas de milisegundos.
 
 Este script lleva los brazos ahí antes, a la velocidad que se le pida, con toda
 la protección del paquete puesta: aborto por par, por temperatura, por estado
-rancio, rampa de peso y apagado ordenado. Cuando la teleoperación arranque
-después, su movimiento inicial no tendrá recorrido que hacer.
+rancio, rampa de peso y apagado ordenado.
+
+**MEDIDO el 2026-09-09, y limita para qué sirve esto.** Al soltar, los codos
+vuelven solos a 79° y 85° en unos segundos: el codo a 0° está FLEXIONADO, que
+no es el mínimo de gravedad, así que sin ganancia el antebrazo cae hasta quedar
+colgando. Las otras doce se quedan a menos de 6° de cero.
+
+O sea que para los codos —justo los del recorrido de 80°— colocarlos antes NO
+evita el movimiento inicial de la teleoperación, salvo que ésta tome el control
+sin hueco por medio. **Lo que de verdad protege es `H12_ARM_VELOCITY_LIMIT`**,
+que convierte esos 80° en un movimiento de segundos en vez de decenas de
+milisegundos. Este script sigue valiendo para las otras doce y para dejar una
+postura de partida conocida, pero no es la defensa principal.
 
     python3 scripts/15_postura_cero.py                 # 0.15 rad/s, ~9°/s
     python3 scripts/15_postura_cero.py --speed 0.10    # más despacio aún

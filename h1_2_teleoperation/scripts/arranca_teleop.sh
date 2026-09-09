@@ -3,23 +3,30 @@
 #
 #   ./scripts/arranca_teleop.sh              brazos + manos Inspire
 #   ./scripts/arranca_teleop.sh --sin-manos  solo brazos (primera prueba)
-#   ./scripts/arranca_teleop.sh --yes        sin pedir confirmación al colocar
-#   VEL=0.4 ./scripts/arranca_teleop.sh      otro límite de velocidad
+#   RAMPA=8 ./scripts/arranca_teleop.sh      arranque inicial más lento
 #
-# Hace dos cosas que no se pueden hacer desde dentro de `xr_teleoperate`:
+# Hace dos cosas que `xr_teleoperate` no hace por si mismo:
 #
-#   1. Baja `arm_velocity_limit`. ES LA DEFENSA PRINCIPAL: el primer
-#      movimiento lo hace el propio controlador al construirse —91 líneas
-#      antes de pedirte que pulses [r]— y de fábrica va a 30 rad/s.
+#   1. Pone `H12_STARTUP_RAMP_S`: el movimiento inicial a 0° pasa de ser un
+#      salto a una rampa de coseno alzado de N segundos, con la autoridad de
+#      par intacta. Ese movimiento lo hace el propio controlador al
+#      construirse, 91 líneas antes de pedirte que pulses [r].
 #
-#   2. Deja los catorce motores de los brazos en 0° DESPACIO, con toda la
-#      protección de `h1_2_joint_control` puesta. Ojo: MEDIDO que los codos
-#      vuelven solos a ~80° al soltar, porque 0° es flexionado y no es el
-#      mínimo de gravedad. Así que esto vale para las otras doce y para
-#      partir de una postura conocida, no para evitar el recorrido del codo.
+#      NO uses `H12_ARM_VELOCITY_LIMIT` para esto, aunque lo parezca:
+#      `clip_arm_q_target` recorta contra la posición MEDIDA, así que bajarlo
+#      limita el error de posición y con él el par del PD. Medido en el codo:
+#      con 0.6 rad/s no se mueve en absoluto, con 2.0 recorre 1.2° en 3 s.
+#      Bajarlo no frena el brazo, lo desactiva.
 #
-# Requiere modo debug; `15_postura_cero.py` se niega a arrancar si no lo está
-# y dice qué ejecutar.
+#   2. Al terminar —salga como salga, incluido Ctrl-C— comprueba que los
+#      brazos quedaron en la postura de reposo. Con el parche aplicado,
+#      `ctrl_dual_arm_go_home()` ya lo hace por dentro y esto no encuentra
+#      nada que hacer; es la red por si la teleoperación muere sin llegar a
+#      llamarlo.
+#
+# Requiere modo debug:  cd h1_2_joint_control && source scripts/env.sh
+#                       python3 scripts/06_debug_mode.py enter
+
 set -euo pipefail
 
 AQUI="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
@@ -27,8 +34,7 @@ RAIZ="$(cd -- "$AQUI/../.." &> /dev/null && pwd)"
 JC="$RAIZ/h1_2_joint_control"
 XR="$RAIZ/h1_2_teleoperation/xr_teleoperate"
 
-VEL="${VEL:-0.6}"                     # rad/s del movimiento inicial de xr_teleoperate
-VEL_POSTURA="${VEL_POSTURA:-0.15}"    # rad/s de la colocación previa, más lento
+RAMPA="${RAMPA:-4.0}"                 # segundos del movimiento inicial a 0°
 
 EE="inspire_ftp"
 POSTURA_ARGS=()
@@ -41,13 +47,6 @@ for arg in "$@"; do
     esac
 done
 
-echo "══ 1/3 · llevando los brazos a 0° a ${VEL_POSTURA} rad/s ══"
-(
-    cd "$JC"
-    source scripts/env.sh >/dev/null
-    python3 scripts/15_postura_cero.py --speed "$VEL_POSTURA" "${POSTURA_ARGS[@]}"
-)
-
 IP_WIFI="$(ip -br -4 addr | awk '$1!="lo" && $3 !~ /^192\.168\.123\./ {print $3; exit}' | cut -d/ -f1)"
 # La NIC del robot, no la de salida a Internet: por defecto xr_teleoperate usa
 # la interfaz por defecto, que aquí es el WiFi, y DDS no llegaría al robot.
@@ -59,8 +58,8 @@ if [ -z "$NIC" ]; then
 fi
 
 echo
-echo "══ 2/3 · arrancando la teleoperación ══"
-echo "  arm_velocity_limit = ${VEL} rad/s   (de fábrica: 30)"
+echo "══ 1/2 · arrancando la teleoperación ══"
+echo "  rampa del movimiento inicial a 0°: ${RAMPA} s"
 echo "  ganancias tuned_gff + gravedad, desde $JC"
 echo "  DDS por ${NIC}"
 if [ -n "$EE" ]; then echo "  manos Inspire activas"; else echo "  SIN manos (solo brazos)"; fi
@@ -72,7 +71,7 @@ echo
 
 reposo() {
     echo
-    echo "══ 3/3 · devolviendo los brazos a la postura de reposo ══"
+    echo "══ 2/2 · devolviendo los brazos a la postura de reposo ══"
     (
         cd "$JC"
         source scripts/env.sh >/dev/null
@@ -82,7 +81,7 @@ reposo() {
 trap reposo EXIT
 
 source "$AQUI/_conda.sh"
-export H12_ARM_VELOCITY_LIMIT="$VEL"
+export H12_STARTUP_RAMP_S="$RAMPA"
 export H12_JOINT_CONTROL="$JC"
 cd "$XR/teleop"
 # sin `exec`: el trap tiene que poder correr después

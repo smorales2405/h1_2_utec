@@ -53,26 +53,66 @@ falta `pinocchio` o si no hay parámetros identificados, **avisa por el log y
 sigue** con las ganancias por defecto y sin compensación. Es peor, pero
 funciona. Los tres avisos empiezan por `[H1_2]`.
 
-## El movimiento inicial, que es lo peligroso
+## Entrar y salir: los dos movimientos que hace solo
 
 `H1_2_ArmController` se construye en la línea 174 de `teleop_hand_and_arm.py` y
-el `Press [r] to start` está en la 265. Al construirse arranca ya el hilo
-publicador con `q_target = zeros(14)` y `arm_velocity_limit = 30 rad/s`: **el
-robot se mueve 91 líneas antes de que te pregunte nada**, y la `[r]` solo decide
-cuándo empieza a seguirte a ti. Con los codos estirados son 80° de recorrido.
+el `Press [r] to start` está en la 265. Al construirse lleva los brazos a **0°**,
+91 líneas antes de preguntarte nada. Y al parar llama a
+`ctrl_dual_arm_go_home()`, que los deja en **0°** y muere sin bajar ganancias.
 
-El parche añade `H12_ARM_VELOCITY_LIMIT` (rad/s) para bajar ese límite, y va lo
-primero del método, antes de cualquier import que pueda fallar, porque es lo
-único ahí dentro que protege al robot.
+Los dos extremos están mal, y el parche cambia los dos.
 
-[`scripts/arranca_teleop.sh`](../scripts/arranca_teleop.sh) lo pone y además
-coloca los brazos en 0° a 0.15 rad/s antes de lanzar la teleoperación.
+### Al entrar: rampa, no salto
 
-Pero **colocarlos antes no sustituye al límite de velocidad**, y esto está
-medido: al soltar, los codos vuelven solos a 79° y 85° en segundos, porque 0°
-es *flexionado* y no es el mínimo de gravedad. Las otras doce se quedan a menos
-de 6°. Para el codo —el del recorrido de 80°— lo único que protege es bajar el
-límite.
+El parche hace que el controlador **sostenga la postura donde esté** al arrancar
+el hilo publicador, y luego rampe a 0° con un coseno alzado en
+`H12_STARTUP_RAMP_S` segundos (4 por defecto).
+
+> ⚠ **No uses `H12_ARM_VELOCITY_LIMIT` para ir despacio.** Parece lo natural y
+> es una trampa: `clip_arm_q_target` recorta contra la posición **medida**, así
+> que la consigna nunca va más de `límite × control_dt` por delante del brazo.
+> Eso limita el error de posición y con él el par del PD, a lo sumo
+> `kp × límite × control_dt`. Medido en el codo izquierdo (kp 79.4, dt 1/250),
+> recorrido en 3 s pidiendo 17°:
+>
+> | límite | par máx | recorrido |
+> |---:|---:|---:|
+> | 0.3 rad/s | 0.10 Nm | **0.0°** |
+> | 0.6 | 0.19 Nm | 0.1° |
+> | 2.0 | 0.64 Nm | 1.2° |
+> | 5.0 | 1.59 Nm | 12.0° |
+> | 15.0 | 4.76 Nm | 18.0° |
+>
+> Bajarlo no frena el brazo: **lo desactiva**. Los 30 rad/s de fábrica no son
+> generosos, son lo justo para que el codo tenga par para sostenerse.
+
+### Al salir: a la postura de reposo, no a 0°
+
+Soltar en 0° es lo peor posible: **0° de codo es la posición flexionada y no es
+el mínimo de gravedad**. Sin ganancia el antebrazo cae solo hasta quedar
+colgando y, con el hombro cerca de 0°, ese recorrido lleva **la mano contra la
+pierna**. Medido: los codos pasan de 1° a 79° y 85° en segundos.
+
+Tiene que resolverse **dentro** del controlador, mientras aún manda. Comprobado
+que un script posterior no llega: entre que un proceso suelta y el siguiente
+toma el control pasan ~6 s, y para entonces los codos ya han caído 73° y 79°.
+
+El parche reemplaza `go_home` por tres tramos, y el orden es lo único que
+importa:
+
+1. los `shoulder_roll` salen a **±10°**, apartando la mano de la pierna antes
+   de que el brazo recorra nada a lo largo del cuerpo;
+2. los codos se estiran a **80°**, ya lejos de la pierna;
+3. todo va a la postura de reposo, con el brazo ya estirado, que **es** el
+   mínimo de gravedad; y las ganancias bajan a 0 en 1 s antes de dejar de
+   publicar.
+
+Los ángulos salen de `rest_posture_deg` en `config/gains.yaml`.
+
+### Ciclo completo verificado en el robot
+
+Arranque con rampa de 6 s → los 14 a menos de 1.6° de cero → `go_home` en 9.5 s
+→ **deriva máxima al soltar: 0.23°**. Sin el parche, esa deriva era de 84°.
 
 ## Parámetros
 
@@ -90,7 +130,8 @@ Y una variable de entorno:
 
 | variable | para qué |
 |---|---|
-| `H12_ARM_VELOCITY_LIMIT` | rad/s del movimiento inicial (de fábrica 30) |
+| `H12_STARTUP_RAMP_S` | segundos de la rampa inicial a 0° (4 por defecto) |
+| `H12_ARM_VELOCITY_LIMIT` | rad/s; **no lo bajes**, ver arriba |
 | `H12_JOINT_CONTROL` | ruta del paquete, si no se deduce sola |
 
 ## Verificado

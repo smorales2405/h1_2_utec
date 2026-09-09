@@ -1,5 +1,5 @@
 diff --git a/teleop/robot_control/robot_arm.py b/teleop/robot_control/robot_arm.py
-index 8530375..d0a9429 100644
+index 8530375..ba914e9 100644
 --- a/teleop/robot_control/robot_arm.py
 +++ b/teleop/robot_control/robot_arm.py
 @@ -953,6 +953,28 @@ class H1_2_ArmController:
@@ -31,7 +31,7 @@ index 8530375..d0a9429 100644
  
          if self.motion_mode:
              self.lowcmd_publisher = ChannelPublisher(kTopicLowCommand_Motion, hg_LowCmd)
-@@ -1003,6 +1025,29 @@ class H1_2_ArmController:
+@@ -1003,14 +1025,189 @@ class H1_2_ArmController:
              self.msg.motor_cmd[id].q  = self.all_motor_q[id]
          logger_mp.info("Lock OK!")
  
@@ -56,13 +56,27 @@ index 8530375..d0a9429 100644
 +        self._grav_ramp_s = 1.0
 +        self._grav_frac = 0.5           # tope propio, por si el modelo desvaria
 +        self._grav_max = np.zeros(14)
++        self._rest_q = None          # postura de reposo, si se puede cargar
++        self._roll_exit = 0.0
++        self._kp0 = np.array([self.msg.motor_cmd[j].kp for j in H1_2_JointArmIndex])
++        self._kd0 = np.array([self.msg.motor_cmd[j].kd for j in H1_2_JointArmIndex])
 +        self._setup_h1_2_joint_control()
++
++        # Sostener donde esta, NO saltar a 0 grados: el hilo publicador
++        # arranca justo debajo y el original lo mandaba a cero de golpe.
++        self.q_target = self.get_current_dual_arm_q().copy()
 +
          # initialize publish thread
          self.publish_thread = threading.Thread(target=self._ctrl_motor_state)
          self.ctrl_lock = threading.Lock()
-@@ -1011,6 +1056,100 @@ class H1_2_ArmController:
+         self.publish_thread.daemon = True
+         self.publish_thread.start()
  
++        # y ahora si, a 0 grados con una rampa que se puede ver venir
++        self._startup_thread = threading.Thread(target=self._arranque_suave)
++        self._startup_thread.daemon = True
++        self._startup_thread.start()
++
          logger_mp.info("Initialize H1_2_ArmController OK!")
  
 +    def _setup_h1_2_joint_control(self):
@@ -87,12 +101,37 @@ index 8530375..d0a9429 100644
 +        # lleva los brazos a q_target = zeros(14) a esta velocidad, y eso pasa
 +        # 91 lineas ANTES del "Press [r] to start". Con los codos estirados son
 +        # 80 grados de recorrido; a los 30 rad/s de fabrica, decenas de ms.
++        # OJO: `arm_velocity_limit` NO sirve para frenar el arranque, aunque
++        # lo parezca. `clip_arm_q_target` recorta contra la posicion MEDIDA,
++        # asi que la consigna nunca va mas de `limite * control_dt` por delante
++        # de donde esta el brazo. Eso limita el ERROR DE POSICION y con el el
++        # par del PD: como mucho `kp * limite * control_dt`.
++        #
++        # Medido en el codo izquierdo (kp 79.4, dt 1/250), recorrido en 3 s
++        # pidiendo 17 grados:
++        #
++        #     0.3 rad/s -> 0.10 Nm ->  0.0 grados    no se mueve
++        #     0.6       -> 0.19    ->  0.1
++        #     1.0       -> 0.32    ->  0.2
++        #     2.0       -> 0.64    ->  1.2
++        #     5.0       -> 1.59    -> 12.0
++        #    15.0       -> 4.76    -> 18.0           llega
++        #
++        # Bajarlo no frena el brazo: lo DESACTIVA. Los 30 de fabrica no son
++        # generosos, son lo justo para que el codo tenga par para sostenerse
++        # contra la gravedad.
++        #
++        # Lo que si frena de verdad es rampar la CONSIGNA con la autoridad de
++        # par intacta, que es lo que hace `_ramp_q_target`.
++        self._startup_ramp_s = float(os.environ.get("H12_STARTUP_RAMP_S", 4.0))
 +        lim = os.environ.get("H12_ARM_VELOCITY_LIMIT")
 +        if lim:
 +            try:
 +                self.set_arm_velocity_limit(float(lim))
-+                logger_mp.info("[H1_2] arm_velocity_limit = %s rad/s "
-+                               "(H12_ARM_VELOCITY_LIMIT)" % lim)
++                logger_mp.warning("[H1_2] arm_velocity_limit = %s rad/s. Por "
++                                  "debajo de ~5 el brazo no tiene par para "
++                                  "moverse; para ir despacio usa "
++                                  "H12_STARTUP_RAMP_S." % lim)
 +            except Exception as exc:
 +                logger_mp.warning("[H1_2] H12_ARM_VELOCITY_LIMIT no vale "
 +                                  "(%s); se deja %s rad/s"
@@ -121,12 +160,32 @@ index 8530375..d0a9429 100644
 +                self.msg.motor_cmd[jid].kp = kp
 +                self.msg.motor_cmd[jid].kd = kd
 +            logger_mp.info("[H1_2] ganancias del conjunto '%s'" % self.gains_set)
++            self._kp0 = np.array([self.msg.motor_cmd[j].kp for j in H1_2_JointArmIndex])
++            self._kd0 = np.array([self.msg.motor_cmd[j].kd for j in H1_2_JointArmIndex])
 +        except Exception as exc:
 +            logger_mp.warning("[H1_2] no se pudieron cargar las ganancias '%s' "
 +                              "(%s); se dejan las de por defecto"
 +                              % (self.gains_set, exc))
 +
 +        self._grav_max = np.array([self._grav_frac * _BY[i].tau_max for i in _ARM])
++
++        # Postura de reposo y por donde pasar para llegar. Ver mas abajo, en
++        # ctrl_dual_arm_go_home, por que no se puede acabar en 0 grados.
++        try:
++            g = _cfg.load()
++            reposo = g.rest_posture()
++            if reposo:
++                self._rest_q = np.array([reposo.get(i, 0.0) for i in _ARM])
++                self._roll_exit = g.rest_roll_exit
++                self._i_roll = [k for k, i in enumerate(_ARM)
++                                if _BY[i].name.endswith("shoulder_roll")]
++                self._i_elbow = [k for k, i in enumerate(_ARM)
++                                 if _BY[i].name.endswith("elbow")]
++                self._roll_sign = [1.0 if _BY[_ARM[k]].name.startswith("L_") else -1.0
++                                   for k in self._i_roll]
++        except Exception as exc:
++            logger_mp.warning("[H1_2] sin postura de reposo (%s): al parar, los "
++                              "brazos iran a 0 grados y CAERAN solos" % exc)
 +
 +        if not self.use_gravity_ff:
 +            return
@@ -162,7 +221,7 @@ index 8530375..d0a9429 100644
      def _subscribe_motor_state(self):
          while True:
              msg = self.lowstate_subscriber.Read()
-@@ -1047,10 +1186,27 @@ class H1_2_ArmController:
+@@ -1047,10 +1244,27 @@ class H1_2_ArmController:
              else:
                  cliped_arm_q_target = self.clip_arm_q_target(arm_q_target, velocity_limit = self.arm_velocity_limit)
  
@@ -192,3 +251,114 @@ index 8530375..d0a9429 100644
  
              self.msg.crc = self.crc.Crc(self.msg)
              self.lowcmd_publisher.Write(self.msg)
+@@ -1086,7 +1300,110 @@ class H1_2_ArmController:
+         '''Return current state dq of the left and right arm motors.'''
+         return np.array([self.lowstate_buffer.GetData().motor_state[id].dq for id in H1_2_JointArmIndex])
+     
++    def _ramp_q_target(self, q_dest, seconds):
++        """Lleva la consigna de donde este a `q_dest` en `seconds`, bloqueando.
++
++        Coseno alzado: velocidad nula al principio y al final, sin tirones. Es
++        la forma correcta de ir despacio, porque el par sigue entero —al
++        contrario que bajar `arm_velocity_limit`, que lo recorta—.
++        """
++        q_ini = np.asarray(self.q_target, dtype=float).copy()
++        q_dest = np.asarray(q_dest, dtype=float)
++        if seconds <= 0.0:
++            with self.ctrl_lock:
++                self.q_target = q_dest.copy()
++            return
++        t0 = time.time()
++        while True:
++            a = min((time.time() - t0) / seconds, 1.0)
++            s = 0.5 - 0.5 * np.cos(np.pi * a)
++            with self.ctrl_lock:
++                self.q_target = q_ini + s * (q_dest - q_ini)
++            if a >= 1.0:
++                return
++            time.sleep(self.control_dt)
++
++    def _arranque_suave(self):
++        """Hilo de arranque: de donde este el brazo a 0 grados, despacio.
++
++        El original pone `q_target = zeros(14)` antes de arrancar el hilo
++        publicador, o sea que el robot sale hacia 0 grados 91 lineas antes del
++        "Press [r] to start". Con los codos estirados son 80 grados.
++        """
++        try:
++            self._ramp_q_target(np.zeros(14), self._startup_ramp_s)
++        except Exception as exc:
++            logger_mp.warning("[H1_2] arranque suave interrumpido (%s)" % exc)
++
++    def _goto_and_wait(self, q14, tol=0.05, timeout=8.0):
++        """Manda una postura y espera a llegar. El limite de velocidad lo pone
++        el hilo publicador, asi que aqui solo se fija el destino."""
++        with self.ctrl_lock:
++            self.q_target = np.asarray(q14, dtype=float).copy()
++        t0 = time.time()
++        while time.time() - t0 < timeout:
++            if np.all(np.abs(self.get_current_dual_arm_q() - q14) < tol):
++                return True
++            time.sleep(0.02)
++        return False
++
+     def ctrl_dual_arm_go_home(self):
++        '''Devuelve los brazos a la postura de reposo antes de soltar.
++
++        El original manda los catorce a 0 grados y ahi muere el proceso. En
++        `lowcmd` eso NO baja ganancias: simplemente se deja de publicar y los
++        motores quedan libres. Y soltar en 0 grados es lo peor posible, porque
++        **0 grados de codo es la posicion FLEXIONADA y no es el minimo de
++        gravedad**: sin ganancia el antebrazo cae solo hasta quedar colgando y,
++        con el hombro cerca de 0, ese recorrido lleva LA MANO CONTRA LA PIERNA.
++
++        Medido el 2026-09-09: los codos pasan de 1 grado a 79 y 85 en unos
++        segundos, y las munecas a -20.
++
++        Tiene que hacerse AQUI y no en un script posterior. Comprobado: entre
++        que un proceso suelta y el siguiente toma el control pasan unos 6 s, y
++        para entonces los codos ya han caido 73 y 79 grados. El golpe ocurre en
++        el hueco.
++
++        La secuencia, en tres tramos, y el orden es lo unico que importa:
++
++          1. los shoulder_roll salen a +-`roll_exit`, apartando la mano de la
++             pierna ANTES de que el brazo recorra nada a lo largo del cuerpo;
++          2. los codos se estiran, ya lejos de la pierna;
++          3. todo va a la postura de reposo, con el brazo ya estirado, que ES
++             el minimo de gravedad: al soltar no cae nada (medido: 1.7 grados
++             de deriva, contra 84).
++        '''
++        if self._rest_q is None:
++            return self._ctrl_dual_arm_go_home_original()
++
++        logger_mp.info("[H1_2] volviendo a la postura de reposo…")
++        q = self.get_current_dual_arm_q().copy()
++
++        # 1. apartar los hombros
++        for k, sgn in zip(self._i_roll, self._roll_sign):
++            q[k] = sgn * abs(self._roll_exit)
++        self._ramp_q_target(q, 2.5)
++
++        # 2. estirar los codos, ya lejos de la pierna
++        for k in self._i_elbow:
++            q[k] = self._rest_q[k]
++        self._ramp_q_target(q, 3.0)
++
++        # 3. a reposo, con el brazo estirado = minimo de gravedad
++        self._ramp_q_target(self._rest_q, 2.5)
++        time.sleep(0.5)
++
++        # Bajar ganancias antes de dejar de publicar, para que el traspaso a
++        # "nadie manda" no sea un escalon.
++        for w in np.linspace(1.0, 0.0, 50):
++            for idx, id in enumerate(H1_2_JointArmIndex):
++                self.msg.motor_cmd[id].kp = float(self._kp0[idx] * w)
++                self.msg.motor_cmd[id].kd = float(self._kd0[idx] * w)
++            time.sleep(0.02)
++        logger_mp.info("[H1_2] brazos en reposo, ganancias a 0.")
++
++    def _ctrl_dual_arm_go_home_original(self):
+         '''Move both the left and right arms of the robot to their home position by setting the target joint angles (q) and torques (tau) to zero.'''
+         logger_mp.info("[H1_2_ArmController] ctrl_dual_arm_go_home start...")
+         max_attempts = 100

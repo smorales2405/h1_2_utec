@@ -70,18 +70,32 @@ echo "  ganancias tuned_gff + gravedad, desde $JC"
 echo "  DDS por ${NIC}"
 if [ -n "$EE" ]; then echo "  manos Inspire activas"; else echo "  SIN manos (solo brazos)"; fi
 echo
+# OJO con el ?ws= : el cliente de Vuer 0.0.60 se come el puerto del websocket
+# cuando la pagina va por HTTPS. En su bundle:
+#     window.location.protocol == "https:" ? `wss://${window.location.hostname}` : ...
+# o sea que acaba intentando wss://<host>:443, donde no hay nada. El websocket
+# no conecta, y como toda la escena viaja por ahi, el visor carga la pagina, el
+# seguimiento de manos funciona, y no llega ninguna imagen: parece congelado.
+# WebXR obliga a HTTPS, asi que el fallo se dispara SIEMPRE con el visor.
+# El cliente acepta la URI explicita en `ws`: getSocketURI(query.ws).
+# Detalle en README_SIM.md 3.7.
+echo "  En el Quest, abre la URL ENTERA. El ?ws= NO es opcional: sin él la"
+echo "  imagen no llega nunca y parece que se ha congelado."
+echo
 if [ -n "${HOST_IP:-}" ]; then
-    echo "  En el Quest:  https://${HOST_IP}:8012"
+    echo "      https://${HOST_IP}:8012/?ws=wss://${HOST_IP}:8012"
 else
-    echo "  En el Quest, abre UNA de estas (la del segmento donde esté el visor;"
-    echo "  si no sabes cuál, ejecuta ./scripts/busca_quest.sh):"
+    echo "  (si no sabes cuál es la del visor: ./scripts/busca_quest.sh)"
     while read -r _if _ip; do
         if openssl x509 -in "$CERT" -noout -ext subjectAltName 2>/dev/null \
-           | grep -q "IP Address:${_ip}\b"; then marca="✔ certificado"
-        else marca="⚠ el certificado NO la cubre: ./scripts/02_gen_certs.sh"; fi
-        printf "      https://%-16s:8012   (%s)  %s\n" "$_ip" "$_if" "$marca"
+           | grep -q "IP Address:${_ip}\b"; then marca="✔"
+        else marca="⚠ sin certificado: ./scripts/02_gen_certs.sh"; fi
+        echo "      https://${_ip}:8012/?ws=wss://${_ip}:8012   ($_if) $marca"
     done <<< "$candidatos"
 fi
+echo
+echo "  Comprobación: en el panel derecho de la página, el campo Socket URI"
+echo "  tiene que poner wss://<ip>:8012. Si pone wss://<ip> sin puerto, es esto."
 echo "  Pulsa [r] en esta terminal cuando quieras que empiece a seguirte."
 echo "  Paro de emergencia del mando: L2 + B."
 echo

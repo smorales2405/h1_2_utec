@@ -398,7 +398,21 @@ EXTRA="--motion"      ./scripts/03_launch_teleop.sh   # con locomoción
 **En el Quest 3**
 
 1. Misma WiFi que la laptop; activar seguimiento de manos en Ajustes.
-2. Navegador → `https://<ip-wifi-de-la-laptop>:8012` → *Advanced* →
+> ⚠️ **La URL lleva `?ws=`, y no es opcional.** El cliente de Vuer 0.0.60 se
+> come el puerto del websocket cuando la página va por HTTPS, así que intenta
+> `wss://<ip>` —el puerto 443— y no conecta. La página carga, el seguimiento de
+> manos funciona, y la imagen no llega nunca: **parece que se ha congelado**.
+> Como WebXR obliga a HTTPS, pasa siempre con el visor.
+>
+> ```
+> https://192.168.0.101:8012/?ws=wss://192.168.0.101:8012
+> ```
+>
+> Se comprueba en el panel derecho de la página, campo *Socket URI*: tiene que
+> poner `wss://<ip>:8012`. Análisis completo en
+> [`README_SIM.md` §3.7](README_SIM.md).
+
+2. Navegador → la URL **entera** de arriba → *Advanced* →
    *Proceed to … (unsafe)*. Solo la primera vez.
 3. Botón **Virtual Reality** y aceptar permisos.
 

@@ -7,6 +7,12 @@
 cd xr_teleoperate && git apply ../patches/xr_teleoperate_h1_2_dq_ref.patch
 ```
 
+> ⚠ **Este parche es la mitad de `xr_teleoperate_h1_2_tuning.patch`**, que hace
+> esto y además compensa la gravedad y pone las ganancias por articulación. Los
+> dos tocan el mismo bucle y **chocan**: se aplica uno **o** el otro, nunca los
+> dos. Este está aquí para quien solo quiera esta mejora, que es la única de las
+> tres que no depende de las otras. Ver [`README_tuning.md`](README_tuning.md).
+
 ## Qué hace
 
 `H1_2_ArmController` manda hoy `msg.motor_cmd[id].dq = 0` siempre. El motor

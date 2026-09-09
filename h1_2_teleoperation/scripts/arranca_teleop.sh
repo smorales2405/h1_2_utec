@@ -90,12 +90,31 @@ reposo() {
     echo
     echo "══ 2/2 · devolviendo los brazos a la postura de reposo ══"
     (
+        # `set -u` fuera: los setup.bash de ROS leen variables sin definir
+        # (AMENT_TRACE_SETUP_FILES) y abortarian el retorno justo cuando mas
+        # falta hace. Paso medido: sin esto el trap fallaba entero.
+        set +u
         cd "$JC"
         source scripts/env.sh >/dev/null
         python3 scripts/16_postura_reposo.py --yes
     ) || echo "  ⚠ el retorno falló; comprueba los brazos ANTES de soltar el arnés."
 }
 trap reposo EXIT
+
+# El entorno de ROS y el de conda no se llevan: si en esta terminal se ha
+# hecho `source scripts/env.sh` -que es lo normal, hace falta para el modo
+# debug-, PYTHONPATH apunta a /opt/ros/humble/lib/python3.10/site-packages y
+# su `pinocchio` TAPA al de conda. El de ROS no trae el modulo `casadi`, asi
+# que robot_arm_ik.py revienta en el import y la teleoperacion ni arranca.
+#
+# No hace falta PYTHONPATH: el parche encuentra h1_2_joint_control por
+# H12_JOINT_CONTROL y se lo inserta el solo en sys.path.
+unset PYTHONPATH AMENT_PREFIX_PATH COLCON_PREFIX_PATH CMAKE_PREFIX_PATH
+if [ -n "${LD_LIBRARY_PATH:-}" ]; then
+    LD_LIBRARY_PATH="$(printf '%s' "$LD_LIBRARY_PATH" | tr ':' '\n' \
+                       | grep -v '/opt/ros/' | paste -sd: - || true)"
+    export LD_LIBRARY_PATH
+fi
 
 source "$AQUI/_conda.sh"
 export H12_STARTUP_RAMP_S="$RAMPA"

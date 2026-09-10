@@ -4,6 +4,7 @@
 #   ./scripts/arranca_teleop.sh              brazos + manos Inspire
 #   ./scripts/arranca_teleop.sh --sin-manos  solo brazos (primera prueba)
 #   RAMPA=8 ./scripts/arranca_teleop.sh      arranque inicial más lento
+#   FPS=10  ./scripts/arranca_teleop.sh      menos fotogramas al visor
 #
 # Hace dos cosas que `xr_teleoperate` no hace por si mismo:
 #
@@ -35,6 +36,7 @@ JC="$RAIZ/h1_2_joint_control"
 XR="$RAIZ/h1_2_teleoperation/xr_teleoperate"
 
 RAMPA="${RAMPA:-4.0}"                 # segundos del movimiento inicial a 0°
+FPS="${FPS:-15}"                      # fotogramas por segundo hacia el visor
 
 EE="inspire_ftp"
 POSTURA_ARGS=()
@@ -66,6 +68,7 @@ fi
 echo
 echo "══ 1/2 · arrancando la teleoperación ══"
 echo "  rampa del movimiento inicial a 0°: ${RAMPA} s"
+echo "  imagen al visor: ${FPS} fps  (la fuente da 15 nuevos/s; más es duplicar)"
 echo "  ganancias tuned_gff + gravedad, desde $JC"
 echo "  DDS por ${NIC}"
 if [ -n "$EE" ]; then echo "  manos Inspire activas"; else echo "  SIN manos (solo brazos)"; fi
@@ -141,6 +144,23 @@ if [ -n "${LD_LIBRARY_PATH:-}" ]; then
 fi
 
 source "$AQUI/_conda.sh"
+# Fotogramas hacia el visor. NO subir esto a lo tonto: televuer manda un JPEG
+# ENTERO por el websocket a este ritmo, y sobre TCP los fotogramas no se
+# descartan, se ACUMULAN. Medido en este montaje: 75 kB por fotograma, o sea
+#
+#     30 fps -> 18.5 Mbps      15 fps -> 9.2 Mbps      10 fps -> 6.2 Mbps
+#
+# y el puente publica 30 Hz de los que solo 15.1 son NUEVOS, porque el servicio
+# videohub devuelve el ultimo fotograma en cache. A 30 fps la mitad de lo que
+# se manda son duplicados exactos: el doble de ancho de banda por cero
+# informacion.
+#
+# En modo plano el navegador drena a tiempo. Al entrar en VR el Quest se pone a
+# renderizar, drena mas despacio, la cola crece y el transporte muere:
+#     Connection closed due to Cannot write to closing transport
+#     AssertionError: Websocket session is missing.
+# Observado a los ~25 s de entrar en VR con 30 fps.
+export XR_DISPLAY_FPS="$FPS"
 export H12_STARTUP_RAMP_S="$RAMPA"
 export H12_JOINT_CONTROL="$JC"
 cd "$XR/teleop"

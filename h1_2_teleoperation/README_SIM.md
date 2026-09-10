@@ -345,6 +345,60 @@ corregir a mano en el campo *Socket URI* de la página y pulsar *reconnect*.
 > Afecta igual al **despliegue físico**: mismo entorno `tv`, mismo Vuer, misma
 > necesidad de HTTPS para WebXR.
 
+### 3.9 La imagen se congela al entrar en VR: el enlace se satura
+
+Síntoma exacto, medido en el robot real el 2026-09-10: la imagen llega bien en
+modo plano durante minutos; al pulsar *Virtual Reality* se congela a los ~25 s.
+En la terminal:
+
+```
+websocket is now disconnected. Removing the socket.
+Connection closed due to Cannot write to closing transport
+AssertionError: Websocket session is missing.
+```
+
+**No es un fallo de software, es ancho de banda.** `main_image_monocular_zmq`
+manda un **JPEG entero** por el websocket a `display_fps`, y sobre TCP los
+fotogramas no se descartan: se **acumulan**.
+
+Medido en este montaje, suscribiéndose al ZMQ del puente:
+
+| | valor |
+|---|---|
+| tamaño por fotograma | **75 kB** (1280×720, q80) |
+| publicados por el puente | 30.0 Hz |
+| **fotogramas NUEVOS** | **15.1 Hz** |
+
+Los 15 Hz son el techo del servicio `videohub`, que devuelve el último
+fotograma en caché. Así que **a 30 fps la mitad de lo que se manda al visor son
+duplicados exactos**: el doble de ancho de banda por cero información.
+
+| `display_fps` | ancho de banda |
+|---:|---:|
+| 30 | **18.5 Mbps** |
+| 20 | 12.3 Mbps |
+| **15** | **9.2 Mbps** ← el ritmo real de la fuente |
+| 10 | 6.2 Mbps |
+
+Por qué solo revienta **en VR**: en modo plano el navegador drena el socket a
+tiempo. Al entrar en inmersivo el Quest se pone a renderizar, drena más
+despacio, la cola crece y el transporte acaba muriendo. Los 25 segundos son lo
+que tarda en llenarse.
+
+El `AssertionError: Websocket session is missing.` es **consecuencia**, no
+causa: al caerse el socket, el escritor de imagen sigue apuntando a una sesión
+que ya se ha borrado del `pool`.
+
+**El arreglo:** `XR_DISPLAY_FPS=15`, que es gratis —no se pierde ni un
+fotograma real— y baja el enlace a la mitad. `arranca_teleop.sh` ya lo pone por
+defecto; `FPS=10 ./scripts/arranca_teleop.sh` baja más si hiciera falta.
+
+Segunda palanca si aún no basta: bajar la resolución en el puente, que se
+publica a 1280×720. `--width 960 --height 540 --quality 75` deja el fotograma
+en unos 40 kB.
+
+---
+
 ### 3.8 Dos diagnósticos que resultaron falsos
 
 Se documentan porque son callejones sin salida caros y conviene no repetirlos.
@@ -378,12 +432,20 @@ no llegaba nada nunca. El parche
 se mantiene porque el fallo latente existe y salta con enlaces lentos, pero no
 esperes que arregle una sesión que no se ve.
 
-> **Confirmado en el robot real el 2026-09-10, y es el nombre del parche lo que
-> engaña.** Con la imagen ya llegando —cámara de la cabeza a 15 Hz, latencia
-> baja, manos del robot visibles— la sesión se congeló al cabo de un rato. Es
-> este fallo, no el §3.7: allí no llega nada nunca; aquí llega y se para. El
-> parche hace falta **también en el despliegue físico**, mismo Python 3.10,
-> mismo aiohttp, mismo WSS.
+> **Corregido el 2026-09-10.** Al ver el mismo síntoma en el robot real
+> —imagen llegando bien y congelación al rato— dije que era este fallo. **No lo
+> era**, y el log lo desmiente: no aparece ningún `resume_writing`. Lo que sale
+> es que **el websocket se cae**:
+>
+> ```
+> WebSocket connection closed
+> Connection closed due to Cannot write to closing transport
+> AssertionError: Websocket session is missing.
+> ```
+>
+> Es saturación del enlace, y la otra mitad del parche —el regulador de fps— es
+> la que la arregla. Ver §3.9. El parche sigue haciendo falta en el despliegue
+> físico, pero por su otra mitad.
 
 **Cómo se acotó, por si sirve de método.** Midiendo cada eslabón en vez de
 suponer:

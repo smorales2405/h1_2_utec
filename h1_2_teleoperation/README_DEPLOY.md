@@ -398,6 +398,16 @@ EXTRA="--motion"      ./scripts/03_launch_teleop.sh   # con locomoción
 **En el Quest 3**
 
 1. Misma WiFi que la laptop; activar seguimiento de manos en Ajustes.
+> ⚠️ **Aplica también `xr_teleoperate_sim.patch`.** El nombre engaña: no es
+> solo de simulación. Arregla el desemparejamiento de control de flujo entre
+> `asyncio.sslproto` y aiohttp en Python 3.10, que deja `_paused` en `True`
+> para siempre y **congela la sesión con la imagen ya llegando**. Confirmado en
+> el robot real. Ver [`README_SIM.md` §3.8](README_SIM.md).
+>
+> ```bash
+> cd xr_teleoperate && git apply ../patches/xr_teleoperate_sim.patch
+> ```
+
 > ⚠️ **La URL lleva `?ws=`, y no es opcional.** El cliente de Vuer 0.0.60 se
 > come el puerto del websocket cuando la página va por HTTPS, así que intenta
 > `wss://<ip>` —el puerto 443— y no conecta. La página carga, el seguimiento de

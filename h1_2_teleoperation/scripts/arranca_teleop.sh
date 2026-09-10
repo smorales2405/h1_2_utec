@@ -124,6 +124,16 @@ trap reposo EXIT
 # No hace falta PYTHONPATH: el parche encuentra h1_2_joint_control por
 # H12_JOINT_CONTROL y se lo inserta el solo en sys.path.
 unset PYTHONPATH AMENT_PREFIX_PATH COLCON_PREFIX_PATH CMAKE_PREFIX_PATH
+
+# CycloneDDS, atado a la NIC del robot y NADA MAS. Si se hereda un
+# CYCLONEDDS_URI de otra sesión que apunte a una interfaz que ya no tiene esa
+# IP, CycloneDDS se va a la de la ruta por defecto —el WiFi— y anuncia esa
+# dirección. El robot se la cree y luego llena su consola con:
+#     tev: ddsi_udp_conn_write to udp/10.100.204.124:7410 failed with retcode -1
+# reintentando contra una red que no alcanza.
+export CYCLONEDDS_URI="<CycloneDDS><Domain><General><Interfaces>
+  <NetworkInterface name=\"${NIC}\"/>
+</Interfaces></General></Domain></CycloneDDS>"
 if [ -n "${LD_LIBRARY_PATH:-}" ]; then
     LD_LIBRARY_PATH="$(printf '%s' "$LD_LIBRARY_PATH" | tr ':' '\n' \
                        | grep -v '/opt/ros/' | paste -sd: - || true)"

@@ -378,6 +378,13 @@ no llegaba nada nunca. El parche
 se mantiene porque el fallo latente existe y salta con enlaces lentos, pero no
 esperes que arregle una sesión que no se ve.
 
+> **Confirmado en el robot real el 2026-09-10, y es el nombre del parche lo que
+> engaña.** Con la imagen ya llegando —cámara de la cabeza a 15 Hz, latencia
+> baja, manos del robot visibles— la sesión se congeló al cabo de un rato. Es
+> este fallo, no el §3.7: allí no llega nada nunca; aquí llega y se para. El
+> parche hace falta **también en el despliegue físico**, mismo Python 3.10,
+> mismo aiohttp, mismo WSS.
+
 **Cómo se acotó, por si sirve de método.** Midiendo cada eslabón en vez de
 suponer:
 

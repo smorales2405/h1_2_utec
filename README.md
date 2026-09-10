@@ -42,6 +42,7 @@ h1_2_teleoperation/
     ├── inspire_sdkpy_uint16.patch              corrige un fallo de inspire_sdkpy (ver abajo)
     ├── unitree_sim_isaaclab_inspire_ftp.patch  añade las manos RH56DFTP (FTP) al simulador
     ├── xr_teleoperate_sim.patch                 control de flujo aiohttp + regulador de fps
+    │                                            (el nombre engaña: hace falta TAMBIÉN en el robot real)
     ├── televuer_image_format_knob.patch         formato de la imagen hacia el visor
     └── teleimager_webrtc_warning.patch          quita un aviso falso a 90/s
 ```

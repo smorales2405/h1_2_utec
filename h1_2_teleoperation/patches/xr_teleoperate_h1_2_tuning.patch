@@ -362,3 +362,45 @@ index 8530375..ba914e9 100644
          '''Move both the left and right arms of the robot to their home position by setting the target joint angles (q) and torques (tau) to zero.'''
          logger_mp.info("[H1_2_ArmController] ctrl_dual_arm_go_home start...")
          max_attempts = 100
+diff --git a/teleop/teleop_hand_and_arm.py b/teleop/teleop_hand_and_arm.py
+index b33ac81..990e751 100644
+--- a/teleop/teleop_hand_and_arm.py
++++ b/teleop/teleop_hand_and_arm.py
+@@ -12,6 +12,13 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
+ parent_dir = os.path.dirname(current_dir)
+ sys.path.append(parent_dir)
+ 
++# Antes de tocar nada de red: en Python < 3.11 el reenvio de control de flujo de
++# asyncio.sslproto a aiohttp viene desemparejado y congela la sesion WebXR a los
++# pocos segundos. Ver teleop/utils/aiohttp_flowcontrol_fix.py.
++from teleop.utils.aiohttp_flowcontrol_fix import apply as _apply_aiohttp_flowcontrol_fix
++if _apply_aiohttp_flowcontrol_fix():
++    logger_mp.info("Parche de control de flujo aiohttp/sslproto aplicado (Python < 3.11)")
++
+ from unitree_sdk2py.core.channel import ChannelFactoryInitialize # dds 
+ from televuer import TeleVuerWrapper
+ from teleop.robot_control.robot_arm import G1_29_ArmController, G1_29_Arm_Internal_Dex1_Controller, G1_23_ArmController, H1_2_ArmController, H1_ArmController, H2_ArmController, R1_A5_ArmController, R1_A7_ArmController
+@@ -128,9 +135,14 @@ if __name__ == '__main__':
+         tv_wrapper = TeleVuerWrapper(use_hand_tracking=args.input_mode == "hand", 
+                                      binocular=camera_config['head_camera']['binocular'],
+                                      img_shape=camera_config['head_camera']['image_shape'],
+-                                     # maybe should decrease fps for better performance?
+-                                     # https://github.com/unitreerobotics/xr_teleoperate/issues/172
+-                                     # display_fps=camera_config['head_camera']['fps'] ? args.frequency? 30.0?
++                                     # Regulador de fotogramas hacia el visor. Con el camino ZMQ,
++                                     # televuer manda un JPEG entero por el websocket a este ritmo:
++                                     # 640x480 q80 son ~40 kB, o sea ~9,7 Mbps a 30 fps. Sobre TCP no
++                                     # se descartan fotogramas, se acumulan, asi que en un enlace WiFi
++                                     # justo el socket se llena y la sesion XR se atasca. Bajarlo es
++                                     # lineal en ancho de banda. La duda ya estaba en el codigo de
++                                     # Unitree: https://github.com/unitreerobotics/xr_teleoperate/issues/172
++                                     display_fps=float(os.environ.get("XR_DISPLAY_FPS", 30.0)),
+                                      display_mode=args.display_mode,
+                                      zmq=camera_config['head_camera']['enable_zmq'],
+                                      webrtc=camera_config['head_camera']['enable_webrtc'],
+diff --git a/teleop/televuer b/teleop/televuer
+--- a/teleop/televuer
++++ b/teleop/televuer
+@@ -1 +1 @@
+-Subproject commit 766de45e74373ae0ea66321d942ce538385655a5
++Subproject commit 766de45e74373ae0ea66321d942ce538385655a5-dirty

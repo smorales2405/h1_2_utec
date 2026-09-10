@@ -1,0 +1,183 @@
+diff --git a/src/televuer/televuer.py b/src/televuer/televuer.py
+index 1250131..f9a69f2 100644
+--- a/src/televuer/televuer.py
++++ b/src/televuer/televuer.py
+@@ -317,7 +317,33 @@ class TeleVuer:
+             pass
+     
+     ## immersive MODE
++    # ==================== una sola sesion manda ====================
++    # Vuer arranca un handler POR CADA websocket, y cada handler abre su propio
++    # bucle de imagen. Si el navegador del visor tiene varias pestanas con la
++    # pagina -o si reconecta sin cerrar la anterior- se acumulan bucles que
++    # publican JPEG a la vez sobre el mismo dispositivo.
++    #
++    # Medido el 2026-09-10 con SIETE sesiones simultaneas: el visor deja de
++    # leer, la cola de envio del socket llega a 931 kB, y con retrans=0 y
++    # lost=0 -o sea, sin perder un solo paquete-. Al no llegarle nada, el
++    # vigilante de latido del cliente (react-use-websocket, timeout 60 s)
++    # cierra la conexion, reconecta, y suma OTRA sesion. Realimentacion.
++    #
++    # Asi que manda la ultima en llegar y las demas se retiran.
++    def _toma_el_relevo(self, session):
++        anterior = getattr(self, "_sesion_activa", None)
++        testigo = getattr(session, "CURRENT_WS_ID", None) or id(session)
++        self._sesion_activa = testigo
++        if anterior is not None and anterior != testigo:
++            print(f"[televuer] sesion {testigo} toma el relevo; "
++                  f"la anterior ({anterior}) deja de mandar imagen.", flush=True)
++        return testigo
++
++    def _relevado(self, testigo) -> bool:
++        return getattr(self, "_sesion_activa", testigo) != testigo
++
+     async def main_image_binocular_zmq(self, session):
++        testigo = self._toma_el_relevo(session)
+         if self.use_hand_tracking:
+             session.upsert(
+                 Hands(
+@@ -339,6 +365,8 @@ class TeleVuer:
+                 to="bgChildren",
+             )
+         while True:
++            if self._relevado(testigo):
++                return
+             session.upsert(
+                 [
+                     ImageBackground(
+@@ -373,6 +401,7 @@ class TeleVuer:
+             await asyncio.sleep(1.0 / self.display_fps)
+ 
+     async def main_image_monocular_zmq(self, session):
++        testigo = self._toma_el_relevo(session)
+         if self.use_hand_tracking:
+             session.upsert(
+                 Hands(
+@@ -395,6 +424,8 @@ class TeleVuer:
+             )
+ 
+         while True:
++            if self._relevado(testigo):
++                return
+             session.upsert(
+                 [
+                     ImageBackground(
+@@ -413,6 +444,7 @@ class TeleVuer:
+             await asyncio.sleep(1.0 / self.display_fps)
+ 
+     async def main_image_binocular_webrtc(self, session):
++        testigo = self._toma_el_relevo(session)
+         if self.use_hand_tracking:
+             session.upsert(
+                 Hands(
+@@ -435,6 +467,8 @@ class TeleVuer:
+             )
+ 
+         while True:
++            if self._relevado(testigo):
++                return
+             session.upsert(
+                 WebRTCStereoVideoPlane(
+                     src=self.webrtc_url,
+@@ -450,6 +484,7 @@ class TeleVuer:
+             await asyncio.sleep(1.0 / self.display_fps)
+ 
+     async def main_image_monocular_webrtc(self, session):
++        testigo = self._toma_el_relevo(session)
+         if self.use_hand_tracking:
+             session.upsert(
+                 Hands(
+@@ -472,6 +507,8 @@ class TeleVuer:
+             )
+ 
+         while True:
++            if self._relevado(testigo):
++                return
+             session.upsert(
+                 WebRTCVideoPlane(
+                     src=self.webrtc_url,
+@@ -487,6 +524,7 @@ class TeleVuer:
+ 
+     ## ego MODE
+     async def main_image_binocular_zmq_ego(self, session):
++        testigo = self._toma_el_relevo(session)
+         if self.use_hand_tracking:
+             session.upsert(
+                 Hands(
+@@ -508,6 +546,8 @@ class TeleVuer:
+                 to="bgChildren",
+             )
+         while True:
++            if self._relevado(testigo):
++                return
+             session.upsert(
+                 [
+                     ImageBackground(
+@@ -542,6 +582,7 @@ class TeleVuer:
+             await asyncio.sleep(1.0 / self.display_fps)
+ 
+     async def main_image_monocular_zmq_ego(self, session):
++        testigo = self._toma_el_relevo(session)
+         if self.use_hand_tracking:
+             session.upsert(
+                 Hands(
+@@ -564,6 +605,8 @@ class TeleVuer:
+             )
+ 
+         while True:
++            if self._relevado(testigo):
++                return
+             session.upsert(
+                 [
+                     ImageBackground(
+@@ -582,6 +625,7 @@ class TeleVuer:
+             await asyncio.sleep(1.0 / self.display_fps)
+ 
+     async def main_image_binocular_webrtc_ego(self, session):
++        testigo = self._toma_el_relevo(session)
+         if self.use_hand_tracking:
+             session.upsert(
+                 Hands(
+@@ -604,6 +648,8 @@ class TeleVuer:
+             )
+ 
+         while True:
++            if self._relevado(testigo):
++                return
+             session.upsert(
+                 WebRTCStereoVideoPlane(
+                     src=self.webrtc_url,
+@@ -619,6 +665,7 @@ class TeleVuer:
+             await asyncio.sleep(1.0 / self.display_fps)
+ 
+     async def main_image_monocular_webrtc_ego(self, session):
++        testigo = self._toma_el_relevo(session)
+         if self.use_hand_tracking:
+             session.upsert(
+                 Hands(
+@@ -641,6 +688,8 @@ class TeleVuer:
+             )
+ 
+         while True:
++            if self._relevado(testigo):
++                return
+             session.upsert(
+                 WebRTCVideoPlane(
+                     src=self.webrtc_url,
+@@ -656,6 +705,7 @@ class TeleVuer:
+ 
+     ## pass-through MODE
+     async def main_pass_through(self, session):
++        testigo = self._toma_el_relevo(session)
+         if self.use_hand_tracking:
+             session.upsert(
+                 Hands(
+@@ -678,6 +728,8 @@ class TeleVuer:
+             )
+ 
+         while True:
++            if self._relevado(testigo):
++                return
+             await asyncio.sleep(1.0 / self.display_fps)
+ 
+     # ==================== common data ====================

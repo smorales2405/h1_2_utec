@@ -1133,6 +1133,79 @@ nada. Es la diferencia entre los dos casos.
 
 ---
 
+## 16. F3 — la postura sí cambia las ganancias, en dos de cuatro — 2026-09-10
+
+Rejilla P1 (reposo) / P2 (trabajo) / P3 (extendida), `--repeats 3`, criterio y
+umbral fijados antes de mirar datos.
+
+| articulación | P1 | P2 | P3 | razón | decisión |
+|---|---:|---:|---:|---:|---|
+| `L_shoulder_pitch` | **190** | 80 | 80 | **2.38** | programar |
+| `L_shoulder_roll` | 35 | 35 | **70** | **2.00** | programar |
+| `L_elbow` | 80 | 105 | 105 | 1.32 | conjunto único |
+| `L_wrist_pitch` | 111 | 111 | 111 | 1.32 † | conjunto único |
+
+† topó en su tope de saturación en las tres; la razón sale del criterio
+secundario (el codo de J(kp)).
+
+**Los dos hombros van en sentidos opuestos.** El *pitch* quiere kp bajo cuando
+el brazo está extendido; el *roll*, alto. Cualquier regla escalar que suba o
+baje los dos a la vez se equivoca en uno.
+
+### Es físico, no un artefacto del criterio
+
+`L_shoulder_pitch` en P3, reconstruido de las trazas:
+
+| kp | sobreimpulso | rms | J |
+|---:|---:|---:|---:|
+| 80 | **0.1 %** | 13.79 | **13.85** |
+| 190 | **17.7 %** | 10.73 | 19.57 |
+
+kp 190 **sigue mejor** la referencia y aun así pierde, por 17.6 puntos de
+sobreimpulso: **25 veces** el `δ_min` de 0.7 pp de §12.
+
+`L_shoulder_roll` tiene mínimo interior en las tres posturas, con márgenes de
+5.09, 2.16 y 1.21 en J sobre el segundo mejor — todos por encima de `δ_min`.
+
+### La regla que propone el protocolo no se sostiene
+
+El protocolo sugiere programar con `kp(q) ∝ M_ii(q)`. Medido con `crba` sobre
+el modelo identificado:
+
+| articulación | M_ii varía | kp* varía | ¿mismo sentido? |
+|---|---:|---:|---|
+| `L_shoulder_pitch` | ×1.12 | ×2.38 | sí |
+| `L_shoulder_roll` | ×1.02 | ×2.00 | **no** |
+| `L_elbow` | ×1.00 | ×1.31 | no |
+| `L_wrist_pitch` | ×1.00 | ×1.00 | sí |
+
+**`M_ii` es prácticamente constante entre las tres posturas y `kp*` se
+duplica.** La inercia propia no puede explicarlo, así que la tabla de
+programación tiene que ser **empírica**, de los tres puntos medidos, no
+derivada del modelo.
+
+Del mecanismo real no hay respuesta. El sospechoso inmediato —error residual
+del modelo de gravedad, que en P2 y P3 extrapola— se midió y es pequeño: el
+sesgo del error en el ganador va de 1.1 a 12.8 mrad, o sea como mucho ~1 Nm
+sin cancelar sobre los 16.6 que sostiene el hombro en P2, un 6 %. No basta.
+
+### Cautela que limita el uso de estos números
+
+**F3 se corrió con `kd = 6` fijo en las cuatro articulaciones**, siguiendo el
+ejemplo del protocolo, mientras que `tuned_gff` usa kd de 8.1 a 20.25. O sea
+que estos `kp*` son el óptimo **dado kd = 6**, no el óptimo de la articulación.
+
+Para la comparación **entre posturas** eso da igual —el kd es el mismo en las
+tres— y es lo que F3 pregunta. Pero los valores absolutos **no son
+desplegables**: antes de escribir una tabla de programación hay que repetir con
+el kd de cada articulación, o barrer kp y kd a la vez.
+
+Se ve en que P1 —que es la postura de ensayo de siempre— pide aquí pitch 190 y
+roll 35, mientras que `tuned_gff`, sintonizado en esa misma postura con su kd
+bueno, tiene 111 y 70.
+
+---
+
 ## Qué queda por hacer
 
 - [x] ~~Repetir el barrido con una postura de partida reproducible~~ — hecho,

@@ -154,7 +154,27 @@ número fijo no lo describe.
 
 El tope empírico de ±10° queda validado por el modelo. No hay que cambiarlo.
 
-### 2.4 Lo que falta comprobar del mapa
+### 2.4 Lo que falta comprobar del mapa — **DESCARTADO el 2026-09-10**
+
+> El operador respondió esta pregunta directamente, y su respuesta es mejor
+> evidencia que la que daría el barrido:
+>
+> - con el codo flexionado, el hombro puede llegar **hasta 0°**;
+> - con el brazo estirado, **±10°**;
+> - **±15° si se mueven las muñecas**, para que el pulgar de la mano abierta no
+>   toque la pierna.
+>
+> Esa tercera regla **es** la dimensión que faltaba. El mapa se hizo con las
+> muñecas a cero y por eso no la cubría; medida sobre la pieza real vale más
+> que sobre la geometría de colisión del URDF, que puede estar simplificada.
+> Y los números coinciden: el peor caso del modelo pedía `roll ≥ +5°` y la
+> envolvente da ±10°, o sea 5° de margen.
+>
+> `config/gains.yaml` ya recoge las tres reglas. Lo que sigue abajo queda como
+> registro de por qué se planteó.
+
+<details><summary>Cómo se planteó</summary>
+
 
 El barrido movió `shoulder_pitch`, `shoulder_roll` y `elbow` con `shoulder_yaw`
 y muñecas en cero. Como el choque que aparece es **de la muñeca**, el ángulo de
@@ -165,6 +185,8 @@ Segunda cautela: la geometría de colisión del URDF puede estar simplificada
 respecto a la pieza real. El modelo dice +4° y tú mediste que a ±10° va bien;
 esa coincidencia es tranquilizadora, pero antes de fiarse del modelo en una
 postura nueva conviene aproximarse despacio y mirar.
+
+</details>
 
 ### 2.5 Arquitectura propuesta — tres capas
 
@@ -270,8 +292,16 @@ y pasa a ser una comprobación.
 
 ### F4, F5, F6 — sin cambios de fondo
 
-F5 necesita el chirp logarítmico de §1.4. F6 es la fase con más riesgo de
-colisión de todo el protocolo y **no debe ejecutarse sin F-C**.
+F5 necesita el chirp logarítmico de §1.4.
+
+**F6 es la única que sigue necesitando algo de F-C**, y no es el mapa: es la
+**capa 1**, validar la trayectoria interpolada antes de ejecutarla. Un tope por
+articulación no puede expresar una autocolisión, que depende de la
+configuración completa. Para F3, F4, F5 y F8 da igual —mueven una articulación
+cada vez y las otras están clavadas, así que la envolvente las describe bien—
+pero F6 mueve las siete a la vez, y dos posturas individualmente seguras pueden
+tener entre ellas una trayectoria que no lo sea. Son ~30 líneas contra el
+modelo que ya existe, 0.1 ms por punto, y solo hacen falta el día de F6.
 
 ### F7, F8 — sin cambios
 

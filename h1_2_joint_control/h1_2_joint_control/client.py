@@ -582,7 +582,26 @@ class H12Client:
         self.clear_trajectory()      # una rampa manda sobre cualquier trayectoria
         with self._lock:
             start = {i: float(self._q_des[i]) for i in targets}
-        goal = {i: self.gains.clamp(i, q) for i, q in targets.items()}
+        # Recorte con el tope CONDICIONADO al codo, no con el fijo. El fijo de
+        # ±10° es el respaldo para cuando no se sabe dónde está el codo; aquí
+        # sí se sabe, y con el codo flexionado el hombro puede llegar a 0°.
+        # Sin esto la tabla `shoulder_roll_vs_elbow_deg` no autorizaba nada:
+        # solo actuaba a través de `enforce_pairs`, que impide empeorar pero
+        # no permite acercarse.
+        #
+        # El codo que se usa es el MÁS ESTIRADO entre el de ahora y el de
+        # destino, porque durante la rampa se pasa por los dos y el requisito
+        # crece con la extensión.
+        pares = self.gains.cond_pairs()
+        goal = {}
+        for i, q in targets.items():
+            e = pares.get(i)
+            if e is None:
+                goal[i] = self.gains.clamp(i, q)
+                continue
+            q_codo = max(abs(float(self._q_des[e])), abs(float(targets.get(e, self._q_des[e]))))
+            lo, hi = self.gains.limits_dynamic(i, q_codo)
+            goal[i] = min(max(q, lo), hi)
         dist = max((abs(goal[i] - start[i]) for i in targets), default=0.0)
         if dist < 1e-6:
             return

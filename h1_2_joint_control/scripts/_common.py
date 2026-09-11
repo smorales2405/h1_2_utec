@@ -247,7 +247,20 @@ def relaja_topes_de_ensayo(gains, log) -> None:
     para los ENSAYOS, donde una articulación barre sola y hace falta margen
     porque la trayectoria pasa por muchas posturas.
 
-Las dos posturas fijas de la teleoperación no son barridos:
+Lo usa **solo `16_postura_reposo.py`**. `15_postura_cero.py` ya no lo
+    necesita: desde que `ramp_to` recorta con el tope CONDICIONADO al codo y la
+    tabla admite 0° con el codo flexionado, le basta con hacerlo en el orden
+    correcto —flexionar primero, meter el hombro después— y cada instante
+    cumple la envolvente. Eso es mejor que relajar nada.
+
+    Lo que queda sin expresar en la tabla es la postura de reposo: ±5° de
+    hombro con el brazo ESTIRADO, donde la tabla pide 10°. No es una
+    contradicción: la regla de ±10° es para PRUEBAS DE MOVIMIENTO, y el reposo
+    es donde el brazo cuelga por su propio peso, medido con el robot en el
+    arnés. Acabar exactamente ahí hace que soltar las ganancias no mueva nada
+    (deriva medida: 0.23°).
+
+    Las posturas fijas de la teleoperación no son barridos:
 
     * la **cero**, verificada FÍSICAMENTE por el operador el 2026-09-09 —los
       siete ángulos de cada brazo a 0°, sin colisión—, y que además el modelo

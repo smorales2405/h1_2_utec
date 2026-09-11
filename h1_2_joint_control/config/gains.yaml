@@ -295,7 +295,11 @@ shoulder_roll_vs_elbow_deg:
     L_shoulder_roll: L_elbow
     R_shoulder_roll: R_elbow
   tabla:            # [codo (°), |roll| mínimo (°)]
-    - [0.0, 5.0]    # codo flexionado: la mano está lejos de la cadera
+    - [0.0, 0.0]    # codo flexionado: la mano está lejos de la cadera y el
+                    #   hombro puede llegar hasta 0°. Indicado por el operador
+                    #   el 2026-09-10, verificado físicamente: es la postura a
+                    #   la que va la teleoperación y a la que se llevaron los
+                    #   catorce motores el 2026-09-09 sin contacto.
     - [80.0, 10.0]  # brazo estirado: hay que separar el hombro
   extra_si_muneca: 5.0
 

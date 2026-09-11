@@ -42,8 +42,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from _common import (add_common_args, build_client, confirm,
-                     relaja_topes_de_ensayo)
+from _common import add_common_args, build_client, confirm
 from h1_2_joint_control.joints import ARM_INDICES, BY_INDEX
 
 
@@ -73,9 +72,28 @@ def main() -> int:
 
         confirm(a, "Los DOS brazos se mueven a la vez. Robot COLGADO DEL ARNÉS.")
 
-        relaja_topes_de_ensayo(cli.gains, lambda m: print(m))
         cli.engage()
-        cli.ramp_to({i: 0.0 for i in ARM_INDICES}, speed=a.speed)
+
+        # En tres tramos, y el orden importa: el tope de autocolisión del
+        # hombro depende del codo —10° con el brazo estirado, 0° con el codo
+        # flexionado— así que hay que flexionar PRIMERO. Al revés, un solo
+        # tramo a cero se quedaría topando en 10° de hombro.
+        #
+        # Es la secuencia de 16_postura_reposo.py del revés, y por la misma
+        # razón geométrica.
+        rolls = [i for i in ARM_INDICES
+                 if BY_INDEX[i].name.endswith("shoulder_roll")]
+        codos = [i for i in ARM_INDICES if BY_INDEX[i].name.endswith("elbow")]
+        resto = [i for i in ARM_INDICES if i not in rolls and i not in codos]
+
+        print("\n  1/3 · flexionando los codos…")
+        cli.ramp_to({i: 0.0 for i in codos}, speed=a.speed)
+
+        print("  2/3 · muñecas y el resto…")
+        cli.ramp_to({i: 0.0 for i in resto}, speed=a.speed)
+
+        print("  3/3 · hombros a 0°, ya con el codo flexionado…")
+        cli.ramp_to({i: 0.0 for i in rolls}, speed=a.speed)
 
         for i in ARM_INDICES:
             cli.wait_settled(i)

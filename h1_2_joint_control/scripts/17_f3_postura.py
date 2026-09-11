@@ -63,6 +63,12 @@ JOINTS_F3 = ("L_shoulder_pitch", "L_shoulder_roll", "L_elbow", "L_wrist_pitch")
 # centrados en el valor que ya está en el conjunto sintonizado.
 KP_MULT = (0.35, 0.5, 0.7, 1.0, 1.4, 2.0)
 
+# Lo mismo para kd. Que llegue a 1.5× la referencia no es arbitrario: en el
+# barrido que produjo `tuned_gff`, `L_shoulder_pitch` ganó con kd 20.25, que
+# era el MÁXIMO explorado. Un ganador en el borde no es un óptimo, así que la
+# rejilla tiene que pasar de ahí.
+KD_MULT = (0.5, 1.0, 1.5)
+
 
 def rejilla_de(idx, a, gains):
     """Candidatos (kp, kd) de una articulación, acotados por SATURACIÓN.
@@ -122,7 +128,14 @@ def rejilla_de(idx, a, gains):
               + ", ".join(f"{k:.0f}" for k in fuera))
     else:
         print(f"  {j.name:<20}{nota}")
-    return [(kp, kd) for kp in kps for kd in _tune.floats(a.kd_list)]
+    if a.kd_list:
+        kds = _tune.floats(a.kd_list)
+    else:
+        kd_ref = gains.for_index(idx)[1]
+        kds = sorted(round(m * kd_ref, 2) for m in KD_MULT)
+        print(f"  {'':<20}kd centrado en {kd_ref:.2f}: "
+              + ", ".join(f"{k:g}" for k in kds))
+    return [(kp, kd) for kp in kps for kd in kds]
 
 
 def main() -> int:
@@ -144,7 +157,9 @@ def main() -> int:
                     help="lista fija de kp. Por defecto se genera por "
                          "articulación alrededor de su kp de referencia, que "
                          "es lo que una lista absoluta no puede hacer bien.")
-    ap.add_argument("--kd-list", default="6")
+    ap.add_argument("--kd-list", default=None,
+                    help="lista fija de kd. Por defecto se genera alrededor "
+                         "del kd de referencia de cada articulación.")
     ap.add_argument("--traj", default="smooth_step",
                     help="smooth_step añade sobreimpulso y error final al "
                          "criterio, que es lo que pide F3")

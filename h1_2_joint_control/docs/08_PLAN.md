@@ -283,12 +283,38 @@ Predicción, para dejarla escrita antes de medir: **una parte apreciable de los
 el error del modelo baja de 1.0 Nm sin tocar la masa más allá de los ~800 g
 reales, la hipótesis queda confirmada.
 
-### F3 — Postura (robot, ~1 día)
+### F3 — Postura (robot, ~1 día) — **PREPARADA el 2026-09-10**
+
+`scripts/17_f3_postura.py`. La rejilla está en `config/gains.yaml`
+(`postures_f3`) y el criterio de decisión está escrito **en la cabecera del
+script**, antes de haber visto ningún dato:
+
+```
+kp*_max / kp*_min  <  1.5  en todas   ->  un conjunto único, elegido en P3
+razón >= 1.5 en alguna                ->  gain scheduling, tabla de 3 puntos
+```
+
+El script lo aplica solo y dice cuál sale. Reutiliza `barre_candidatos()` de
+`03_tune.py` —extraída para eso— en vez de una copia que se desincronice.
+
+**Aviso de par comprobado antes de arrancar.** En P3 el brazo sostiene 19.9 N
+de gravedad en `shoulder_pitch` y el aborto está en 28 N, así que quedan 8.1 N
+para un transitorio que en P1 midió 7.8 N. El script lo calcula, avisa y
+recomienda la amplitud: `--amp 0.10` en P3. Bajar la amplitud antes que tocar
+el umbral de seguridad.
+
+Y una cautela que el propio F3 pone a prueba: la identificación de gravedad se
+hizo alrededor de P1, así que en P2 y P3 el modelo **extrapola**.
+
+<details><summary>Planteamiento original</summary>
+
 
 Sin cambios, **salvo que ahora P2 y P3 se validan con F-C antes de mandarlas**,
 y las transiciones entre posturas también. El protocolo ya pide «verificar antes
 que P3 respeta los topes blandos»; con F-C eso deja de ser una inspección visual
 y pasa a ser una comprobación.
+
+</details>
 
 ### F4, F5, F6 — sin cambios de fondo
 

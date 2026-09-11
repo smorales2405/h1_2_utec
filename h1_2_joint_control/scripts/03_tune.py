@@ -50,6 +50,62 @@ def floats(spec: str) -> list[float]:
     return [float(x) for x in spec.replace(" ", "").split(",") if x]
 
 
+def barre_candidatos(cli, idx, a, gains, grid, stamp, results):
+    """Prueba cada (kp, kd) del `grid` en la articulación `idx` y puntúa.
+
+    Extraído de `main()` para que F3 —que repite este mismo barrido en tres
+    posturas— use exactamente el mismo código en vez de una copia que se
+    desincroniza. `results` se rellena in situ con (J, kp, kd, track, step).
+
+    El cliente ya tiene que estar enganchado y en la postura que toque.
+    """
+    j = BY_INDEX[idx]
+    q0 = float(cli.q_base[idx])
+    amp, nota = pick_amplitude(idx, q0, a.amp, gains.limits(idx),
+                               gains.direction(idx, a.direction))
+    print(f"  ensayo: {math.degrees(q0):+.1f}° -> "
+          f"{math.degrees(q0 + amp):+.1f}°  {nota}\n")
+    for n, (kp, kd) in enumerate(grid, 1):
+        gains.set_index(idx, kp, kd)
+        cli.set_gains(idx, kp, kd)
+        # volver siempre al mismo punto: si no, cada candidato arrancaría
+        # desde donde lo dejó el anterior y no serían comparables
+        cli.ramp_to({idx: q0}, speed=0.3)
+        cli.sleep(a.pause)
+
+        tracks, steps = [], []
+        for r in range(a.repeats):
+            samples, track, step = _move.run_once(cli, idx, a, amp, gains,
+                                                  quiet=True)
+            tracks.append(track)
+            if step is not None:
+                steps.append(step)
+            csv = cfg.LOG_DIR / (f"tune_{j.name}_kp{kp:.0f}_kd{kd:.1f}"
+                                 f"_r{r}_{stamp}.csv")
+            rec.save_samples(samples, [idx], csv)
+            if r + 1 < a.repeats:
+                cli.ramp_to({idx: q0}, speed=0.3)
+                cli.sleep(a.pause)
+
+        track = tracks[0] if len(tracks) == 1 else _mean_track(tracks)
+        step = steps[0] if len(steps) == 1 else (_mean_step(steps) if steps else None)
+        J = mt.cost(track, step, a.w_err, a.w_chatter, a.w_overshoot)
+        results.append((J, kp, kd, track, step))
+        bar = "█" * int(min(J, 60))
+        print(f"  [{n:>2}/{len(grid)}] kp={kp:6.1f} kd={kd:5.2f}  J={J:7.2f} {bar}")
+        print(f"          {track.summary().split('│',1)[1].strip()}")
+        if step is not None:
+            print(f"          {step.summary().split('│',1)[1].strip()}")
+        rec.append_index({"stamp": stamp, "test": f"tune_{a.traj}",
+                          "channel": a.channel, "gains": "sweep",
+                          "rate_hz": a.rate, "amp": amp, "cost": J,
+                          "zero_dq": int(a.zero_dq), "csv": "",
+                          **track.as_row()})
+
+    cli.ramp_to({idx: q0}, speed=0.3)
+    return results
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -104,49 +160,7 @@ def main() -> int:
         cli.wait_for_state()
         cli.engage()
         apply_test_posture(cli, a, gains)
-        q0 = float(cli.q_base[idx])
-        amp, nota = pick_amplitude(idx, q0, a.amp, gains.limits(idx),
-                                   gains.direction(idx, a.direction))
-        print(f"  ensayo: {math.degrees(q0):+.1f}° -> "
-              f"{math.degrees(q0 + amp):+.1f}°  {nota}\n")
-        for n, (kp, kd) in enumerate(grid, 1):
-            gains.set_index(idx, kp, kd)
-            cli.set_gains(idx, kp, kd)
-            # volver siempre al mismo punto: si no, cada candidato arrancaría
-            # desde donde lo dejó el anterior y no serían comparables
-            cli.ramp_to({idx: q0}, speed=0.3)
-            cli.sleep(a.pause)
-
-            tracks, steps = [], []
-            for r in range(a.repeats):
-                samples, track, step = _move.run_once(cli, idx, a, amp, gains,
-                                                      quiet=True)
-                tracks.append(track)
-                if step is not None:
-                    steps.append(step)
-                csv = cfg.LOG_DIR / (f"tune_{j.name}_kp{kp:.0f}_kd{kd:.1f}"
-                                     f"_r{r}_{stamp}.csv")
-                rec.save_samples(samples, [idx], csv)
-                if r + 1 < a.repeats:
-                    cli.ramp_to({idx: q0}, speed=0.3)
-                    cli.sleep(a.pause)
-
-            track = tracks[0] if len(tracks) == 1 else _mean_track(tracks)
-            step = steps[0] if len(steps) == 1 else (_mean_step(steps) if steps else None)
-            J = mt.cost(track, step, a.w_err, a.w_chatter, a.w_overshoot)
-            results.append((J, kp, kd, track, step))
-            bar = "█" * int(min(J, 60))
-            print(f"  [{n:>2}/{len(grid)}] kp={kp:6.1f} kd={kd:5.2f}  J={J:7.2f} {bar}")
-            print(f"          {track.summary().split('│',1)[1].strip()}")
-            if step is not None:
-                print(f"          {step.summary().split('│',1)[1].strip()}")
-            rec.append_index({"stamp": stamp, "test": f"tune_{a.traj}",
-                              "channel": a.channel, "gains": "sweep",
-                              "rate_hz": a.rate, "amp": amp, "cost": J,
-                              "zero_dq": int(a.zero_dq), "csv": "",
-                              **track.as_row()})
-
-        cli.ramp_to({idx: q0}, speed=0.3)
+        barre_candidatos(cli, idx, a, gains, grid, stamp, results)
 
     except SafetyAbort as e:
         print(f"\n  ⚠ abortado por seguridad: {e}")

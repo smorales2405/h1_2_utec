@@ -49,6 +49,9 @@ class Gains:
             for n, v in (raw.get("test_posture_deg", {}).get("joints", {}) or {}).items()
             if n in BY_NAME
         }
+        # Rejilla de F3: posturas con nombre, el roll en valor absoluto.
+        self._posturas_f3 = raw.get("postures_f3", {}) or {}
+
         # Postura de reposo: dónde dejar los brazos al TERMINAR, y por dónde
         # pasar para llegar. No es la de ensayo al revés: importa el orden.
         _rest = raw.get("rest_posture_deg", {}) or {}
@@ -108,6 +111,32 @@ class Gains:
     def test_posture(self) -> dict[int, float]:
         """{índice: ángulo en rad} al que llevar el robot antes de medir."""
         return dict(self._posture)
+
+    def posture_names(self) -> list[str]:
+        """Nombres de la rejilla de F3, en orden."""
+        return list(self._posturas_f3)
+
+    def posture(self, name: str) -> dict[int, float]:
+        """{índice: rad} de una postura con nombre de `postures_f3`.
+
+        El `shoulder_roll` va en valor absoluto en el YAML y aquí se le pone el
+        signo del lado, igual que en la postura de ensayo: positivo separa el
+        brazo izquierdo del cuerpo y negativo el derecho.
+        """
+        d = self._posturas_f3.get(name)
+        if d is None:
+            raise KeyError(f"postura '{name}' no está en postures_f3; "
+                           f"hay {', '.join(self._posturas_f3) or 'ninguna'}")
+        out = {}
+        for lado, signo in (("L", 1.0), ("R", -1.0)):
+            for campo, sufijo in (("shoulder_pitch", "shoulder_pitch"),
+                                  ("elbow", "elbow")):
+                if campo in d:
+                    out[BY_NAME[f"{lado}_{sufijo}"].idx] = math.radians(float(d[campo]))
+            if "shoulder_roll_abs" in d:
+                out[BY_NAME[f"{lado}_shoulder_roll"].idx] = signo * math.radians(
+                    abs(float(d["shoulder_roll_abs"])))
+        return out
 
     def rest_posture(self) -> dict[int, float]:
         """{índice: rad} donde dejar los brazos al terminar la sesión."""

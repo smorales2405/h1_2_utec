@@ -316,6 +316,42 @@ shoulder_roll_vs_elbow_deg:
 # está más vertical, la gravedad pesa menos, y además es el recorrido cuyo
 # límite importa.
 # ═══════════════════════════════════════════════════════════════════════════
+# Rejilla de posturas de F3
+# ═══════════════════════════════════════════════════════════════════════════
+# Toda la sintonización hasta ahora se hizo con el codo a 85° y el brazo
+# colgando. F3 pregunta cuánto cambian las ganancias óptimas con la postura,
+# porque la matriz de inercia vista por el hombro y el brazo de palanca de la
+# gravedad cambian mucho entre una postura y otra.
+#
+# Las tres están verificadas libres de colisión contra el modelo (08_PLAN.md
+# §2.3) y dentro de los topes. El `roll` se especifica en VALOR ABSOLUTO: el
+# signo lo pone el lado, positivo separa el izquierdo y negativo el derecho.
+#
+# Par de gravedad previsto en el hombro-pitch izquierdo, del modelo
+# identificado: P1 0.8 N, P2 −16.6 N, P3 −19.9 N. El umbral de aborto está en
+# 28 N (70 % de 40), así que en P3 el transitorio del escalón se acerca: ahí
+# conviene bajar la amplitud antes que tocar el umbral.
+#
+# Y una cautela: la identificación de gravedad se hizo alrededor de P1. En P2 y
+# P3 el modelo EXTRAPOLA. Parte de lo que mide F3 es precisamente si aguanta.
+postures_f3:
+  P1:
+    description: reposo, la ya medida — es la referencia
+    shoulder_pitch: 0.0
+    shoulder_roll_abs: 18.0
+    elbow: 85.0
+  P2:
+    description: trabajo, alcance frontal a mesa
+    shoulder_pitch: -40.0
+    shoulder_roll_abs: 25.0
+    elbow: 60.0
+  P3:
+    description: extendida, peor caso de inercia y de gravedad
+    shoulder_pitch: -70.0
+    shoulder_roll_abs: 35.0
+    elbow: 20.0
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Postura de reposo
 # ═══════════════════════════════════════════════════════════════════════════
 # Dónde dejar los brazos al TERMINAR una sesión, y por dónde pasar para llegar.

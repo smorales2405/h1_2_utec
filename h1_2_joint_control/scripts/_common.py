@@ -37,6 +37,9 @@ def add_common_args(ap: argparse.ArgumentParser) -> None:
     ap.add_argument("--yes", action="store_true",
                     help="no pedir confirmación (para automatizar barridos)")
     ap.add_argument("--tag", default="", help="etiqueta para el nombre del CSV")
+    ap.add_argument("--posture", default=None,
+                    help="postura con nombre de `postures_f3` (P1, P2, P3). "
+                         "Sustituye a la postura de ensayo por defecto.")
     ap.add_argument("--no-posture", action="store_true",
                     help="no llevar el robot a la postura de ensayo de "
                          "config/gains.yaml (hombros separados del cuerpo) "
@@ -210,6 +213,17 @@ def apply_test_posture(cli, args, gains) -> None:
     """Lleva el robot a la postura de ensayo, salvo que se pida lo contrario."""
     if getattr(args, "no_posture", False):
         print("  --no-posture: se mide desde la postura en que estuviera el robot.")
+        return
+    nombre = getattr(args, "posture", None)
+    if nombre:
+        # Una postura con nombre SUSTITUYE a la de ensayo, no se mezcla: son
+        # dos descripciones completas de dónde poner los hombros y el codo, y
+        # mezclarlas daría una tercera que nadie ha verificado.
+        extra = gains.posture(nombre)
+        print(f"  postura {nombre}: " + "  ".join(
+            f"{BY_INDEX[i].name}={math.degrees(v):+.0f}°"
+            for i, v in sorted(extra.items())))
+        cli.go_to_test_posture(extra=extra, replace=True)
         return
     if not gains.test_posture():
         return

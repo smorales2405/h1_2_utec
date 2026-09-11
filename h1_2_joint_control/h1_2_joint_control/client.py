@@ -504,8 +504,8 @@ class H12Client:
 
     def go_to_test_posture(self, speed: float = 0.25,
                            extra: dict[int, float] | None = None,
-                           tol: float = 0.0087, iters: int = 6
-                           ) -> dict[int, float]:
+                           tol: float = 0.0087, iters: int = 6,
+                           replace: bool = False) -> dict[int, float]:
         """Lleva las articulaciones de `test_posture_deg` a su ángulo REAL.
 
         Se hace DESPUÉS de `engage()` y despacio: es un movimiento real del
@@ -525,7 +525,10 @@ class H12Client:
 
         Devuelve {índice: ángulo objetivo} de lo que se ha movido.
         """
-        posture = self.gains.test_posture()
+        # `replace` es para las posturas con nombre de F3: cada una es una
+        # descripción COMPLETA de dónde va el brazo, y fundirla con la de
+        # ensayo daría una cuarta postura que nadie ha verificado.
+        posture = {} if (replace and extra) else self.gains.test_posture()
         if extra:
             posture.update(extra)
         posture = {i: q for i, q in posture.items() if i in self.commanded}

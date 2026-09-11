@@ -59,6 +59,11 @@ PICO_P1 = 7.8               # Nm de transitorio medidos en P1 (§13), amp 0.12
 JOINTS_F3 = ("L_shoulder_pitch", "L_shoulder_roll", "L_elbow", "L_wrist_pitch")
 
 
+# Múltiplos del kp de referencia de cada articulación. Cubren un factor 5.7,
+# centrados en el valor que ya está en el conjunto sintonizado.
+KP_MULT = (0.35, 0.5, 0.7, 1.0, 1.4, 2.0)
+
+
 def rejilla_de(idx, a, gains):
     """Candidatos (kp, kd) de una articulación, acotados por SATURACIÓN.
 
@@ -82,17 +87,38 @@ def rejilla_de(idx, a, gains):
     """
     j = BY_INDEX[idx]
     tope = _all.kp_maximo(j, gains.safety, a.amp)
-    pedidos = _tune.floats(a.kp_list)
-    kps = [k for k in pedidos if k <= tope]
-    fuera = [k for k in pedidos if k > tope]
-    if len(kps) < 4:
-        kps = [tope * (0.25 ** ((n) / 5.0)) for n in range(5, -1, -1)]
-        kps = sorted(round(k, 1) for k in kps)
-        nota = f"serie hasta el tope {tope:.0f}"
-    else:
-        nota = f"de la lista pedida, tope {tope:.0f}"
+    ref = gains.for_index(idx)[0]
+    kps, fuera, nota = [], [], ""
+
+    if a.kp_list:
+        pedidos = _tune.floats(a.kp_list)
+        kps = [k for k in pedidos if k <= tope]
+        fuera = [k for k in pedidos if k > tope]
+        nota = f"lista pedida, tope {tope:.0f}"
+        if len(kps) < 4:
+            kps, fuera = [], []
+            nota = f"la lista pedida no deja 4 bajo el tope {tope:.0f}"
+
+    if not kps:
+        # Centrada en el kp que la articulación YA tiene, no en una lista
+        # absoluta igual para todas. Una lista fija no sabe dónde está el
+        # valor bueno de cada una: `shoulder_roll` vale 70 en `tuned_gff`, y
+        # la lista del protocolo empezaba en 60, o sea un solo punto por
+        # debajo. El barrido del 2026-09-10 ganó justo ahí, topando por abajo
+        # sin poder seguir, y el resultado no valió.
+        kps = sorted(round(m * ref, 1) for m in KP_MULT if m * ref <= tope)
+        if any(m * ref > tope for m in KP_MULT):
+            # El tope tiene que ESTAR en la rejilla. Si no, se pierde justo la
+            # zona donde el criterio empuja: en el codo y la muñeca el ganador
+            # fue el tope mismo (105 y 111).
+            kps = sorted(set(kps + [round(tope, 1)]))
+        if len(kps) < 4:                      # el tope corta muy pronto
+            kps = sorted(round(tope * (0.25 ** (n / 5.0)), 1)
+                         for n in range(5, -1, -1))
+        nota = (nota + "; " if nota else "") + f"centrada en kp={ref:.0f}, tope {tope:.0f}"
+
     if fuera:
-        print(f"  {j.name:<20}{nota}; descartados por saturación: "
+        print(f"  {j.name:<20}{nota}; fuera por saturación: "
               + ", ".join(f"{k:.0f}" for k in fuera))
     else:
         print(f"  {j.name:<20}{nota}")
@@ -114,7 +140,10 @@ def main() -> int:
     ap.add_argument("--postures", default=None,
                     help="lista separada por comas (por defecto, todas)")
     ap.add_argument("--joints", default=",".join(JOINTS_F3))
-    ap.add_argument("--kp-list", default="60,80,110,140,190,260")
+    ap.add_argument("--kp-list", default=None,
+                    help="lista fija de kp. Por defecto se genera por "
+                         "articulación alrededor de su kp de referencia, que "
+                         "es lo que una lista absoluta no puede hacer bien.")
     ap.add_argument("--kd-list", default="6")
     ap.add_argument("--traj", default="smooth_step",
                     help="smooth_step añade sobreimpulso y error final al "
@@ -247,6 +276,25 @@ def curvas(todos, posturas, articulaciones, grids):
             print(fila)
 
 
+def aviso_borde_inferior(articulaciones):
+    """El borde de ABAJO no es el tope de saturación: ahí sí se puede ampliar.
+
+    Distinguirlos importa. Si el ganador topa arriba, el borde es el límite de
+    par y no hay nada que hacer salvo cambiar de criterio. Si topa abajo, el
+    límite es la rejilla y el óptimo está fuera: el ensayo simplemente no ha
+    encontrado el mínimo y hay que repetirlo con kp más bajos.
+    """
+    print(f"""
+  ‼ {', '.join(BY_INDEX[i].name for i in articulaciones)} topó por ABAJO.
+
+  Su J crece de forma monótona con kp: el mínimo está por debajo del kp más
+  bajo que se probó, así que el óptimo NO se ha medido. Aquí el borde no es un
+  límite físico —la saturación está arriba— sino de la rejilla, y se arregla
+  repitiendo con valores más bajos.
+
+  Esta articulación queda FUERA de la decisión: no hay kp* que comparar.""")
+
+
 def criterio_secundario(todos, posturas, articulaciones, holgura=0.10):
     """kp SUFICIENTE: el más bajo cuyo J queda a menos de `holgura` del mínimo.
 
@@ -312,6 +360,7 @@ def informe(todos, posturas, articulaciones, grids) -> int:
           + f"{'razón':>9}")
     print(f"  {'':<20}" + "".join(f"{'kp*  kd*  rms  tau':>22}" for _ in posturas))
     razones, en_borde = {}, set()
+    por_arriba, por_abajo = set(), set()
     # El borde de la rejilla REAL, no el de la lista pedida: `rejilla_de`
     # recorta por saturación, así que casi nunca coinciden.
     bordes = {i: ({min(kp for kp, _ in grids[i]), max(kp for kp, _ in grids[i])}
@@ -333,8 +382,12 @@ def informe(todos, posturas, articulaciones, grids) -> int:
             razones[idx] = r
             fila += f"{r:>8.2f}" + ("  ⚠" if r >= RAZON_UMBRAL else "")
         if kps and bordes.get(idx) and all(k in bordes[idx] for k in kps):
-            fila += "  ‼ todos en el borde del barrido"
+            lo = min(kp for kp, _ in grids[idx])
+            arriba = all(abs(k - lo) > 1e-6 for k in kps)
+            fila += ("  ‼ todos en el borde SUPERIOR" if arriba
+                     else "  ‼ todos en el borde INFERIOR")
             en_borde.add(idx)
+            (por_arriba if arriba else por_abajo).add(idx)
         print(fila)
     print(f"\n  (kp*, kd*, error rms en mrad, par máximo en Nm)")
 
@@ -346,9 +399,25 @@ def informe(todos, posturas, articulaciones, grids) -> int:
     secundarias = set()
     if en_borde:
         curvas(todos, posturas, sorted(en_borde), grids)
-        razones_suf = criterio_secundario(todos, posturas, sorted(en_borde))
+        if por_abajo:
+            aviso_borde_inferior(sorted(por_abajo))
+        if por_arriba:
+            razones_suf = criterio_secundario(todos, posturas, sorted(por_arriba))
+        else:
+            razones_suf = {}
+        for i in por_abajo:
+            razones.pop(i, None)
         razones.update(razones_suf)
         secundarias = set(razones_suf)
+
+    if not razones:
+        print("""
+  SIN DECISIÓN.
+
+  Ninguna articulación deja una razón que comparar: todas toparon por abajo,
+  o sea que el mínimo está fuera de la rejilla. Repite con kp más bajos antes
+  de concluir nada.""")
+        return 1
 
     peor = max(razones.values())
     quien = BY_INDEX[max(razones, key=razones.get)].name

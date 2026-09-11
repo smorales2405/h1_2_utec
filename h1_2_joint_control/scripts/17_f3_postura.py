@@ -175,6 +175,8 @@ def main() -> int:
     ap.add_argument("--f1", type=float, default=3.0)
     ap.add_argument("--w-err", type=float, default=1.0)
     ap.add_argument("--w-chatter", type=float, default=1.0)
+    ap.add_argument("--w-chatter-tau", type=float, default=0.0,
+                    help="peso del temblor de PAR. 0 por defecto; con kd\n                         alto es lo único que crece, ver metrics.cost")
     ap.add_argument("--w-overshoot", type=float, default=0.5)
     ap.add_argument("--zero-dq", action="store_true",
                     help="medir con dq_des = 0, como hacía xr_teleoperate sin "
@@ -424,6 +426,31 @@ def informe(todos, posturas, articulaciones, grids) -> int:
             razones.pop(i, None)
         razones.update(razones_suf)
         secundarias = set(razones_suf)
+
+    # El kd también tiene bordes, y hasta el 2026-09-10 nadie los miraba. En
+    # los dos hombros el ganador salió con el kd MÁS ALTO de la rejilla en las
+    # seis combinaciones postura-articulación: el criterio no penaliza el
+    # temblor de PAR, que es lo único que crece con el kd (×2.5 entre el kd más
+    # bajo y el más alto). Ver `metrics.cost` y `--w-chatter-tau`.
+    kd_borde = []
+    for idx in articulaciones:
+        kds_rejilla = {kd for _, kd in grids.get(idx, [])}
+        if not kds_rejilla:
+            continue
+        alto = max(kds_rejilla)
+        gan = [g[2] for (p, i), g in ganadores.items() if i == idx]
+        if gan and all(abs(k - alto) < 1e-6 for k in gan) and len(kds_rejilla) > 1:
+            kd_borde.append((idx, alto))
+    if kd_borde:
+        print(f"""
+  ‼ El kd ganador es el MÁS ALTO de la rejilla en todas las posturas, en
+  {', '.join(BY_INDEX[i].name + f' (kd {k:g})' for i, k in kd_borde)}.
+
+  El óptimo de kd no se ha medido: está por encima. Y no es casualidad, el
+  criterio no lo frena —`chatter_dq` apenas cambia con el kd porque la
+  velocidad va filtrada, mientras que `chatter_tau` se multiplica por 2.5—.
+  Los kd de arriba son provisionales. La comparación ENTRE POSTURAS sí vale:
+  el kd es el mismo en las tres.""")
 
     if not razones:
         print("""

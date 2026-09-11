@@ -202,7 +202,7 @@ def step_response(samples, idx, kp, kd, t_step: float) -> StepMetrics:
 
 def cost(track: TrackingMetrics, step: StepMetrics | None = None,
          w_err: float = 1.0, w_chatter: float = 1.0,
-         w_overshoot: float = 0.5) -> float:
+         w_overshoot: float = 0.5, w_chatter_tau: float = 0.0) -> float:
     """Número único para ordenar candidatos en el barrido de ganancias.
 
     Mezcla, en unidades comparables:
@@ -211,8 +211,22 @@ def cost(track: TrackingMetrics, step: StepMetrics | None = None,
       * sobreimpulso del escalón en puntos porcentuales.
     Los pesos son deliberadamente visibles para poder discutirlos: si lo que
     molesta es la vibración, sube `w_chatter`.
+
+    `w_chatter_tau` vale 0 POR DEFECTO, y está a propósito. El 2026-09-10, al
+    barrer kp y kd a la vez en los dos hombros, el ganador salió con el kd MÁS
+    ALTO de la rejilla en las seis combinaciones postura-articulación. El
+    motivo es que nada aquí lo penaliza: `chatter_dq` apenas se mueve con el kd
+    —la velocidad va filtrada— mientras que `chatter_tau` se multiplica por 2.5
+    entre el kd más bajo y el más alto (0.087 -> 0.217 Nm en `shoulder_pitch`).
+    Es el temblor que gasta la reductora, y el criterio era ciego a él.
+
+    Se deja en 0 para no cambiar en silencio lo ya medido. Ponerlo a 0.5 —el
+    mismo peso que el sobreimpulso— hace que el término valga entre 4 y 11, o
+    sea comparable a los otros. Es una decisión de diseño que conviene tomar
+    mirando, no heredarla de un valor por defecto.
     """
     j = w_err * (track.rms_error * 1000.0) + w_chatter * (track.chatter_dq * 100.0)
+    j += w_chatter_tau * (track.chatter_tau * 100.0)
     if step is not None and np.isfinite(step.overshoot):
         j += w_overshoot * (step.overshoot * 100.0)
     return float(j)

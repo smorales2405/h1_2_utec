@@ -1189,6 +1189,49 @@ del modelo de gravedad, que en P2 y P3 extrapola— se midió y es pequeño: el
 sesgo del error en el ganador va de 1.1 a 12.8 mrad, o sea como mucho ~1 Nm
 sin cancelar sobre los 16.6 que sostiene el hombro en P2, un 6 %. No basta.
 
+### Repetido con el kd bueno: la dependencia casi desaparece
+
+La primera pasada usó `kd = 6` fijo. Repetida barriendo kp y kd a la vez,
+centrados en los valores de `tuned_gff`:
+
+| articulación | P1 | P2 | P3 | razón |
+|---|---:|---:|---:|---:|
+| `L_shoulder_roll` | 98 / 20.25 | 140 / 20.25 | 140 / 20.25 | **1.43** |
+| `L_shoulder_pitch` | 222 / 30.38 | 222 / 30.38 | 156 / 30.38 | **1.43** |
+
+Las dos bajan del umbral: **conjunto único, no programación de ganancias.** La
+dependencia de ×2.38 y ×2.00 que salió con `kd = 6` era en buena parte artefacto
+de un amortiguamiento insuficiente.
+
+Y 1.429 es **exactamente un paso de la rejilla** (2.0/1.4), o sea la diferencia
+más pequeña que este barrido puede expresar. En el `roll`, además, los márgenes
+sobre el segundo mejor en P2 y P3 son 0.31 y 0.21, al nivel de `δ_min`: ahí no
+hay dependencia resoluble en absoluto.
+
+### El criterio no frena el kd, y por eso siempre gana el del borde
+
+En las **seis** combinaciones postura-articulación el ganador salió con el kd
+más alto de la rejilla. La causa está medida:
+
+| kd | J medio | `chatter_dq` | `chatter_tau` | tau máx |
+|---:|---:|---:|---:|---:|
+| 10.12 | 15.62 | 0.0117 | **0.087** | 24.49 |
+| 20.25 | 14.38 | 0.0114 | **0.156** | 24.87 |
+| 30.38 | 19.10 | 0.0110 | **0.217** | 25.22 |
+
+`chatter_dq` —lo único que el criterio puntúa— **apenas se mueve**, porque la
+velocidad va filtrada. `chatter_tau` se multiplica por 2.5. Es el temblor que
+gasta la reductora, y `cost()` era ciego a él.
+
+`metrics.cost` acepta ya `w_chatter_tau`, **con valor 0 por defecto** para no
+cambiar en silencio lo ya medido. Ponerlo a 0.5 —el mismo peso que el
+sobreimpulso— hace que el término valga entre 4 y 11, comparable a los otros.
+Es una decisión que conviene tomar mirando, no heredarla.
+
+Mientras tanto, **los kd absolutos son provisionales**: su óptimo está por
+encima de la rejilla. La comparación entre posturas sí vale, porque el kd es el
+mismo en las tres.
+
 ### Cautela que limita el uso de estos números
 
 **F3 se corrió con `kd = 6` fijo en las cuatro articulaciones**, siguiendo el

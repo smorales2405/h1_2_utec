@@ -110,7 +110,8 @@ def barre_candidatos(cli, idx, a, gains, grid, stamp, results):
 
         track = tracks[0] if len(tracks) == 1 else _mean_track(tracks)
         step = steps[0] if len(steps) == 1 else (_mean_step(steps) if steps else None)
-        J = mt.cost(track, step, a.w_err, a.w_chatter, a.w_overshoot)
+        J = mt.cost(track, step, a.w_err, a.w_chatter, a.w_overshoot,
+                        getattr(a, 'w_chatter_tau', 0.0))
         results.append((J, kp, kd, track, step))
         bar = "█" * int(min(J, 60))
         print(f"  [{n:>2}/{len(grid)}] kp={kp:6.1f} kd={kd:5.2f}  J={J:7.2f} {bar}")
@@ -151,6 +152,8 @@ def main() -> int:
                     help="s de reposo entre candidatos")
     ap.add_argument("--w-err", type=float, default=1.0)
     ap.add_argument("--w-chatter", type=float, default=1.0)
+    ap.add_argument("--w-chatter-tau", type=float, default=0.0,
+                    help="peso del temblor de PAR. 0 por defecto; con kd\n                         alto es lo único que crece, ver metrics.cost")
     ap.add_argument("--w-overshoot", type=float, default=0.5)
     ap.add_argument("--write", metavar="CONJUNTO", default=None,
                     help="guardar el ganador en ese conjunto de gains.yaml "

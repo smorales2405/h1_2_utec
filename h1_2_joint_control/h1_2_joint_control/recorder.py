@@ -48,7 +48,14 @@ def append_index(row: dict, path: Path = INDEX) -> None:
     if exists:
         with path.open(newline="", encoding="utf-8") as fh:
             prev_cols = next(csv.reader(fh), [])
-    cols = prev_cols or list(row)
+    # `list(...)` no es decorativo: sin la copia, `cols` sería el MISMO objeto
+    # que `prev_cols`, el `append` de abajo mutaría los dos, y la comparación
+    # `cols != prev_cols` daría siempre False. La cabecera no se reescribía
+    # nunca y las filas salían con más campos que columnas. Medido el
+    # 2026-09-10 sobre `logs/index.csv`: 640 filas de 655 descuadradas, y las
+    # columnas nuevas —`cost` entre ellas, que es sobre la que se decide—
+    # perdidas en silencio.
+    cols = list(prev_cols) if prev_cols else list(row)
     for k in row:                       # columnas nuevas al final
         if k not in cols:
             cols.append(k)

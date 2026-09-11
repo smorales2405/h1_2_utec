@@ -191,7 +191,7 @@ def main() -> int:
     confirm(a, "Los brazos recorren posturas muy distintas. Robot COLGADO.")
 
     stamp = rec.stamp()
-    ganadores: dict[tuple[str, int], tuple] = {}
+    todos: dict[tuple[str, int], list] = {}
     for postura in posturas:
         for idx in articulaciones:
             j = BY_INDEX[idx]
@@ -221,25 +221,100 @@ def main() -> int:
                       f"En un ensayo de brazo no deberían.")
             if resultados:
                 resultados.sort(key=lambda r: r[0])
-                ganadores[(postura, idx)] = resultados[0]
+                todos[(postura, idx)] = resultados
                 J, kp, kd, t, st = resultados[0]
                 print(f"    mejor: kp={kp:.1f} kd={kd:.2f}  J={J:.2f}  "
                       f"rms {t.rms_error*1000:.2f} mrad  tau máx {t.max_tau:.2f} Nm")
 
-    return informe(ganadores, posturas, articulaciones,
-                   _tune.floats(a.kp_list))
+    return informe(todos, posturas, articulaciones, grids)
 
 
-def informe(ganadores, posturas, articulaciones, kp_rango=()) -> int:
-    if not ganadores:
+
+def curvas(todos, posturas, articulaciones, grids):
+    """Imprime J(kp) por postura. Cuando el argmin topa, la curva es el dato."""
+    for idx in articulaciones:
+        print(f"\n  ── J(kp) en {BY_INDEX[idx].name} "
+              f"{'─' * max(0, 40 - len(BY_INDEX[idx].name))}")
+        print(f"  {'kp':>8}" + "".join(f"{p:>12}" for p in posturas))
+        kps = sorted({kp for kp, _ in grids.get(idx, [])})
+        for kp in kps:
+            fila = f"  {kp:>8.1f}"
+            for p in posturas:
+                r = todos.get((p, idx), [])
+                v = next((J for J, k, _, _, _ in r if abs(k - kp) < 1e-6), None)
+                fila += f"{v:>12.2f}" if v is not None else f"{'—':>12}"
+            print(fila)
+
+
+def criterio_secundario(todos, posturas, articulaciones, holgura=0.10):
+    """kp SUFICIENTE: el más bajo cuyo J queda a menos de `holgura` del mínimo.
+
+    ─────────────────────────────────────────────────────────────────────────
+    ESTA REGLA SE AÑADIÓ EL 2026-09-10, DESPUÉS DE VER DATOS. Hay que decirlo.
+    ─────────────────────────────────────────────────────────────────────────
+
+    La regla de la cabecera compara `kp*` entre posturas, y da por supuesto que
+    `kp*` es un mínimo INTERIOR. Medido: no lo es. En el codo, J baja de forma
+    monótona hasta el tope de saturación en P1 y en P3, así que `kp*` es el
+    tope en las dos y la razón sale 1.00 por construcción. La regla primaria no
+    es que salga negativa: es que **no aplica**.
+
+    Lo que sigue siendo medible cuando el argmin topa es la FORMA de la curva.
+    `kp_suficiente` es el codo de J(kp): por debajo se paga error, por encima
+    ya casi no se gana. Si la postura cambia la planta, cambia dónde está ese
+    codo, y eso sí se ve aunque los dos argmin estén pegados al tope.
+
+    Se le aplica el mismo umbral de 1.5 que a la regla primaria, para no
+    inventar también el umbral después de ver los datos.
+    """
+    print(f"""
+  ‼ La regla primaria NO APLICA en {', '.join(BY_INDEX[i].name for i in articulaciones)}.
+
+  Su `kp*` cayó en el borde de la rejilla en TODAS las posturas, así que la
+  razón vale 1.00 porque el barrido topó, no porque las posturas coincidan.
+  Como el borde superior es el tope de saturación —y no se puede subir sin
+  salirse de la zona segura— no se arregla ampliando el rango.
+
+  Criterio secundario, sobre el codo de la curva J(kp): el kp más bajo cuyo J
+  queda a menos del {holgura*100:.0f} % del mínimo. Mismo umbral de {RAZON_UMBRAL}.""")
+    out = {}
+    print(f"\n  {'articulación':<20}" + "".join(f"{p:>12}" for p in posturas)
+          + f"{'razón':>9}")
+    for idx in articulaciones:
+        fila = f"  {BY_INDEX[idx].name:<20}"
+        sufs = []
+        for p in posturas:
+            r = todos.get((p, idx), [])
+            if not r:
+                fila += f"{'—':>12}"; continue
+            Jmin = min(J for J, *_ in r)
+            cand = [k for J, k, *_ in r if J <= Jmin * (1.0 + holgura)]
+            suf = min(cand) if cand else None
+            sufs.append(suf)
+            fila += f"{suf:>12.1f}"
+        if len(sufs) >= 2 and all(s for s in sufs):
+            rr = max(sufs) / min(sufs)
+            out[idx] = rr
+            fila += f"{rr:>8.2f}" + ("  ⚠" if rr >= RAZON_UMBRAL else "")
+        print(fila)
+    print(f"\n  (kp suficiente, en las mismas unidades que kp*)")
+    return out
+
+
+def informe(todos, posturas, articulaciones, grids) -> int:
+    if not todos:
         print("\n  sin resultados.")
         return 1
+    ganadores = {k: v[0] for k, v in todos.items()}
     print("\n\n  ══ F3 · resultados ══════════════════════════════════════════")
     print(f"\n  {'articulación':<20}" + "".join(f"{p:>22}" for p in posturas)
           + f"{'razón':>9}")
     print(f"  {'':<20}" + "".join(f"{'kp*  kd*  rms  tau':>22}" for _ in posturas))
     razones, en_borde = {}, set()
-    bordes = {min(kp_rango), max(kp_rango)} if kp_rango else set()
+    # El borde de la rejilla REAL, no el de la lista pedida: `rejilla_de`
+    # recorta por saturación, así que casi nunca coinciden.
+    bordes = {i: ({min(kp for kp, _ in grids[i]), max(kp for kp, _ in grids[i])}
+                  if grids.get(i) else set()) for i in articulaciones}
     for idx in articulaciones:
         fila = f"  {BY_INDEX[idx].name:<20}"
         kps = []
@@ -256,7 +331,7 @@ def informe(ganadores, posturas, articulaciones, kp_rango=()) -> int:
             r = max(kps) / min(kps)
             razones[idx] = r
             fila += f"{r:>8.2f}" + ("  ⚠" if r >= RAZON_UMBRAL else "")
-        if kps and bordes and all(k in bordes for k in kps):
+        if kps and bordes.get(idx) and all(k in bordes[idx] for k in kps):
             fila += "  ‼ todos en el borde del barrido"
             en_borde.add(idx)
         print(fila)
@@ -267,31 +342,33 @@ def informe(ganadores, posturas, articulaciones, kp_rango=()) -> int:
               "hacen falta\n  al menos dos, y la comparación que importa es "
               "P1 contra P3.")
         return 0
+    secundarias = set()
     if en_borde:
-        print(f"""
-  ‼ ATENCIÓN antes de leer la decisión.
-
-  En {', '.join(BY_INDEX[i].name for i in sorted(en_borde))} el kp ganador cayó
-  en el BORDE del barrido en todas las posturas. Cuando eso pasa, la razón sale
-  1.00 porque el barrido topó, no porque las posturas coincidan: el óptimo está
-  fuera del rango y no se ha medido. La decisión de abajo NO se sostiene hasta
-  repetir con un rango que contenga el máximo.""")
+        curvas(todos, posturas, sorted(en_borde), grids)
+        razones_suf = criterio_secundario(todos, posturas, sorted(en_borde))
+        razones.update(razones_suf)
+        secundarias = set(razones_suf)
 
     peor = max(razones.values())
     quien = BY_INDEX[max(razones, key=razones.get)].name
     print(f"\n  Razón mayor: {peor:.2f} en {quien}  (umbral {RAZON_UMBRAL})")
     if peor < RAZON_UMBRAL:
+        nota = ("  (en las marcadas ‼ la comparación es del kp suficiente, "
+                "no del kp*)\n" if secundarias else "")
         print(f"""
   DECISIÓN: un solo conjunto de ganancias.
 
-  Ninguna articulación cambia su kp óptimo en más de un factor {RAZON_UMBRAL}
+{nota}  Ninguna articulación cambia su kp en más de un factor {RAZON_UMBRAL}
   entre la postura de reposo y la extendida. Se elige el de P3, que es el peor
   caso de inercia y gravedad, y se documenta cuánto se degrada en P1 y P2.""")
     else:
+        magnitud = ("su kp suficiente —el codo de J(kp)—"
+                    if max(razones, key=razones.get) in secundarias
+                    else "su kp óptimo")
         print(f"""
   DECISIÓN: gain scheduling por postura.
 
-  {quien} cambia su kp óptimo por un factor {peor:.2f}, o sea que una
+  {quien} cambia {magnitud} por un factor {peor:.2f}, o sea que una
   sintonización única no preserva el margen de fase en todo el espacio de
   trabajo. Se implementa como tabla de tres puntos interpolada linealmente,
   con kp(q) proporcional a M_ii(q) del mismo modelo de `pinocchio`.""")

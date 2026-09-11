@@ -622,6 +622,20 @@ class H12Client:
                 return
             time.sleep(self.dt)
 
+    def leg_drift(self) -> tuple[float, int]:
+        """(radianes, índice) de la pierna que más se ha movido desde `engage`.
+
+        En los ensayos de brazo las piernas no deberían moverse. Si lo hacen
+        —por reacción al movimiento del brazo en el arnés, o porque alguien las
+        dejó libres— conviene enterarse por un número y no de vista.
+        """
+        peor, quien = 0.0, -1
+        for i in LEG_INDICES:
+            d = abs(float(self.q(i)) - float(self.q0[i]))
+            if d > peor:
+                peor, quien = d, i
+        return peor, quien
+
     def wait_settled(self, idx: int, dq_tol: float = 0.02,
                      timeout: float = 3.0, estable: float = 0.15) -> bool:
         """Espera a que la articulación esté REALMENTE quieta.
@@ -779,6 +793,14 @@ class H12Client:
                     q_ref = [state.motor_state[k].q for k in range(NUM_CMD_MOTOR)]
                 g = self.gravity.tau(q_ref)
                 for i in self.commanded:
+                    # Una articulación LIBRE no recibe par. Con kp = kd = 0 no
+                    # hay nada que sostenga la postura, así que un tau_ff es
+                    # una orden de acelerar sin más: el motor integra y la
+                    # articulación se va. Es el caso de las piernas con
+                    # `--legs free`, que es el valor por defecto.
+                    if self._kp[i] == 0.0 and self._kd[i] == 0.0:
+                        self._tau_g[i] = 0.0
+                        continue
                     tope = self.gravity_frac * BY_INDEX[i].tau_max
                     v = float(np.clip(g.get(i, 0.0), -tope, tope))
                     if abs(g.get(i, 0.0)) > tope:

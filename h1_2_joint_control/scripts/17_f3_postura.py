@@ -52,17 +52,65 @@ from h1_2_joint_control.client import SafetyAbort
 from h1_2_joint_control.joints import BY_INDEX
 
 _tune = importlib.import_module("03_tune")
+_all = importlib.import_module("09_tune_all")
 
 RAZON_UMBRAL = 1.5          # de la tabla de decisión, fijada de antemano
 PICO_P1 = 7.8               # Nm de transitorio medidos en P1 (§13), amp 0.12
 JOINTS_F3 = ("L_shoulder_pitch", "L_shoulder_roll", "L_elbow", "L_wrist_pitch")
 
 
+def rejilla_de(idx, a, gains):
+    """Candidatos (kp, kd) de una articulación, acotados por SATURACIÓN.
+
+    El tope no es una precaución teórica. El criterio penaliza el error de
+    seguimiento, y en una articulación con carga estática ese error es sobre
+    todo caída por gravedad, `tau_g/kp`, que baja monótonamente con kp: un
+    barrido sin tope elige siempre el kp más alto que se le ofrezca. Pasó con
+    la lista del protocolo el 2026-09-10 —el codo ganó con kp 260 en las dos
+    posturas y la razón salió 1.00, que no medía nada—.
+
+    Lo que pone el límite es que un salto de consigna de `amp` radianes no
+    llegue al umbral de par con el que aborta la seguridad:
+
+        kp_max = tau_abort_fraction · tau_max / amp
+
+    Para el codo con amp 0.12 son 105, y la lista del protocolo llegaba a 260.
+
+    Si de la lista pedida sobreviven menos de cuatro, se construye una serie
+    geométrica hasta el tope: mejor seis puntos dentro de la zona segura que
+    dos, porque con dos no se puede ver dónde está el máximo.
+    """
+    j = BY_INDEX[idx]
+    tope = _all.kp_maximo(j, gains.safety, a.amp)
+    pedidos = _tune.floats(a.kp_list)
+    kps = [k for k in pedidos if k <= tope]
+    fuera = [k for k in pedidos if k > tope]
+    if len(kps) < 4:
+        kps = [tope * (0.25 ** ((n) / 5.0)) for n in range(5, -1, -1)]
+        kps = sorted(round(k, 1) for k in kps)
+        nota = f"serie hasta el tope {tope:.0f}"
+    else:
+        nota = f"de la lista pedida, tope {tope:.0f}"
+    if fuera:
+        print(f"  {j.name:<20}{nota}; descartados por saturación: "
+              + ", ".join(f"{k:.0f}" for k in fuera))
+    else:
+        print(f"  {j.name:<20}{nota}")
+    return [(kp, kd) for kp in kps for kd in _tune.floats(a.kd_list)]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     add_common_args(ap)
-    ap.set_defaults(channel="lowcmd", gains="tuned_gff", gravity_ff=True)
+    # `legs="hold"` y no el `free` de por defecto. En F3 los brazos hacen
+    # excursiones grandes —P3 los lleva a pitch −70°— y con el robot colgado
+    # del arnés la reacción mueve el cuerpo. Observado el 2026-09-10: durante
+    # P3 las caderas cambiaron de ángulo y las piernas se levantaron, con el
+    # robot flotando en el arnés. En un ensayo de brazo solo deben moverse los
+    # brazos, así que las piernas se sostienen.
+    ap.set_defaults(channel="lowcmd", gains="tuned_gff", gravity_ff=True,
+                    legs="hold")
     ap.add_argument("--postures", default=None,
                     help="lista separada por comas (por defecto, todas)")
     ap.add_argument("--joints", default=",".join(JOINTS_F3))
@@ -97,12 +145,11 @@ def main() -> int:
     for p in posturas:
         gains.posture(p)              # falla pronto si el nombre no existe
     articulaciones = [joint_index(n) for n in a.joints.split(",")]
-    grid = [(kp, kd) for kp in _tune.floats(a.kp_list)
-            for kd in _tune.floats(a.kd_list)]
+    grids = {i: rejilla_de(i, a, gains) for i in articulaciones}
 
+    n_ens = sum(len(grids[i]) for i in articulaciones) * len(posturas) * a.repeats
     print(f"\n  F3 · {len(posturas)} posturas × {len(articulaciones)} "
-          f"articulaciones × {len(grid)} candidatos × {a.repeats} repeticiones"
-          f"  =  {len(posturas)*len(articulaciones)*len(grid)*a.repeats} ensayos")
+          f"articulaciones × {a.repeats} repeticiones  =  {n_ens} ensayos")
     print(f"  criterio de decisión, fijado de antemano: "
           f"razón kp* < {RAZON_UMBRAL} → un solo conjunto")
 
@@ -158,7 +205,7 @@ def main() -> int:
                 cli.wait_for_state()
                 cli.engage()
                 apply_test_posture(cli, a, g)
-                _tune.barre_candidatos(cli, idx, a, g, grid, stamp, resultados)
+                _tune.barre_candidatos(cli, idx, a, g, grids[idx], stamp, resultados)
             except SafetyAbort as e:
                 print(f"    ⚠ abortado por seguridad: {e}")
             except KeyboardInterrupt:
@@ -167,6 +214,11 @@ def main() -> int:
                 return 1
             finally:
                 cli.__exit__(None, None, None)
+            deriva, quien = cli.leg_drift() if cli else (0.0, -1)
+            if deriva > math.radians(2.0):
+                print(f"    ⚠ las piernas se han movido: "
+                      f"{BY_INDEX[quien].name} {math.degrees(deriva):.1f}°. "
+                      f"En un ensayo de brazo no deberían.")
             if resultados:
                 resultados.sort(key=lambda r: r[0])
                 ganadores[(postura, idx)] = resultados[0]
@@ -174,10 +226,11 @@ def main() -> int:
                 print(f"    mejor: kp={kp:.1f} kd={kd:.2f}  J={J:.2f}  "
                       f"rms {t.rms_error*1000:.2f} mrad  tau máx {t.max_tau:.2f} Nm")
 
-    return informe(ganadores, posturas, articulaciones)
+    return informe(ganadores, posturas, articulaciones,
+                   _tune.floats(a.kp_list))
 
 
-def informe(ganadores, posturas, articulaciones) -> int:
+def informe(ganadores, posturas, articulaciones, kp_rango=()) -> int:
     if not ganadores:
         print("\n  sin resultados.")
         return 1
@@ -185,7 +238,8 @@ def informe(ganadores, posturas, articulaciones) -> int:
     print(f"\n  {'articulación':<20}" + "".join(f"{p:>22}" for p in posturas)
           + f"{'razón':>9}")
     print(f"  {'':<20}" + "".join(f"{'kp*  kd*  rms  tau':>22}" for _ in posturas))
-    razones = {}
+    razones, en_borde = {}, set()
+    bordes = {min(kp_rango), max(kp_rango)} if kp_rango else set()
     for idx in articulaciones:
         fila = f"  {BY_INDEX[idx].name:<20}"
         kps = []
@@ -202,6 +256,9 @@ def informe(ganadores, posturas, articulaciones) -> int:
             r = max(kps) / min(kps)
             razones[idx] = r
             fila += f"{r:>8.2f}" + ("  ⚠" if r >= RAZON_UMBRAL else "")
+        if kps and bordes and all(k in bordes for k in kps):
+            fila += "  ‼ todos en el borde del barrido"
+            en_borde.add(idx)
         print(fila)
     print(f"\n  (kp*, kd*, error rms en mrad, par máximo en Nm)")
 
@@ -210,6 +267,16 @@ def informe(ganadores, posturas, articulaciones) -> int:
               "hacen falta\n  al menos dos, y la comparación que importa es "
               "P1 contra P3.")
         return 0
+    if en_borde:
+        print(f"""
+  ‼ ATENCIÓN antes de leer la decisión.
+
+  En {', '.join(BY_INDEX[i].name for i in sorted(en_borde))} el kp ganador cayó
+  en el BORDE del barrido en todas las posturas. Cuando eso pasa, la razón sale
+  1.00 porque el barrido topó, no porque las posturas coincidan: el óptimo está
+  fuera del rango y no se ha medido. La decisión de abajo NO se sostiene hasta
+  repetir con un rango que contenga el máximo.""")
+
     peor = max(razones.values())
     quien = BY_INDEX[max(razones, key=razones.get)].name
     print(f"\n  Razón mayor: {peor:.2f} en {quien}  (umbral {RAZON_UMBRAL})")

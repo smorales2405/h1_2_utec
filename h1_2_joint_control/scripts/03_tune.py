@@ -58,7 +58,23 @@ def barre_candidatos(cli, idx, a, gains, grid, stamp, results):
     desincroniza. `results` se rellena in situ con (J, kp, kd, track, step).
 
     El cliente ya tiene que estar enganchado y en la postura que toque.
+
+    Comprueba `a` ANTES de mover nada. Reutilizar esto desde otro script es
+    fácil de hacer mal —basta olvidar un `add_argument`— y el fallo salía a
+    mitad del primer ensayo, con el brazo ya colocado y enganchado. Mejor que
+    salte aquí.
     """
+    faltan = [n for n in ("amp", "channel", "cycles", "direction", "duration",
+                          "f0", "f1", "freq", "pause", "rate", "repeats",
+                          "rise", "settle", "traj", "w_chatter", "w_err",
+                          "w_overshoot", "zero_dq")
+              if not hasattr(a, n)]
+    if faltan:
+        raise SystemExit(
+            "  barre_candidatos: al espacio de argumentos le faltan "
+            + ", ".join(f"--{n.replace('_', '-')}" for n in faltan)
+            + ".\n  Añádelos con add_argument en el script que llama.")
+
     j = BY_INDEX[idx]
     q0 = float(cli.q_base[idx])
     amp, nota = pick_amplitude(idx, q0, a.amp, gains.limits(idx),

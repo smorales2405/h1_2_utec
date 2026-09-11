@@ -84,6 +84,11 @@ def main() -> int:
     ap.add_argument("--w-err", type=float, default=1.0)
     ap.add_argument("--w-chatter", type=float, default=1.0)
     ap.add_argument("--w-overshoot", type=float, default=0.5)
+    ap.add_argument("--zero-dq", action="store_true",
+                    help="medir con dq_des = 0, como hacía xr_teleoperate sin "
+                         "el parche. Por defecto se manda la velocidad de "
+                         "referencia, que es el modo en que se sintonizó "
+                         "`tuned_gff`.")
     a = ap.parse_args()
 
     gains = cfg.load(a.gains)
@@ -201,8 +206,10 @@ def informe(ganadores, posturas, articulaciones) -> int:
     print(f"\n  (kp*, kd*, error rms en mrad, par máximo en Nm)")
 
     if not razones:
-        print("\n  no hay suficientes posturas para comparar.")
-        return 1
+        print("\n  Una sola postura: no hay razón que calcular. Para decidir "
+              "hacen falta\n  al menos dos, y la comparación que importa es "
+              "P1 contra P3.")
+        return 0
     peor = max(razones.values())
     quien = BY_INDEX[max(razones, key=razones.get)].name
     print(f"\n  Razón mayor: {peor:.2f} en {quien}  (umbral {RAZON_UMBRAL})")

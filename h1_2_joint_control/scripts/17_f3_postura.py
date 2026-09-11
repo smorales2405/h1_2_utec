@@ -198,6 +198,7 @@ def main() -> int:
             print(f"\n  ══ {postura} · {j.name} "
                   f"{'═' * max(0, 46 - len(postura) - len(j.name))}")
             a.posture = postura
+            a.tag = postura        # entra en el nombre del CSV y en el índice
             g = cfg.load(a.gains)
             cli = build_client(a, [idx], verbose=False)
             resultados = []

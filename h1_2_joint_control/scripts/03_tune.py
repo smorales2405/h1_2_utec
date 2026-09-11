@@ -96,7 +96,12 @@ def barre_candidatos(cli, idx, a, gains, grid, stamp, results):
             tracks.append(track)
             if step is not None:
                 steps.append(step)
-            csv = cfg.LOG_DIR / (f"tune_{j.name}_kp{kp:.0f}_kd{kd:.1f}"
+            # La etiqueta va en el nombre porque si no, repetir el mismo
+            # barrido en varias posturas sobrescribe las trazas: mismo kp,
+            # mismo kd, mismo stamp. Medido el 2026-09-10: de 99 ficheros
+            # esperados quedaron 33, los de la última postura.
+            et = f"_{a.tag}" if getattr(a, "tag", "") else ""
+            csv = cfg.LOG_DIR / (f"tune_{j.name}{et}_kp{kp:.0f}_kd{kd:.1f}"
                                  f"_r{r}_{stamp}.csv")
             rec.save_samples(samples, [idx], csv)
             if r + 1 < a.repeats:

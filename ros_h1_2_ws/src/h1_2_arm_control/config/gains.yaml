@@ -1,0 +1,356 @@
+# Ganancias del control articular del H1-2
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Sintonizadas sobre el robot real. La campaña completa, con los datos y el
+# porqué de cada número, está en el repositorio `h1_2_utec`, carpeta
+# `h1_2_joint_control/docs/06_RESULTADOS.md`.
+#
+# QUÉ CONJUNTO USAR
+#
+#   tuned_gff   el bueno, PERO exige compensación de gravedad (`gravity: true`
+#               en el nodo). Sus kp son bajos porque el par de sostenimiento lo
+#               da el feedforward; sin él, el error permanente `tau_g/kp` es
+#               PEOR que con `tuned`.
+#   tuned       sin compensación de gravedad. Más kp, más error permanente,
+#               pero no necesita `pinocchio` ni el URDF.
+#
+# El conjunto activo se marca abajo en `active`, y se puede sobrescribir desde
+# el nodo con el parámetro `gains`.
+
+active: tuned_gff
+sets:
+  official_arm_sdk:
+    description: Ejemplo oficial h1_2_arm_sdk_dds_example.cpp. Punto de partida.
+    joints:
+      L_shoulder_pitch:
+        kp: 120.0
+        kd: 2.0
+      L_shoulder_roll:
+        kp: 120.0
+        kd: 2.0
+      L_shoulder_yaw:
+        kp: 80.0
+        kd: 1.5
+      L_elbow:
+        kp: 50.0
+        kd: 1.0
+      L_wrist_roll:
+        kp: 50.0
+        kd: 1.0
+      L_wrist_pitch:
+        kp: 50.0
+        kd: 1.0
+      L_wrist_yaw:
+        kp: 50.0
+        kd: 1.0
+      R_shoulder_pitch:
+        kp: 120.0
+        kd: 2.0
+      R_shoulder_roll:
+        kp: 120.0
+        kd: 2.0
+      R_shoulder_yaw:
+        kp: 80.0
+        kd: 1.5
+      R_elbow:
+        kp: 50.0
+        kd: 1.0
+      R_wrist_roll:
+        kp: 50.0
+        kd: 1.0
+      R_wrist_pitch:
+        kp: 50.0
+        kd: 1.0
+      R_wrist_yaw:
+        kp: 50.0
+        kd: 1.0
+      waist_yaw:
+        kp: 200.0
+        kd: 2.0
+  xr_teleoperate:
+    description: 'Las que aplica H1_2_ArmController de xr_teleoperate. Es el objetivo
+      a validar: si con estas el seguimiento es bueno, la teleoperación irá bien.'
+    joints:
+      L_shoulder_pitch:
+        kp: 140.0
+        kd: 3.0
+      L_shoulder_roll:
+        kp: 140.0
+        kd: 3.0
+      L_shoulder_yaw:
+        kp: 140.0
+        kd: 3.0
+      L_elbow:
+        kp: 140.0
+        kd: 3.0
+      L_wrist_roll:
+        kp: 50.0
+        kd: 2.0
+      L_wrist_pitch:
+        kp: 50.0
+        kd: 2.0
+      L_wrist_yaw:
+        kp: 50.0
+        kd: 2.0
+      R_shoulder_pitch:
+        kp: 140.0
+        kd: 3.0
+      R_shoulder_roll:
+        kp: 140.0
+        kd: 3.0
+      R_shoulder_yaw:
+        kp: 140.0
+        kd: 3.0
+      R_elbow:
+        kp: 140.0
+        kd: 3.0
+      R_wrist_roll:
+        kp: 50.0
+        kd: 2.0
+      R_wrist_pitch:
+        kp: 50.0
+        kd: 2.0
+      R_wrist_yaw:
+        kp: 50.0
+        kd: 2.0
+      waist_yaw:
+        kp: 200.0
+        kd: 5.0
+  ros2_example:
+    description: kp=50 / kd=1 planos, como low_level_ctrl_hg.cpp. Sirve de comparación.
+    joints:
+      L_shoulder_pitch:
+        kp: 50.0
+        kd: 1.0
+      L_shoulder_roll:
+        kp: 50.0
+        kd: 1.0
+      L_shoulder_yaw:
+        kp: 50.0
+        kd: 1.0
+      L_elbow:
+        kp: 50.0
+        kd: 1.0
+      L_wrist_roll:
+        kp: 50.0
+        kd: 1.0
+      L_wrist_pitch:
+        kp: 50.0
+        kd: 1.0
+      L_wrist_yaw:
+        kp: 50.0
+        kd: 1.0
+      R_shoulder_pitch:
+        kp: 50.0
+        kd: 1.0
+      R_shoulder_roll:
+        kp: 50.0
+        kd: 1.0
+      R_shoulder_yaw:
+        kp: 50.0
+        kd: 1.0
+      R_elbow:
+        kp: 50.0
+        kd: 1.0
+      R_wrist_roll:
+        kp: 50.0
+        kd: 1.0
+      R_wrist_pitch:
+        kp: 50.0
+        kd: 1.0
+      R_wrist_yaw:
+        kp: 50.0
+        kd: 1.0
+      waist_yaw:
+        kp: 50.0
+        kd: 1.0
+  tuned:
+    description: 'Medido en ESTE robot el 2026-09-04, canal lowcmd en modo debug,
+      robot colgado. Solo el codo está sintonizado (kp 140 / kd 6, barrido con seno
+      de 0.5 Hz: kd 6-8 empata en error y baja el temblor un 40 % frente al kd 3 de
+      xr_teleoperate). El resto son todavía las del ejemplo oficial. OJO: medido en
+      UNA postura, codo a 85 grados. Ver docs/06_RESULTADOS.md.'
+    joints:
+      L_shoulder_pitch: {kp: 280.0, kd: 13.5}
+      L_shoulder_roll:  {kp: 280.0, kd: 13.5}
+      L_shoulder_yaw:   {kp: 126.0, kd: 13.5}
+      L_elbow:          {kp: 126.0, kd: 13.5}
+      L_wrist_roll:     {kp: 100.0, kd: 4.0}
+      L_wrist_pitch:    {kp: 100.0, kd: 4.0}
+      L_wrist_yaw:      {kp: 100.0, kd: 9.0}
+      R_shoulder_pitch: {kp: 280.0, kd: 13.5}
+      R_shoulder_roll:  {kp: 280.0, kd: 9.0}
+      R_shoulder_yaw:   {kp: 126.0, kd: 13.5}
+      R_elbow:          {kp: 126.0, kd: 13.5}
+      R_wrist_roll:     {kp: 100.0, kd: 9.0}
+      R_wrist_pitch:    {kp: 100.0, kd: 6.0}
+      R_wrist_yaw:      {kp: 100.0, kd: 9.0}
+      waist_yaw:        {kp: 200.0, kd: 2.0}
+
+  # ---------------------------------------------------------------------
+  # Sintonizado CON la gravedad compensada (fase F2.3). Es el sucesor de
+  # `tuned`, cuyos kp altos existian para tapar la falta de compensacion:
+  # con `--gravity-ff`, `L_shoulder_roll` baja de kp 280 a 70 y su
+  # sobreimpulso del 17 % al 1.4 %, con 4.7 Nm menos de pico.
+  #
+  # SOLO valido con `--gravity-ff` activo. Sin compensacion, estos kp
+  # dejan un error permanente `tau_g/kp` mucho mayor.
+  # ---------------------------------------------------------------------
+  tuned_gff:
+    # VALIDADO el 2026-09-08: 14/14 dentro de tolerancia en el barrido de
+    # aceptacion, con delta_min conocido (0.7 pp de sobreimpulso, 0.30 mrad de
+    # error rms; ver 06_RESULTADOS.md 12).
+    #
+    # Frente a `tuned`, los dos shoulder_roll pasan de 20-21 % de sobreimpulso
+    # a 0.1-0.2 %, con kp de 280 a 70 y 4 Nm menos de pico.
+    #
+    # SOLO valido con --gravity-ff. Sin compensacion estos kp dejan un error
+    # permanente tau_g/kp mucho mayor: es el par de sostenimiento el que ahora
+    # lo da el feedforward, no el error de posicion.
+    description: >-
+      Sintonizado y validado con la gravedad compensada. Requiere --gravity-ff.
+    joints:
+      L_shoulder_pitch: {kp: 111.1, kd: 20.25}
+      L_shoulder_roll:  {kp: 70.0, kd: 13.5}
+      L_shoulder_yaw:   {kp: 126.0, kd: 8.1}
+      L_elbow:          {kp: 79.4, kd: 20.25}
+      L_wrist_roll:     {kp: 100.0, kd: 2.4}
+      L_wrist_pitch:    {kp: 100.0, kd: 6.0}
+      L_wrist_yaw:      {kp: 39.7, kd: 13.5}
+      R_shoulder_pitch: {kp: 280.0, kd: 20.25}
+      R_shoulder_roll:  {kp: 70.0, kd: 13.5}
+      R_shoulder_yaw:   {kp: 126.0, kd: 13.5}
+      R_elbow:          {kp: 79.4, kd: 20.25}
+      R_wrist_roll:     {kp: 100.0, kd: 5.4}
+      R_wrist_pitch:    {kp: 100.0, kd: 1.8}
+      R_wrist_yaw:      {kp: 100.0, kd: 2.7}
+      waist_yaw:        {kp: 200.0, kd: 2.0}
+# ═══════════════════════════════════════════════════════════════════════════
+# Postura de ensayo
+# ═══════════════════════════════════════════════════════════════════════════
+# A dónde llevar ciertas articulaciones ANTES de medir, para que los brazos no
+# se golpeen con el torso. Sin esto, la postura de partida era «donde estuviera
+# el robot al arrancar», que no es reproducible y puede ser peligrosa: con los
+# hombros cerca de cero, un ensayo de `shoulder_roll` mete el brazo contra el
+# cuerpo (medido: 6.3° de error y 29.6 Nm, saltó la protección de par).
+#
+# En GRADOS, no en radianes: es como se especifican estos ángulos en la
+# práctica y así no hay que convertir a ojo al leer el fichero.
+legs_hold:
+  description: Sostener piernas y cintura en su postura actual. Solo se aplican en
+    canal `lowcmd`. Valores de H1_2_ArmController (kp_high/kd_high, y kp_low/kd_low
+    para los tobillos, que son motores débiles).
+  default:
+    kp: 300.0
+    kd: 5.0
+  overrides:
+    L_ankle_pitch:
+      kp: 140.0
+      kd: 3.0
+    L_ankle_roll:
+      kp: 140.0
+      kd: 3.0
+    R_ankle_pitch:
+      kp: 140.0
+      kd: 3.0
+    R_ankle_roll:
+      kp: 140.0
+      kd: 3.0
+safety:
+  tau_abort_fraction: 0.7
+  temperature_abort: 80.0
+  joint_limit_margin: 0.05
+  max_ref_velocity: 1.0
+  lowstate_timeout: 0.5
+# ═══════════════════════════════════════════════════════════════════════════
+# Topes blandos (anticolisión)
+# ═══════════════════════════════════════════════════════════════════════════
+# Más restrictivos que los del URDF. El URDF describe el tope MECÁNICO de cada
+# articulación por separado; no sabe nada de que el brazo pueda chocar con el
+# torso. Estos son los del robot montado.
+#
+# Se aplican TAL CUAL, sin sumarles el `joint_limit_margin` de `safety`: ya
+# llevan dentro el margen de seguridad que se ha decidido. El margen sí se
+# aplica a los topes del URDF, donde llegar al final de carrera sí es un golpe.
+soft_limits_deg:
+  description: >-
+    Autocolisión brazo-torso. Por debajo de estos valores el brazo se toca a sí
+    mismo. Medidos en el robot, no en el modelo.
+  joints:
+    # El roll positivo separa el brazo IZQUIERDO del cuerpo: nunca por debajo de +10°
+    L_shoulder_roll: {min: 10.0}
+    # El roll negativo separa el DERECHO: nunca por encima de -10°
+    R_shoulder_roll: {max: -10.0}
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Tope de hombro condicionado al codo
+# ═══════════════════════════════════════════════════════════════════════════
+# El tope de arriba es un número fijo, y la autocolisión no lo es: depende de
+# dónde esté el resto del brazo. Con el codo a 0° (el más FLEXIONADO: la mano
+# queda a 0.42 m del hombro, adelante y arriba) la mano está lejos de la
+# cadera y el hombro puede acercarse mucho más al cuerpo. Con el codo a ~85°
+# (brazo ESTIRADO: 0.57 m, mano a la altura de la cadera) hay que separarse.
+#
+# Verificado con el modelo de colisión del URDF (pinocchio + hppfcl):
+#   codo   0°, pitch 0°  ->  primer choque a roll -10°   (esta regla deja 15°)
+#   codo  85°, pitch 0°  ->  primer choque a roll  +5°   (esta regla deja  5°)
+# El choque es muñeca contra cadera, no brazo contra torso.
+#
+# `extra_si_muneca` se suma cuando el ensayo mueve una muñeca: con los dedos
+# abiertos el pulgar sobresale y es lo primero que toca la pierna.
+shoulder_roll_vs_elbow_deg:
+  description: >-
+    |shoulder_roll| mínimo en función del ángulo de codo. Interpolación lineal
+    entre los puntos de la tabla; fuera del rango se mantiene el extremo.
+  depende_de:
+    L_shoulder_roll: L_elbow
+    R_shoulder_roll: R_elbow
+  tabla:            # [codo (°), |roll| mínimo (°)]
+    - [0.0, 0.0]    # codo flexionado: la mano está lejos de la cadera y el
+                    #   hombro puede llegar hasta 0°. Indicado por el operador
+                    #   el 2026-09-10, verificado físicamente: es la postura a
+                    #   la que va la teleoperación y a la que se llevaron los
+                    #   catorce motores el 2026-09-09 sin contacto.
+    - [80.0, 10.0]  # brazo estirado: hay que separar el hombro
+  extra_si_muneca: 5.0
+# ═══════════════════════════════════════════════════════════════════════════
+# Postura de reposo
+# ═══════════════════════════════════════════════════════════════════════════
+# Dónde dejar los brazos al TERMINAR una sesión, y por dónde pasar para llegar.
+# No es la postura de ensayo al revés: aquí lo que importa es el ORDEN.
+#
+# El problema, observado el 2026-09-09: al soltar los brazos con el codo
+# flexionado y el hombro cerca de 0°, el antebrazo cae hasta quedar colgando
+# —0° de codo NO es el mínimo de gravedad— y en esa caída LA MANO GOLPEA LA
+# PIERNA. Medido: los codos pasan solos de 1° a 79° y 85° en segundos.
+#
+# La secuencia que lo evita, en tres tramos:
+#
+#   1. el shoulder_roll sale a ±`roll_salida_deg`, apartando la mano de la
+#      pierna ANTES de que el brazo se mueva a lo largo del cuerpo;
+#   2. el codo se estira hasta `elbow`, ya lejos de la pierna;
+#   3. los hombros vuelven a `joints`, con el brazo ya estirado, que es el
+#      mínimo de gravedad: al bajar las ganancias no cae nada.
+#
+# El signo del roll lo pone el lado, como en `test_direction`: positivo separa
+# el brazo izquierdo del cuerpo y negativo el derecho.
+rest_posture_deg:
+  roll_salida_deg: 10.0
+  joints:
+    # Brazos estirados y pegados al cuerpo, que es donde quedan colgados del
+    # arnés por su propio peso. Los 5° de roll mantienen la mano despejada de
+    # la pierna sin separar el brazo de forma apreciable.
+    L_shoulder_pitch:  0.0
+    L_shoulder_roll:   5.0
+    L_shoulder_yaw:    0.0
+    L_elbow:          80.0
+    L_wrist_roll:      0.0
+    L_wrist_pitch:     0.0
+    L_wrist_yaw:       0.0
+    R_shoulder_pitch:  0.0
+    R_shoulder_roll:  -5.0
+    R_shoulder_yaw:    0.0
+    R_elbow:          80.0
+    R_wrist_roll:      0.0
+    R_wrist_pitch:     0.0
+    R_wrist_yaw:       0.0

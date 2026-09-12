@@ -28,3 +28,8 @@ __pycache__/
 h1_2_joint_control/logs/*.csv
 !h1_2_joint_control/logs/index.csv
 h1_2_joint_control/logs/*.png
+
+# Artefactos de compilación del workspace ROS
+ros_h1_2_ws/build/
+ros_h1_2_ws/install/
+ros_h1_2_ws/log/

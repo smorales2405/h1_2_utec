@@ -43,6 +43,8 @@ setup(
             # en UN proceso, que es la única forma de que el brazo
             # no se caiga entre medias.
             'algorithm_template = h1_2_arm_control.algorithm_template:main',
+            # Gestos
+            'six_seven = h1_2_arm_control.gestures.six_seven:main',
         ],
     },
 )

@@ -1284,6 +1284,82 @@ bueno, tiene 111 y 70.
 
 ---
 
+## 17. F5 — respuesta en frecuencia. El brazo no es el cuello de botella — 2026-09-14
+
+Chirp logarítmico 0.2 → 5 Hz, 90 s, velocidad de pico 0.3 rad/s, estimación por
+Welch con 50 % de solape. Tres articulaciones × tres configuraciones.
+
+| articulación | configuración | BW −3 dB | fase −90° | resonancia | coherencia |
+|---|---|---:|---|---|---:|
+| `shoulder_pitch` | `tuned_gff` | **1.21 Hz** | no llega | ninguna | 0.985 |
+| | `xr_teleoperate` | 1.36 Hz | no llega | +0.54 dB @0.8 | 0.926 |
+| | `tuned_gff` sin `dq` | 0.64 Hz | no llega | ninguna | 0.869 ⚠ |
+| `elbow` | `tuned_gff` | **3.07 Hz** | no llega | ninguna | 0.990 |
+| | `xr_teleoperate` | 2.59 Hz | no llega | +0.76 dB @1.3 | 0.961 |
+| | `tuned_gff` sin `dq` | 0.67 Hz | no llega | ninguna | 0.798 ⚠ |
+| `wrist_pitch` | `tuned_gff` | **3.64 Hz** | no llega | ninguna | 0.995 |
+| | `xr_teleoperate` | 2.51 Hz | no llega | ninguna | 0.977 |
+| | `tuned_gff` sin `dq` | 1.86 Hz | no llega | ninguna | 0.989 |
+
+### Lo que contesta para la tesis
+
+**La fase no llega a −90° en ninguna de las nueve dentro de 0.2–5 Hz**, y con
+`tuned_gff` no hay resonancia en ninguna: la magnitud cae de forma monótona. En
+la banda de la teleoperación —por debajo de 2–3 Hz— el brazo no introduce
+dinámica que importe.
+
+Comparado con los **64 ms de tiempo muerto** del lazo de fuerza de la mano: un
+BW de 3.07 Hz en el codo son unos 52 ms de constante de tiempo equivalente, del
+mismo orden; pero el `shoulder_pitch`, con 1.21 Hz, está en 132 ms y **sí** es
+comparable al resto del lazo. No es despreciable en esa articulación.
+
+### El coste de `dq_des = 0`, ahora en hercios
+
+| articulación | con `dq_des` | sin | |
+|---|---:|---:|---:|
+| `shoulder_pitch` | 1.21 Hz | 0.64 Hz | **−47 %** |
+| `elbow` | 3.07 Hz | 0.67 Hz | **−78 %** |
+| `wrist_pitch` | 3.64 Hz | 1.86 Hz | **−49 %** |
+
+Es la medida más clara que hay del valor del parche: mandar la velocidad de
+referencia **multiplica por 4.6 el ancho de banda del codo**. Y las dos
+configuraciones sin `dq` son justo las dos que incumplen el criterio de
+coherencia (0.869 y 0.798 contra el 0.9 que pide F5): sin velocidad de
+referencia la respuesta deja de ser lineal, que es lo que la coherencia mide.
+
+### `tuned_gff` contra `xr_teleoperate`
+
+Gana en codo (+19 %) y muñeca (+45 %), y pierde en `shoulder_pitch` (−11 %).
+Pero `xr_teleoperate` compra ese ancho de banda con **resonancia**: +0.54 dB en
+el hombro y +0.76 dB en el codo, donde `tuned_gff` no tiene ninguna. Y su
+coherencia es peor en las tres.
+
+### Dos defectos del análisis que la validación destapó
+
+El estimador se validó primero contra segundos órdenes de respuesta conocida
+—BW dentro del −1 a +6 %, fase −90° dentro del 8 %—. En el camino aparecieron
+dos fallos que habrían falseado esta tabla:
+
+1. **El pico de resonancia se buscaba con `argmax` sobre toda la banda.** Arriba
+   del barrido la amplitud es de 0.65° y el ruido del encoder domina, así que
+   `|H| = Sxy/Sxx` se dispara. Un sistema con pico real de 2.70 dB a 1.24 Hz se
+   reportaba como **5.46 dB a 4.82 Hz**. Ahora el máximo se busca solo donde la
+   coherencia pasa de 0.9, y un máximo en el borde del tramo se reporta como
+   «sin resonancia», que es lo que significa.
+
+2. **`np.unwrap` acumulaba saltos de 360° donde la coherencia es baja**, y salían
+   fases POSITIVAS de hasta +228°, imposibles en un sistema causal. La fase se
+   evalúa ahora solo en el tramo fiable.
+
+Y un tercero que no afectaba a los números pero sí al uso: `--analiza` no
+funcionaba. `genfromtxt(names=True)` borra el punto de `L_elbow.q` y lo deja en
+`L_elbowq`, así que el selector por `_q` no encontraba nada —y `L_elbowdq`
+también acaba en `q`, de modo que un selector laxo habría cogido la velocidad
+creyendo que era la posición—. Ahora la cabecera se lee con `csv` y se accede
+por índice.
+
+---
+
 ## Qué queda por hacer
 
 - [x] ~~Repetir el barrido con una postura de partida reproducible~~ — hecho,

@@ -53,6 +53,25 @@ from h1_2_joint_control.client import SafetyAbort
 from h1_2_joint_control.joints import BY_INDEX
 
 
+def carga_traza(ruta):
+    """(t, q_des, q) de un CSV de `recorder.save_samples`.
+
+    Se lee la cabecera con `csv` y se accede por ÍNDICE, no por el nombre que
+    invente numpy. `genfromtxt(names=True)` borra el punto de `L_elbow.q` y lo
+    deja en `L_elbowq`, así que cualquier selector con `_q` falla en silencio;
+    y `L_elbowdq` también acaba en `q`, de modo que un selector laxo escogería
+    la velocidad creyendo que es la posición.
+    """
+    import csv as _csv
+    with open(ruta, newline="", encoding="utf-8") as fh:
+        cab = next(_csv.reader(fh))
+    i_des = next(i for i, c in enumerate(cab) if c.endswith(".q_des"))
+    i_q = next(i for i, c in enumerate(cab) if c.endswith(".q"))
+    i_t = cab.index("t")
+    d = np.loadtxt(ruta, delimiter=",", skiprows=1)
+    return d[:, i_t], d[:, i_des], d[:, i_q]
+
+
 def analiza(t, q_des, q, f0, f1, nperseg=None):
     """|H|, fase y coherencia por Welch. Devuelve (f, mag_dB, fase_deg, coh)."""
     from scipy import signal
@@ -83,7 +102,12 @@ def resume(f, mag, fase, coh, f0, f1):
     ref = float(np.mean(mag[baja])) if baja.any() else float(mag[0])
 
     def cruce(y, objetivo, creciente=False):
-        """Primera frecuencia donde `y` cruza `objetivo`, interpolando."""
+        """Primera frecuencia donde `y` cruza `objetivo`, interpolando.
+
+        `nan` significa que no cruza dentro de la banda, y es un resultado, no
+        un fallo: si la fase no llega a −90° hasta 5 Hz, la articulación es
+        más rápida que el barrido.
+        """
         d = (y - objetivo) if creciente else (objetivo - y)
         w = np.flatnonzero(d[:-1] * d[1:] < 0)
         if not w.size:
@@ -92,8 +116,17 @@ def resume(f, mag, fase, coh, f0, f1):
         x0, x1, y0, y1 = f[i], f[i + 1], y[i], y[i + 1]
         return float(x0 + (objetivo - y0) * (x1 - x0) / (y1 - y0))
 
+    # Todo lo que dependa de la fase o del máximo se calcula SOLO en el tramo
+    # fiable, que es el contiguo desde la banda baja con coherencia ≥ 0.9.
+    # Arriba del barrido la amplitud es de 0.65° y el estimador se descompone:
+    # `np.unwrap` acumula saltos de 360° y la fase sale POSITIVA —hasta +228°
+    # medidos—, que es imposible en un sistema causal.
+    malo = np.flatnonzero(coh < 0.9)
+    n_fiable = int(malo[0]) if malo.size else len(f)
+    sl = slice(0, max(n_fiable, 2))
+
     bw = cruce(mag, ref - 3.0)
-    f90 = cruce(fase, -90.0)
+    f90 = cruce(fase[sl], -90.0) if n_fiable > 2 else float("nan")
 
     # El pico se busca SOLO donde la coherencia dice que la estimación vale.
     # Arriba del barrido la amplitud es mínima —0.65° a 5 Hz con v_max 0.3— y
@@ -101,19 +134,19 @@ def resume(f, mag, fase, coh, f0, f1):
     # toda la banda devuelve un pico que no existe. Validado con segundos
     # órdenes de resonancia conocida: sin la máscara, un sistema con pico real
     # de 2.70 dB a 1.24 Hz se reportaba como 5.46 dB a 4.82 Hz.
-    fiable = coh >= 0.9
-    if fiable.any():
-        idx_f = np.flatnonzero(fiable)
-        i_pico = int(idx_f[np.argmax(mag[fiable])])
-    else:
-        i_pico = int(np.argmax(mag))
+    i_pico = int(np.argmax(mag[sl]))
+    # Un máximo en el borde del tramo NO es una resonancia: significa que la
+    # respuesta cae de forma monótona y el máximo es simplemente el primer
+    # punto. Reportarlo como «pico a 0.24 Hz» sería engañoso.
+    hay_pico = 0 < i_pico < (sl.stop - 1)
     banda_coh = (f >= 0.2) & (f <= 3.0)
     return {
         "ref_dB": ref,
         "bw_3dB": bw,
         "f_fase90": f90,
-        "pico_dB": float(mag[i_pico] - ref),
-        "f_pico": float(f[i_pico]),
+        "pico_dB": float(mag[i_pico] - ref) if hay_pico else float("nan"),
+        "f_pico": float(f[i_pico]) if hay_pico else float("nan"),
+        "f_fiable": float(f[max(n_fiable - 1, 0)]),
         "coh_media": float(np.mean(coh[banda_coh])) if banda_coh.any() else float("nan"),
         "coh_min": float(np.min(coh[banda_coh])) if banda_coh.any() else float("nan"),
     }
@@ -122,9 +155,16 @@ def resume(f, mag, fase, coh, f0, f1):
 def imprime(nombre, r, f, mag, fase, coh):
     print(f"\n  ── {nombre} " + "─" * max(0, 52 - len(nombre)))
     print(f"    ancho de banda a −3 dB      {r['bw_3dB']:>8.2f} Hz")
-    print(f"    fase −90°                   {r['f_fase90']:>8.2f} Hz")
-    print(f"    pico de resonancia          {r['pico_dB']:>8.2f} dB"
-          f"  a {r['f_pico']:.2f} Hz")
+    if math.isnan(r["f_fase90"]):
+        print(f"    fase −90°                     no llega dentro de la banda")
+    else:
+        print(f"    fase −90°                   {r['f_fase90']:>8.2f} Hz")
+    if math.isnan(r["pico_dB"]):
+        print(f"    resonancia                    ninguna: cae monótonamente")
+    else:
+        print(f"    pico de resonancia          {r['pico_dB']:>8.2f} dB"
+              f"  a {r['f_pico']:.2f} Hz")
+    print(f"    banda fiable hasta          {r['f_fiable']:>8.2f} Hz")
     print(f"    coherencia media 0.2–3 Hz   {r['coh_media']:>8.3f}"
           + ("   ✔" if r["coh_media"] > 0.9 else "   ⚠ POR DEBAJO DE 0.9"))
     print(f"    coherencia mínima           {r['coh_min']:>8.3f}")
@@ -160,11 +200,8 @@ def main() -> int:
 
     if a.analiza:
         for ruta in sorted(glob.glob(a.analiza)):
-            d = np.genfromtxt(ruta, delimiter=",", names=True)
-            cols = d.dtype.names
-            nq = next(c for c in cols if c.endswith("_q") and "des" not in c)
-            nd = next(c for c in cols if c.endswith("q_des"))
-            f, mag, fase, coh = analiza(d["t"], d[nd], d[nq], a.f0, a.f1)
+            t, qd, q = carga_traza(ruta)
+            f, mag, fase, coh = analiza(t, qd, q, a.f0, a.f1)
             r = resume(f, mag, fase, coh, a.f0, a.f1)
             imprime(Path(ruta).name, r, f, mag, fase, coh)
         return 0

@@ -8,6 +8,24 @@ de medida que produjo estos números vive en el repositorio, en
 `h1_2_joint_control/docs/06_RESULTADOS.md`; este paquete solo lleva el
 resultado.
 
+## Estado
+
+Probado **sobre el robot real** el 2026-09-14, colgado del arnés:
+
+| | |
+|---|---|
+| `init_pose` | ✔ los catorce llegan a 0° |
+| `rest_pose` | ✔ estira los brazos y los devuelve suavemente, sin rozar la pierna |
+| `algorithm_template` | ✔ ciclo entero: colocar → algoritmo → devolver, en un proceso |
+
+Con eso queda ejercitado casi todo lo que hay debajo: `engage`/`release` en
+rampa, `ramp_to`, `set_trajectory`, la compensación de gravedad, el portero de
+autocolisión y las dos secuencias de postura.
+
+`goto`, `move_joint` y `hold` **no se han ejecutado como tales**. Son envoltorios
+delgados sobre esas mismas llamadas, así que el riesgo es bajo, pero no es lo
+mismo que haberlos corrido.
+
 ## Arrancar
 
 ```bash

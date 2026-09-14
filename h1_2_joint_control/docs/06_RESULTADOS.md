@@ -1232,6 +1232,41 @@ Mientras tanto, **los kd absolutos son provisionales**: su óptimo está por
 encima de la rejilla. La comparación entre posturas sí vale, porque el kd es el
 mismo en las tres.
 
+### El peso del temblor de par: la conclusión no depende de él
+
+`chatter_tau` entra en el coste de forma **aditiva**, y tanto `cost` como
+`chatter_tau` están en el índice, así que el efecto de cualquier peso se calcula
+sobre los datos ya medidos sin volver a tocar el robot. No es una predicción:
+es el resultado exacto que daría el barrido.
+
+| w | `roll` kp* P1/P2/P3 | razón | `pitch` kp* P1/P2/P3 | razón |
+|---:|---|---:|---|---:|
+| 0.00 | 98 / 140 / 140 | 1.43 | 222 / 222 / 156 | 1.43 |
+| 0.10 | 98 / 140 / 140 | 1.43 | 222 / 222 / 156 | 1.43 |
+| 0.20 | 98 / 140 / 140 | 1.43 | 222 / 222 / 222 | **1.00** |
+| 0.30 | 98 / 140 / 98 | 1.43 | 222 / 222 / 222 | 1.00 |
+| **0.50** | 98 / 140 / 70 | **2.00** | 222 / 222 / 222 | 1.00 |
+| 0.75 | 49 / 70 / 70 | 1.43 | 222 / 222 / 222 | 1.00 |
+| 1.00 | 49 / 70 / 70 | 1.43 | 222 / 156 / 222 | 1.43 |
+
+**La razón se queda por debajo de 1.5 en todo el rango menos en un punto
+aislado.** El 2.00 del `roll` en w = 0.50 no es una tendencia: a 0.30 y a 0.75
+vuelve a 1.43. Es el ruido de un barrido cuyas diferencias son de un paso de
+rejilla, no un cambio de régimen.
+
+Así que **la conclusión de F3 es robusta: conjunto único en las cuatro
+articulaciones**, y no depende de una decisión de diseño del criterio.
+
+De paso, el peso resuelve lo que lo motivaba. A partir de w = 0.5 el kd deja de
+pegarse al borde superior de la rejilla: el `pitch` baja a 10.12–20.25 de un
+tope de 30.38, y el `roll` a 13.5 de un tope de 20.25 en w = 0.75. **w = 0.75 es
+la mejor opción de la tabla**: deja los dos kd interiores y las dos razones por
+debajo del umbral.
+
+No hace falta repetir el barrido en el robot para esto. Lo único que una pasada
+nueva añadiría es otra realización del ruido, que con márgenes del orden de
+`δ_min` sí podría mover algún ganador —pero no cambia la respuesta.
+
 ### Cautela que limita el uso de estos números
 
 **F3 se corrió con `kd = 6` fijo en las cuatro articulaciones**, siguiendo el

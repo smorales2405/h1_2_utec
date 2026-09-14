@@ -50,15 +50,39 @@ y al terminar la sesión, `-p action:=exit`.
 | `move_joint` | trayectoria de referencia sobre una articulación |
 | `rest_pose` | vuelta a la postura de reposo **sin que la mano roce la pierna** |
 
-Una sesión típica:
+| `algorithm_template` | plantilla: colocar → tu algoritmo → devolver, en UN proceso |
+
+## ⚠ No encadenes comandos para meter tu algoritmo en medio
+
+Lo natural sería esto, y **no funciona**:
+
+```bash
+ros2 run h1_2_arm_control init_pose
+ros2 run mi_paquete mi_algoritmo        # <-- aquí el brazo YA se cayó
+ros2 run h1_2_arm_control rest_pose
+```
+
+Cuando `init_pose` termina, baja las ganancias a cero y el proceso muere. Sin
+nadie publicando, la gravedad se lleva los codos: **medido, de 1° a 79° y 85°
+en unos segundos**. El siguiente comando tarda varios segundos en arrancar
+—crear el nodo, esperar el primer `/lowstate`, enganchar en rampa— y para
+entonces el brazo ya no está donde lo dejaron.
+
+No es un fallo que se pueda tapar: mientras nadie mande, el brazo cae. La única
+forma de que no haya hueco es que **el mismo proceso** coloque, ejecute y
+devuelva. Para eso está `algorithm_template.py`: cópialo a tu paquete y cambia
+`mi_algoritmo()` por lo tuyo.
 
 ```bash
 ros2 run h1_2_arm_control debug_mode --ros-args -p action:=enter
-ros2 run h1_2_arm_control init_pose
-#   ... aquí va tu algoritmo ...
-ros2 run h1_2_arm_control rest_pose
+ros2 run h1_2_arm_control algorithm_template     # coloca, ejecuta y devuelve
 ros2 run h1_2_arm_control debug_mode --ros-args -p action:=exit
 ```
+
+Si lo que quieres es solo dejar el brazo firme en 0° para mirarlo, `init_pose`
+tiene `-p keep:=true`, que lo sostiene hasta Ctrl-C. Pero mientras esté
+sosteniendo, ningún otro proceso puede publicar en `/lowcmd` sin pelearse por
+el canal.
 
 ### Por qué `init_pose` va en tres tramos
 

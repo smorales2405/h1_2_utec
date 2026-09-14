@@ -46,6 +46,20 @@ class Safety:
     lowstate_timeout: float = 0.5
 
 
+# Violación de autocolisión por debajo de la cual no se hace nada.
+#
+# El umbral era 1e-9 rad, que para una restricción que sale de una tabla con
+# resolución de 1° no significa nada. Medido el 2026-09-14: con la tabla
+# `[0°, 0°]` —el hombro puede llegar a 0° con el codo flexionado— basta que el
+# codo esté a 0.2° para que la interpolación exija 0.025° de hombro; con el
+# hombro en 0.0° eso es una «violación» de 0.025° y el portero congelaba la
+# consigna. Saltaba en el 17 % de los ciclos de una colocación normal.
+#
+# Medio grado es despreciable contra los ≥5° de margen que tiene la envolvente
+# en su peor caso, y deja fuera todo el ruido numérico.
+TOL_COLISION = math.radians(0.5)
+
+
 class Gains:
     """Ganancias kp/kd por índice de motor, con sus valores por defecto."""
 
@@ -267,12 +281,12 @@ class Gains:
                 continue
             d_new = self._violacion(i_roll, float(q_des[i_roll]),
                                     float(q_des[i_elb]), wrist_motion)
-            if d_new <= 1e-9:
+            if d_new <= TOL_COLISION:
                 continue
             d_old = (self._violacion(i_roll, float(q_prev[i_roll]),
                                      float(q_prev[i_elb]), wrist_motion)
                      if q_prev is not None else 0.0)
-            if d_new <= d_old + 1e-9:
+            if d_new <= d_old + TOL_COLISION:
                 continue                      # no empeora: se deja pasar
             n += 1
             if i_elb in traj_joints and i_roll not in traj_joints:

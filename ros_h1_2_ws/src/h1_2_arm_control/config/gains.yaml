@@ -335,20 +335,30 @@ shoulder_roll_vs_elbow_deg:
 # El signo del roll lo pone el lado, como en `test_direction`: positivo separa
 # el brazo izquierdo del cuerpo y negativo el derecho.
 rest_posture_deg:
-  roll_salida_deg: 10.0
+  # 12° y no 10°: el tope condicionado pide |roll| >= 10° con el codo
+  # estirado, y mandar justo el límite deja al portero recortando en el borde.
+  # Con 12 hay 2° de margen y no actúa.
+  roll_salida_deg: 12.0
   joints:
-    # Brazos estirados y pegados al cuerpo, que es donde quedan colgados del
-    # arnés por su propio peso. Los 5° de roll mantienen la mano despejada de
-    # la pierna sin separar el brazo de forma apreciable.
+    # Brazos estirados, que es el mínimo de gravedad: al bajar las ganancias
+    # no cae nada.
+    #
+    # El roll va a 12° y NO a los ~5° donde el brazo acaba colgando por su
+    # propio peso. Son dos cosas distintas: 5° es donde la gravedad lo deja,
+    # pero el tope de autocolisión pide >= 10° con el codo estirado, y un
+    # paquete de control no debe mandar una postura que su propia protección
+    # rechaza —el portero recortaba el 17 % de los ciclos—. Desde 12° el brazo
+    # se acerca solo al cuerpo hasta su sitio, despacio y con el codo ya
+    # estirado, así que no hay nada que caiga ni que golpee.
     L_shoulder_pitch:  0.0
-    L_shoulder_roll:   5.0
+    L_shoulder_roll:  12.0
     L_shoulder_yaw:    0.0
     L_elbow:          80.0
     L_wrist_roll:      0.0
     L_wrist_pitch:     0.0
     L_wrist_yaw:       0.0
     R_shoulder_pitch:  0.0
-    R_shoulder_roll:  -5.0
+    R_shoulder_roll: -12.0
     R_shoulder_yaw:    0.0
     R_elbow:          80.0
     R_wrist_roll:      0.0

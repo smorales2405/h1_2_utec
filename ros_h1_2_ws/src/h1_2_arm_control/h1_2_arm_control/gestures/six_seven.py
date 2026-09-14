@@ -35,6 +35,26 @@ centro y con velocidad nula**, sin ningún corte. Y `dq` lleva el término de la
 envolvente: mandar la derivada del seno sin él sería mandar una velocidad que
 no corresponde a la posición, que es justo el error que la especificación
 advierte en su §9.
+
+───────────────────────────────────────────────────────────────────────────
+DOS COSAS EN LAS QUE ESTO SE APARTA DE LA ESPECIFICACIÓN, A PROPÓSITO
+───────────────────────────────────────────────────────────────────────────
+
+**El canal es `lowcmd`, no `arm_sdk`.** La especificación (§13) prefiere
+`arm_sdk`, y tendría razón si funcionara: es el mecanismo que cede solo los
+brazos sin soltar la locomoción. Pero en este robot se probó con cinco
+variantes de mensaje y **con el robot en reposo no hace nada**. Todo el
+paquete, y toda la sintonización de la que salen estas ganancias, va por
+`lowcmd` con el controlador de alto nivel soltado. Seguir la especificación
+aquí daría un gesto que no mueve el robot.
+
+**Las palmas van a ±90°, no a 1.2–1.5 rad.** La especificación (§4) daba ese
+rango y dejaba los signos por verificar, precisamente porque las manos Inspire
+van sobre una adaptación y el cero visual de la palma no coincide con el cero
+del joint. Verificado sobre el robot: `L_wrist_roll = −90°` y
+`R_wrist_roll = +90°`. Son parámetros, así que se cambian sin tocar el código.
+
+───────────────────────────────────────────────────────────────────────────
 """
 from __future__ import annotations
 

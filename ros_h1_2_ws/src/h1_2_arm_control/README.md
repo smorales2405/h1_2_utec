@@ -51,6 +51,26 @@ y al terminar la sesión, `-p action:=exit`.
 | `rest_pose` | vuelta a la postura de reposo **sin que la mano roce la pierna** |
 
 | `algorithm_template` | plantilla: colocar → tu algoritmo → devolver, en UN proceso |
+| `six_seven` | el gesto de balanza con las dos manos, palmas arriba |
+
+### `six_seven`
+
+```bash
+ros2 run h1_2_arm_control six_seven --ros-args -p duration:=8.0
+```
+
+Hace el ciclo entero: coloca en 0°, adopta la postura del gesto, oscila los dos
+hombros en contrafase y vuelve a reposo. La amplitud entra y sale con una
+envolvente de coseno alzado, así que **empieza y acaba en el centro con
+velocidad exactamente nula** en vez de cortarse a media carrera.
+
+Parámetros: `duration`, `frequency`, `amplitude`, `center_pitch`,
+`shoulder_roll`, `elbow_center`, `palm_up_left`, `palm_up_right`,
+`elbow_swing`, `fade`, `return_home`.
+
+Antes de mover nada comprueba los topes, la envolvente de autocolisión, la
+velocidad de pico contra `max_ref_velocity` y el margen de par que deja la
+gravedad. Si algo no cuadra, lo dice y no ejecuta.
 
 ## ⚠ No encadenes comandos para meter tu algoritmo en medio
 

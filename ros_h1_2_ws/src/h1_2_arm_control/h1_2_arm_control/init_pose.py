@@ -24,11 +24,24 @@ import sys
 
 from ._node_base import ArmNode, ejecuta
 from .joints import ARM_INDICES, BY_INDEX
+from .postures import to_zero
 
 
 class InitPose(ArmNode):
     def __init__(self, nombre="h1_2_init_pose"):
-        super().__init__(nombre, {"hold": 1.0})
+        super().__init__(nombre, {
+            "hold": 1.0,
+            # `keep` deja el brazo SOSTENIDO hasta Ctrl-C en vez de soltarlo.
+            # Hace falta saber por qué: al soltar, las ganancias bajan a cero y
+            # la gravedad se lleva los codos —medido, de 1° a 79° y 85° en
+            # segundos—. Si lo que sigue es otro proceso, para cuando ese
+            # enganche el brazo ya se cayó. Con `keep:=true` se queda firme,
+            # pero OJO: mientras esté sostenido nadie más puede publicar en
+            # /lowcmd sin pelearse con este nodo. Para encadenar un algoritmo,
+            # lo correcto es llamar a `postures.to_zero()` desde el algoritmo
+            # con su propio cliente: ver `algorithm_template.py`.
+            "keep": False,
+        })
 
     def run(self) -> int:
         with self.cliente() as cli:
@@ -41,25 +54,29 @@ class InitPose(ArmNode):
             v = float(self.p("speed"))
             cli.engage()
 
-            rolls = [i for i in ARM_INDICES
-                     if BY_INDEX[i].name.endswith("shoulder_roll")]
-            codos = [i for i in ARM_INDICES if BY_INDEX[i].name.endswith("elbow")]
-            resto = [i for i in ARM_INDICES if i not in rolls and i not in codos]
-
-            print(f"\n  1/3 · flexionando los codos…")
-            cli.ramp_to({i: 0.0 for i in codos}, speed=v)
-            print("  2/3 · muñecas y el resto…")
-            cli.ramp_to({i: 0.0 for i in resto}, speed=v)
-            print("  3/3 · hombros a 0°, ya con el codo flexionado…")
-            cli.ramp_to({i: 0.0 for i in rolls}, speed=v)
-
-            for i in ARM_INDICES:
-                cli.wait_settled(i)
+            print()
+            to_zero(cli, speed=v)
             cli.sleep(float(self.p("hold")))
 
             self.tabla(cli, q0)
             peor = max(abs(cli.q(i)) for i in ARM_INDICES)
             print(f"\n  Peor desviación de 0°: {math.degrees(peor):.2f}°")
+
+            if self.p("keep"):
+                print("\n  SOSTENIENDO la postura. Ctrl-C para soltar.\n"
+                      "  Mientras tanto ningún otro proceso debe publicar en\n"
+                      "  /lowcmd: se pelearían por el canal.")
+                try:
+                    while True:
+                        cli.sleep(0.5)
+                except KeyboardInterrupt:
+                    print("\n  soltando…")
+            else:
+                print("\n  Se suelta el control: las ganancias bajan a 0 y los\n"
+                      "  codos CAERÁN solos hasta quedar colgando. Es normal.\n"
+                      "  Si lo que viene después necesita partir de 0°, tiene\n"
+                      "  que llamar a `postures.to_zero()` él mismo:\n"
+                      "  ver `algorithm_template.py`.")
             # Soltar EN CERO: volver a donde estaba sería deshacerlo.
             cli.release(home_to={i: 0.0 for i in ARM_INDICES})
         return 0

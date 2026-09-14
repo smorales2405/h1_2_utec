@@ -39,6 +39,10 @@ setup(
             # Movimiento
             'hold = h1_2_arm_control.hold:main',
             'move_joint = h1_2_arm_control.move_joint:main',
+            # Plantilla para encadenar init -> algoritmo -> reposo
+            # en UN proceso, que es la única forma de que el brazo
+            # no se caiga entre medias.
+            'algorithm_template = h1_2_arm_control.algorithm_template:main',
         ],
     },
 )

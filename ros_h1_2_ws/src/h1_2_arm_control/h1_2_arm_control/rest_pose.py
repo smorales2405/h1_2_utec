@@ -29,6 +29,7 @@ import sys
 
 from ._node_base import ArmNode, ejecuta
 from .joints import ARM_INDICES, BY_INDEX
+from .postures import to_rest
 
 
 class RestPose(ArmNode):
@@ -38,36 +39,11 @@ class RestPose(ArmNode):
     def run(self) -> int:
         with self.cliente() as cli:
             cli.wait_for_state()
-            reposo = cli.gains.rest_posture()
-            if not reposo:
-                print("  no hay `rest_posture_deg` en config/gains.yaml")
-                return 1
-
-            rolls = {i: BY_INDEX[i].name for i in ARM_INDICES
-                     if BY_INDEX[i].name.endswith("shoulder_roll")}
-            codos = [i for i in ARM_INDICES if BY_INDEX[i].name.endswith("elbow")]
-            salida = cli.gains.rest_roll_exit
-            fuera = {i: math.copysign(salida, 1.0 if n.startswith("L_") else -1.0)
-                     for i, n in rolls.items()}
-
             q0 = {i: cli.q(i) for i in ARM_INDICES}
             v = float(self.p("speed"))
-            print(f"\n  Secuencia, a {v} rad/s:")
-            print(f"    1. hombros   → ±{math.degrees(salida):.0f}°"
-                  f"   (aparta la mano de la pierna)")
-            print(f"    2. codos     → {math.degrees(reposo[codos[0]]):.0f}°"
-                  f"   (estirar, ya lejos)")
-            print(f"    3. reposo    → brazo estirado = mínimo de gravedad")
-
-            cli.engage()
-            print("\n  1/3 · apartando los hombros…")
-            cli.ramp_to(fuera, speed=v)
-            print("  2/3 · estirando los codos…")
-            cli.ramp_to({i: reposo[i] for i in codos}, speed=v)
-            print("  3/3 · a la postura de reposo…")
-            cli.ramp_to(reposo, speed=v)
-            for i in ARM_INDICES:
-                cli.wait_settled(i)
+            print(f"\n  Secuencia, a {v} rad/s. El orden es lo que evita que\n"
+                  f"  la mano roce la pierna:\n")
+            reposo = to_rest(cli, speed=v)
 
             self.tabla(cli, q0)
             print("\n  Brazos estirados y pegados al cuerpo. Al bajar las\n"

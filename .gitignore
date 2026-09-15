@@ -33,6 +33,3 @@ h1_2_joint_control/logs/*.png
 ros_h1_2_ws/build/
 ros_h1_2_ws/install/
 ros_h1_2_ws/log/
-
-# Paquete de descripción con manos: es un repositorio aparte
-ros_h1_2_ws/src/h1_2_inspire_description/

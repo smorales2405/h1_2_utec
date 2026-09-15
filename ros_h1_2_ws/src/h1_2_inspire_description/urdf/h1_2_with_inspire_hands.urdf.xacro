@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- H1-2 humanoid with Inspire RH56DFTP hands attached at both wrists.
+     Mounting offsets taken from h1_2_hands_pkg/urdf/h1_2_with_inspire_hands.urdf. -->
+<robot name="h1_2_with_inspire_hands" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:include filename="$(find h1_2_inspire_description)/urdf/h1_2_body.urdf.xacro"/>
+  <xacro:include filename="$(find h1_2_inspire_description)/urdf/inspire_hand_left.urdf.xacro"/>
+  <xacro:include filename="$(find h1_2_inspire_description)/urdf/inspire_hand_right.urdf.xacro"/>
+
+  <!-- Left hand attached to left_wrist_yaw_link -->
+  <joint name="left_inspire_hand_mount_joint" type="fixed">
+    <origin xyz="0.165 -0.1125 -0.0075" rpy="3.1415926535 1.5707963267 3.1415926535"/>
+    <parent link="left_wrist_yaw_link"/>
+    <child link="left_hand_base_link"/>
+  </joint>
+
+  <!-- Right hand attached to right_wrist_yaw_link -->
+  <joint name="right_inspire_hand_mount_joint" type="fixed">
+    <origin xyz="0.165 0.1125 -0.0075" rpy="0 1.5707963267 0"/>
+    <parent link="right_wrist_yaw_link"/>
+    <child link="right_hand_base_link"/>
+  </joint>
+
+</robot>

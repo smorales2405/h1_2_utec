@@ -45,7 +45,27 @@ h1_2_teleoperation/
     │                                            (el nombre engaña: hace falta TAMBIÉN en el robot real)
     ├── televuer_image_format_knob.patch         formato de la imagen hacia el visor
     └── teleimager_webrtc_warning.patch          quita un aviso falso a 90/s
+
+ros_h1_2_ws/                  Workspace ROS 2
+├── setup_env.sh                  entorno del workspace
+├── docs/                         especificaciones
+└── src/
+    ├── h1_2_arm_control/         control de brazos: hold, goto, posturas, gravedad, gestos
+    └── h1_2_inspire_description/ modelo URDF/Xacro del H1-2 con las manos RH56DFTP,
+                                  mallas y launches de visualización en RViz
 ```
+
+## Procedencia de `h1_2_inspire_description`
+
+Este paquete vivió hasta el 2026-09-15 en su propio repositorio,
+[`h1_2_inspire_description`](https://github.com/smorales2405/h1_2_inspire_description),
+y se integró aquí para tener un solo sitio donde trabajar. **A partir de ahora
+los cambios se hacen y se suben en este repositorio.** El repositorio original
+queda como registro histórico: conserva los 9 commits del desarrollo del URDF
+(masa de las manos medida en balanza, espejado de la mano derecha, poda de
+mallas sin usar, variantes para Pinocchio e Isaac Sim). Se trajo el árbol de
+archivos, no la historia, para no arrastrar a este repositorio las mallas que
+allí se borraron.
 
 ## Qué NO está aquí, y por qué
 

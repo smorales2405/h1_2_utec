@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>h1_2_inspire_description</name>
+  <version>0.1.0</version>
+  <description>
+    Self-contained description package for the Unitree H1-2 humanoid robot with
+    Inspire RH56DFTP hands. Includes URDF/Xacro for the body alone, each hand
+    alone, and the full robot with both hands attached.
+  </description>
+  <maintainer email="smorales@utec.edu.pe">sergio</maintainer>
+  <license>BSD</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>joint_state_publisher</exec_depend>
+  <exec_depend>joint_state_publisher_gui</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>xacro</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

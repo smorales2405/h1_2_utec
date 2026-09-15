@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Inspire RH56DFTP left hand — standalone file for isolated visualization.
+     Adds a world link and a fixed base joint so RViz can display the hand alone. -->
+<robot name="inspire_hand_left" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <link name="world"/>
+
+  <joint name="L_hand_base_joint" type="fixed">
+    <origin xyz="0 0 0.5" rpy="3.1415926 -1.5707963 1.5"/>
+    <parent link="world"/>
+    <child link="left_hand_base_link"/>
+  </joint>
+
+  <xacro:include filename="$(find h1_2_inspire_description)/urdf/inspire_hand_left.urdf.xacro"/>
+
+</robot>

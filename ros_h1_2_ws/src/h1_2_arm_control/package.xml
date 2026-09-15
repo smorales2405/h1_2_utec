@@ -16,6 +16,8 @@
   <exec_depend>unitree_api</exec_depend>
   <exec_depend>python3-numpy</exec_depend>
   <exec_depend>python3-yaml</exec_depend>
+  <!-- El URDF del que sale la cinemática para la gravedad -->
+  <exec_depend>h1_2_inspire_description</exec_depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

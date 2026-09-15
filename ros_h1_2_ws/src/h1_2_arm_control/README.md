@@ -154,17 +154,19 @@ sobrescribir con `-p gains:=...`.
 > `tau_g/kp` crece justo donde más pesa. Si no puedes usar `pinocchio`, cambia
 > el conjunto, no apagues la gravedad.
 
-La compensación necesita `pinocchio` y el URDF con manos, que **no está en este
-repositorio**: viene de `github.com/oscar-ramos/h1_2_utec`, paquete
-`h1_2_description`. Si no está en una ruta habitual:
+La compensación necesita `pinocchio` y un URDF, que sale del paquete
+**`h1_2_inspire_description` de este mismo workspace**
+(`urdf/h1_2_with_RH56DFTP_hands.urdf`). Se resuelve por el índice de ament, así
+que basta con `colcon build` y `source install/setup.bash`. Para probar otro
+modelo sin tocar nada:
 
 ```bash
-export H12_URDF=/ruta/a/h1_2_description/urdf/h1_2.urdf
+export H12_URDF=/ruta/a/otro.urdf
 ```
 
 Si falta, el nodo avisa y sigue sin compensación en vez de caerse.
 
-### Cambiar de URDF
+### Sobre el URDF
 
 **Las masas del URDF no se usan para los brazos.** Al construir el modelo, los
 parámetros identificados sobrescriben las inercias de los cuerpos del brazo, así
@@ -172,17 +174,18 @@ que lo único que el URDF aporta ahí es la CINEMÁTICA. Medido:
 
 | masa de la mano | izquierda | derecha |
 |---|---:|---:|
-| `h1_2.urdf` (el que se usa) | 0.316 kg | 0.316 kg |
-| `h1_2_with_RH56DFTP_hands.urdf` | 0.964 kg | 0.964 kg |
+| `h1_2.urdf` (el que se usaba antes) | 0.316 kg | 0.316 kg |
+| `h1_2_with_RH56DFTP_hands.urdf` (el de ahora) | 0.964 kg | 0.964 kg |
 | **identificada sobre el robot** | **1.138 kg** | **1.074 kg** |
 
 La identificada es la mayor de las tres, y es la que vale: el robot también
 carga el conector y el cable, que ningún URDF modela.
 
-Cambiar de URDF mueve el par de gravedad **0.47 Nm como mucho**; con kp = 111
-eso son 0.24° de error permanente, dentro del ruido de lo que ya se mide. **No
-hace falta resintonizar.** Lo que sí cuesta caro es usar un URDF *sin* los
-parámetros identificados: ahí la diferencia llega a **5.16 Nm**.
+El cambio de `h1_2.urdf` a `h1_2_with_RH56DFTP_hands.urdf` movió el par de
+gravedad **0.47 Nm como mucho** —medido en tres posturas—; con kp = 111 eso son
+0.24° de error permanente, dentro del ruido de lo que ya se mide. **No hubo que
+resintonizar.** Lo que sí costaría caro es usar un URDF *sin* los parámetros
+identificados: ahí la diferencia llega a **5.16 Nm**.
 
 > ⚠ Los parámetros se cargan **por índice de cuerpo**, y ese índice vale para el
 > URDF con el que se identificaron. Otro URDF puede aceptar los mismos índices

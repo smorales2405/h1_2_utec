@@ -5,10 +5,14 @@ gravedad, para pasarlo como `tau_ff`. Sin él, el PD solo puede generar ese par
 a costa de un error permanente `tau_g/kp` que no se va nunca — que es lo que
 tiene a los hombros con 1° de caída y a kp pegado a su techo de saturación.
 
-Los parámetros NO son los del URDF. Se identifican con `12_gravity_map.py` +
-`13_gravity_fit.py`, porque los del URDF dan 2.57 Nm de error rms contra los
-0.34 del ajuste. La cinemática sí es la del URDF: son longitudes y ejes, y eso
-un URDF suele tenerlo bien.
+Los parámetros NO son los del URDF: se identificaron sobre el robot, porque
+los del URDF dan 2.57 Nm de error rms contra los 0.34 del ajuste. Y no es solo
+cuestión de precisión —el robot carga además el conector y el cable de la mano,
+que ningún URDF modela: la masa identificada, 1.14 kg, supera a la de cualquier
+URDF disponible—.
+
+La cinemática sí es la del URDF: son longitudes y ejes, y eso un URDF suele
+tenerlo bien. Por eso cambiar de modelo mueve el par 0.47 Nm como mucho.
 """
 from __future__ import annotations
 
@@ -21,26 +25,45 @@ import numpy as np
 from .gains import _config_path
 from .joints import BY_INDEX, NUM_CMD_MOTOR
 
-def _urdf() -> Path:
-    """Ruta del URDF con las manos Inspire.
+# Paquete y fichero del modelo. Viven en `h1_2_inspire_description`, que es
+# parte de este workspace: así todo lo necesario para trabajar con el robot
+# está en un solo sitio y no depende de dónde tenga cada uno sus repos.
+URDF_PKG = "h1_2_inspire_description"
+URDF_FILE = "h1_2_with_RH56DFTP_hands.urdf"
 
-    Viene del repositorio `oscar-ramos/h1_2_utec` (el paquete de descripción),
-    que NO es este. En otra máquina la ruta cambia, así que se puede fijar con
-    la variable de entorno `H12_URDF`.
+
+def _urdf() -> Path:
+    """Ruta del URDF del H1-2 con las manos Inspire.
+
+    Se resuelve por el índice de ament, o sea desde el `share/` del paquete
+    instalado. `H12_URDF` lo fuerza, que es lo que hace falta para probar otro
+    modelo sin tocar nada.
+
+    OJO al cambiar de modelo: los parámetros de masa identificados se cargan
+    POR ÍNDICE DE CUERPO, y ese índice vale para el URDF con el que se
+    identificaron. `GravityModel` lo comprueba antes de cargar nada; ver
+    `_indices_cuadran`.
     """
     import os
     v = os.environ.get("H12_URDF")
     if v:
         return Path(v)
-    for c in (Path.home() / "humanoid_ws/src/h1_2_utec/h1_2_description/urdf/h1_2.urdf",
-              Path.home() / "h1_2_utec/h1_2_description/urdf/h1_2.urdf",
-              Path.home() / "ros2_ws/src/h1_2_utec/h1_2_description/urdf/h1_2.urdf"):
-        if c.exists():
-            return c
+    try:
+        from ament_index_python.packages import get_package_share_directory
+        p = Path(get_package_share_directory(URDF_PKG)) / "urdf" / URDF_FILE
+        if p.exists():
+            return p
+    except Exception:
+        pass
+    # sin instalar: el árbol fuente, que está al lado
+    p = (Path(__file__).resolve().parents[3] / URDF_PKG / "urdf" / URDF_FILE)
+    if p.exists():
+        return p
     raise FileNotFoundError(
-        "no encuentro el URDF del H1-2 con manos Inspire.\n"
-        "  Viene de github.com/oscar-ramos/h1_2_utec (h1_2_description).\n"
-        "  Clónalo, o indica la ruta con:  export H12_URDF=/ruta/a/h1_2.urdf")
+        f"no encuentro {URDF_FILE}.\n"
+        f"  Debería venir del paquete `{URDF_PKG}` de este mismo workspace.\n"
+        f"  ¿Has hecho `colcon build` y `source install/setup.bash`?\n"
+        f"  Se puede forzar con:  export H12_URDF=/ruta/a/{URDF_FILE}")
 
 
 URDF = None   # se resuelve al construir el modelo

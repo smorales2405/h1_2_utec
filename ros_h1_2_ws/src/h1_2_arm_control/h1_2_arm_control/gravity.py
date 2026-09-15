@@ -76,6 +76,8 @@ class GravityModel:
 
         for brazo, f in sorted(elegido.items()):
             d = json.loads(f.read_text())
+            if not self._indices_cuadran(brazo, d, verbose):
+                continue
             pi = np.asarray(d["params"], dtype=float)
             for k in d["bodies"]:
                 m_, mcx, mcy, mcz = pi[4 * k:4 * k + 4]
@@ -104,6 +106,49 @@ class GravityModel:
                 self._idx_q[i] = j.idx_q
                 self._idx_v[i] = j.idx_v
         self._q = pin.neutral(self.model)
+
+    def _indices_cuadran(self, brazo: str, d: dict, verbose: bool) -> bool:
+        """¿Los índices del fichero apuntan a los cuerpos que se ajustaron?
+
+        Esto no es paranoia: los parámetros se cargan en
+        `model.inertias[k + 1]`, **por índice**, y ese índice vale para el URDF
+        con el que se identificaron. Si se cambia de URDF, los índices siguen
+        existiendo y siguen aceptando valores, así que una masa puede acabar en
+        el eslabón equivocado **sin que nada falle**.
+
+        Comprobado el 2026-09-14 entre `h1_2.urdf` y
+        `h1_2_with_RH56DFTP_hands.urdf`: los dos tienen 52 articulaciones y
+        coinciden en los cuerpos 13 a 19 —el brazo— pero divergen a partir del
+        20, que son los dedos. Ahí el daño resultó pequeño (0.47 Nm) porque la
+        mano es un bulto compacto al final del brazo, pero en otro URDF podría
+        no serlo.
+
+        Se comprueban las siete articulaciones de brazo, que son las que llevan
+        el par. Si no cuadran, ese brazo se queda sin compensación en vez de
+        compensar con masas puestas donde no van.
+        """
+        prefijo = "left" if brazo == "left" else "right"
+        esperado = [f"{prefijo}_{n}_joint" for n in
+                    ("shoulder_pitch", "shoulder_roll", "shoulder_yaw", "elbow",
+                     "wrist_roll", "wrist_pitch", "wrist_yaw")]
+        cuerpos = sorted(d.get("bodies", []))[:len(esperado)]
+        malos = [(k, self.model.names[k + 1], e)
+                 for k, e in zip(cuerpos, esperado)
+                 if k + 1 < self.model.njoints and self.model.names[k + 1] != e]
+        if malos:
+            k, hay, deb = malos[0]
+            print(f"  ⚠ gravedad: el brazo {brazo} NO se compensa.\n"
+                  f"    Los parámetros se identificaron sobre\n"
+                  f"      {d.get('urdf', '(desconocido)')}\n"
+                  f"    y este modelo es\n"
+                  f"      {self.urdf}\n"
+                  f"    En el cuerpo {k} debería estar '{deb}' y está '{hay}':\n"
+                  f"    cargarlos pondría masa en el eslabón equivocado.")
+            return False
+        if verbose and d.get("urdf") and Path(d["urdf"]) != self.urdf:
+            print(f"  gravedad: URDF distinto del de la identificación, pero "
+                  f"las 7 articulaciones del brazo {brazo} cuadran.")
+        return True
 
     def tau(self, q27) -> dict[int, float]:
         """Par de gravedad por motor, en Nm, para esa configuración."""

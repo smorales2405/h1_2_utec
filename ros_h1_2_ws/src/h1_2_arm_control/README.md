@@ -164,6 +164,33 @@ export H12_URDF=/ruta/a/h1_2_description/urdf/h1_2.urdf
 
 Si falta, el nodo avisa y sigue sin compensación en vez de caerse.
 
+### Cambiar de URDF
+
+**Las masas del URDF no se usan para los brazos.** Al construir el modelo, los
+parámetros identificados sobrescriben las inercias de los cuerpos del brazo, así
+que lo único que el URDF aporta ahí es la CINEMÁTICA. Medido:
+
+| masa de la mano | izquierda | derecha |
+|---|---:|---:|
+| `h1_2.urdf` (el que se usa) | 0.316 kg | 0.316 kg |
+| `h1_2_with_RH56DFTP_hands.urdf` | 0.964 kg | 0.964 kg |
+| **identificada sobre el robot** | **1.138 kg** | **1.074 kg** |
+
+La identificada es la mayor de las tres, y es la que vale: el robot también
+carga el conector y el cable, que ningún URDF modela.
+
+Cambiar de URDF mueve el par de gravedad **0.47 Nm como mucho**; con kp = 111
+eso son 0.24° de error permanente, dentro del ruido de lo que ya se mide. **No
+hace falta resintonizar.** Lo que sí cuesta caro es usar un URDF *sin* los
+parámetros identificados: ahí la diferencia llega a **5.16 Nm**.
+
+> ⚠ Los parámetros se cargan **por índice de cuerpo**, y ese índice vale para el
+> URDF con el que se identificaron. Otro URDF puede aceptar los mismos índices
+> y poner la masa en el eslabón equivocado sin que nada falle. Por eso
+> `GravityModel` comprueba que las siete articulaciones del brazo estén donde
+> deben antes de cargar nada, y si no cuadran deja ese brazo **sin compensar**
+> en vez de compensar mal.
+
 ## Usarlo desde un algoritmo
 
 Los nodos son para poner el robot en marcha. Para escribir algoritmos, lo que

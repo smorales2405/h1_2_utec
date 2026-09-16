@@ -51,6 +51,8 @@ ros_h1_2_ws/                  Workspace ROS 2
 ├── docs/                         especificaciones
 └── src/
     ├── h1_2_arm_control/         control de brazos: hold, goto, posturas, gravedad, gestos
+    ├── h1_2_vision/              cámara de cabeza (D435i) por el servicio `videohub` del
+    │                             robot, publicada como una cámara ROS normal
     └── h1_2_inspire_description/ modelo URDF/Xacro del H1-2 con las manos RH56DFTP,
                                   mallas y launches de visualización en RViz
 ```

@@ -69,6 +69,49 @@ def _urdf() -> Path:
 URDF = None   # se resuelve al construir el modelo
 
 
+def _comprueba_abi_numpy() -> None:
+    """Se niega a importar `pinocchio` si la ABI de NumPy no va a cuadrar.
+
+    No es una precaución teórica: `ros-humble-pinocchio` es una extensión C
+    compilada contra la ABI de NumPy 1.x, y si el intérprete ha cargado NumPy
+    2.x el import no lanza una excepción que se pueda atrapar —**mata el
+    proceso con SIGSEGV**—. Observado el 2026-09-17:
+
+        AttributeError: _ARRAY_API not found
+        [ros2run]: Segmentation fault
+
+    Un `try/except` alrededor del import no sirve de nada frente a eso, así que
+    hay que mirar ANTES. La comprobación es una heurística: NumPy 2.x en el
+    intérprete y un `pinocchio` instalado bajo `/opt/ros`. Es justo la
+    combinación que revienta, y prefiero un falso positivo con un mensaje que
+    diga qué hacer a un volcado de núcleo.
+
+    La causa típica es un `numpy` de `~/.local` tapando al de Debian; lo
+    resuelve `setup_env.sh`, que exporta `PYTHONNOUSERSITE=1`.
+    """
+    import importlib.util
+    import numpy
+
+    try:
+        mayor = int(numpy.__version__.split(".")[0])
+    except (AttributeError, ValueError):
+        return
+    if mayor < 2:
+        return
+    spec = importlib.util.find_spec("pinocchio")
+    origen = (getattr(spec, "origin", None) or "") if spec else ""
+    if not origen.startswith("/opt/ros"):
+        return                    # un pinocchio de pip o de conda: es cosa suya
+    raise RuntimeError(
+        f"numpy {numpy.__version__} (de {numpy.__file__}) con el pinocchio de "
+        f"ROS en {origen}.\n"
+        f"    Ese pinocchio esta compilado contra la ABI de numpy 1.x: "
+        f"importarlo no da un error, MATA EL PROCESO.\n"
+        f"    Solucion:   source ros_h1_2_ws/setup_env.sh   "
+        f"(exporta PYTHONNOUSERSITE=1)\n"
+        f"    o sin el:   PYTHONNOUSERSITE=1 ros2 run h1_2_arm_control <nodo>")
+
+
 class GravityModel:
     """`g(q27) -> {idx: tau}` con los parámetros de masa identificados.
 
@@ -78,6 +121,7 @@ class GravityModel:
     """
 
     def __init__(self, params_files=None, verbose=True):
+        _comprueba_abi_numpy()
         import pinocchio as pin
         self._pin = pin
         self.urdf = _urdf()

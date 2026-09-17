@@ -34,9 +34,38 @@ colcon build --symlink-install
 source setup_env.sh
 ```
 
-`setup_env.sh` hace falta: además del `install/setup.bash`, fija
-`RMW_IMPLEMENTATION` y apunta `CYCLONEDDS_URI` a la NIC del robot. Sin eso el
-nodo se crea pero no oye nada, o falla con un error que no dice por qué.
+`setup_env.sh` hace falta, y por tres cosas: además del `install/setup.bash`,
+fija `RMW_IMPLEMENTATION`, apunta `CYCLONEDDS_URI` a la NIC del robot, y aísla
+el proceso de `~/.local`. Sin lo primero el nodo se crea pero no oye nada; sin
+lo último **se muere con un segfault**.
+
+### El segfault de NumPy, si te lo encuentras
+
+```
+AttributeError: _ARRAY_API not found
+[ros2run]: Segmentation fault
+```
+
+En esta máquina conviven `numpy 1.21.5` (paquete Debian, en
+`/usr/lib/python3/dist-packages`) y `numpy 2.2.6` (pip, en `~/.local`). Como
+`~/.local` va antes en `sys.path`, gana el 2.2.6 — pero `ros-humble-pinocchio`,
+y en general toda extensión C de ROS Humble, está compilada contra la ABI de
+NumPy 1.x. Importarla entonces no lanza una excepción que se pueda atrapar:
+mata el proceso.
+
+**No lo arregles desinstalando numpy 2.2.6**: `opencv-python`, en ese mismo
+`~/.local`, lo exige. `setup_env.sh` exporta `PYTHONNOUSERSITE=1`, con lo que
+solo los procesos de este workspace ignoran `~/.local` y ven el numpy de
+Debian. El resto del sistema se queda como está.
+
+Si ya tienes la terminal abierta y no quieres volver a sourcear:
+
+```bash
+PYTHONNOUSERSITE=1 ros2 run h1_2_arm_control six_seven --ros-args -p duration:=8.0
+```
+
+`gravity.py` comprueba esa combinación antes de importar `pinocchio` y se niega
+con un mensaje en vez de reventar.
 
 ## Lo primero, siempre
 

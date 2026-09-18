@@ -102,22 +102,70 @@ y al terminar la sesión, `-p action:=exit`.
 
 ### `six_seven`
 
+Balanza con las dos manos, palmas arriba, en contrafase. Se mueve **una sola
+articulación** —el codo o el hombro-pitch— y el resto se queda clavado.
+
 ```bash
-ros2 run h1_2_arm_control six_seven --ros-args -p duration:=8.0
+ros2 run h1_2_arm_control six_seven --ros-args \
+    -p moving_joint:=elbow \
+    -p shoulder_roll_deg:=5.0 \
+    -p shoulder_pitch_deg:=0.0 \
+    -p elbow_deg:=0.0 \
+    -p amplitude_deg:=20.0 \
+    -p speed:=0.5 \
+    -p duration:=8.0
 ```
 
-Hace el ciclo entero: coloca en 0°, adopta la postura del gesto, oscila los dos
-hombros en contrafase y vuelve a reposo. La amplitud entra y sale con una
-envolvente de coseno alzado, así que **empieza y acaba en el centro con
-velocidad exactamente nula** en vez de cortarse a media carrera.
+Ángulos en **grados**, velocidad en **rad/s**.
 
-Parámetros: `duration`, `frequency`, `amplitude`, `center_pitch`,
-`shoulder_roll`, `elbow_center`, `palm_up_left`, `palm_up_right`,
-`elbow_swing`, `fade`, `return_home`.
+| parámetro | qué es |
+|---|---|
+| `moving_joint` | `elbow` o `shoulder_pitch`: la que oscila |
+| `shoulder_roll_deg` | fijo, en valor absoluto (el signo lo pone el lado) |
+| `shoulder_pitch_deg` | fijo si oscila el codo; referencia si oscila él |
+| `elbow_deg` | fijo si oscila el hombro; referencia si oscila él |
+| `amplitude_deg` | ± desde la referencia, lo mismo arriba que abajo |
+| `speed` | velocidad angular de **pico**, rad/s |
+| `duration` | segundos |
+| `palm_up_left_deg`, `palm_up_right_deg` | orientación de las palmas |
+| `approach_speed` | rad/s de las rampas de colocación |
+| `return_home` | volver a reposo al terminar |
 
-Antes de mover nada comprueba los topes, la envolvente de autocolisión, la
-velocidad de pico contra `max_ref_velocity` y el margen de par que deja la
-gravedad. Si algo no cuadra, lo dice y no ejecuta.
+**La frecuencia no se pide: sale sola.** Para un seno de amplitud A la
+velocidad de pico es A·ω, así que `f = speed / (2π · amplitude)`. El script la
+calcula, la enseña y comprueba que la articulación puede seguirla.
+
+#### Qué velocidad poner
+
+El techo no es un número fijo: depende de la amplitud, porque lo que limita es
+la **frecuencia** que sale de ella. Los anchos de banda están medidos (F5,
+−3 dB, chirp logarítmico con coherencia ≥ 0.98):
+
+```
+shoulder_pitch   1.21 Hz          elbow   3.07 Hz
+```
+
+Manteniéndose en BW/3 el seguimiento es fiel. De ahí:
+
+| amplitud | `shoulder_pitch` | `elbow` |
+|---:|---:|---:|
+| 5° | 0.22 | 0.56 |
+| 10° | 0.44 | **1.00** |
+| 20° | 0.88 | **1.00** |
+| 30° | **1.00** | **1.00** |
+
+En negrita, donde manda el tope de `max_ref_velocity` (1.0 rad/s) y no el
+ancho de banda. Por debajo de **0.05 rad/s** el movimiento queda cerca del
+ruido de velocidad medido (0.007–0.014 rad/s) y sale a tirones.
+
+#### Antes de mover nada comprueba
+
+Topes de la postura fija **y de los extremos de la oscilación**; autocolisión
+**en todo el recorrido**, no solo en la referencia —con el codo oscilando, el
+`|roll|` que la envolvente exige crece con la extensión—; velocidad de pico
+contra `max_ref_velocity`; frecuencia contra el ancho de banda medido; y el
+margen de par que deja la gravedad. Si algo no cuadra lo dice, dice cuánto
+falta, y no ejecuta.
 
 ## ⚠ No encadenes comandos para meter tu algoritmo en medio
 

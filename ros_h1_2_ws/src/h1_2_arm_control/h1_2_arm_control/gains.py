@@ -310,6 +310,26 @@ class Gains:
         lo, hi = self.limits_dynamic(idx_roll, q_elbow, wrist_motion)
         return lo - 1e-9 <= q_roll <= hi + 1e-9
 
+    def clamp_con_codo(self, idx: int, q: float, q_ref) -> float:
+        """Recorta `q` con el tope CONDICIONADO al codo, no con el fijo.
+
+        El fijo de ±10° es el respaldo para cuando no se sabe dónde está el
+        codo. Cuando sí se sabe hay que usarlo, porque con el codo flexionado
+        el hombro puede llegar a 0° y el fijo lo prohíbe.
+
+        Que esto faltara en el lazo de control costó caro el 2026-09-17: una
+        trayectoria del `shoulder_roll` que iba de 0° a −14.3° se quedó clavada
+        en −10° durante 2.8 s, y como la consigna saltó ahí en el primer ciclo,
+        el robot dio un escalón de 10° que nadie había pedido.
+
+        `q_ref` es el vector de consignas, de donde se lee el ángulo del codo.
+        """
+        e = self._cond_pares.get(idx)
+        if e is None:
+            return self.clamp(idx, q)
+        lo, hi = self.limits_dynamic(idx, abs(float(q_ref[e])))
+        return min(max(q, lo), hi)
+
     def clamp(self, idx: int, q: float) -> float:
         lo, hi = self.limits(idx)
         return min(max(q, lo), hi)

@@ -619,9 +619,13 @@ class H12Client:
             if e is None:
                 goal[i] = self.gains.clamp(i, q)
                 continue
-            q_codo = max(abs(float(self._q_des[e])), abs(float(targets.get(e, self._q_des[e]))))
-            lo, hi = self.gains.limits_dynamic(i, q_codo)
-            goal[i] = min(max(q, lo), hi)
+            # El codo MÁS ESTIRADO entre el de ahora y el de destino: durante
+            # la rampa se pasa por los dos y el requisito crece con la
+            # extensión, así que se recorta contra el caso peor.
+            peor = dict(enumerate([0.0] * NUM_CMD_MOTOR))
+            peor[e] = max(abs(float(self._q_des[e])),
+                          abs(float(targets.get(e, self._q_des[e]))))
+            goal[i] = self.gains.clamp_con_codo(i, q, peor)
         dist = max((abs(goal[i] - start[i]) for i in targets), default=0.0)
         if dist < 1e-6:
             return
@@ -770,11 +774,20 @@ class H12Client:
 
         now = time.monotonic()
         with self._lock:
-            # trayectorias: se evalúan aquí, en el ciclo de control
+            # Trayectorias: se evalúan aquí, en el ciclo de control.
+            #
+            # En dos pasadas a propósito. El recorte del hombro depende de
+            # dónde esté el CODO, y si el codo también lleva trayectoria hay
+            # que recortar con su valor de ESTE ciclo, no con el del anterior.
+            # Recortar sobre la marcha, en el orden en que estén en el
+            # diccionario, daría un resultado que depende de ese orden.
             for i, (func, base, t0) in self._traj.items():
                 q_rel, dq_rel = func(now - t0)
-                self._q_des[i] = self.gains.clamp(i, base + q_rel)
+                self._q_des[i] = base + q_rel
                 self._dq_des[i] = dq_rel
+            for i in self._traj:
+                self._q_des[i] = self.gains.clamp_con_codo(
+                    i, float(self._q_des[i]), self._q_des)
 
             # Autocolisión: la restricción acopla hombro y codo, así que se
             # comprueba sobre la PAREJA y se frena al que se esté moviendo.

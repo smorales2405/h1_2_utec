@@ -296,6 +296,14 @@ class SixSevenRemote(Node):
             if not self._comprueba(cli):
                 print("\n  no se arranca.")
                 return 1
+            if bool(self.p("dry_run")):
+                print("\n  ╔═══════════════════════════════════════════════════╗")
+                print("  ║  PRUEBA EN SECO: el robot NO se va a mover.       ║")
+                print("  ║  Se publica en un tópico que nadie escucha, para  ║")
+                print("  ║  validar la detección del mando y la secuencia.   ║")
+                print("  ║                                                   ║")
+                print("  ║  Para que se mueva, quita  -p dry_run:=true       ║")
+                print("  ╚═══════════════════════════════════════════════════╝")
             print(f"\n  Mientras espera NO publica nada: el robot tiene sus\n"
                   f"  brazos enteros. Ctrl-C para salir.\n")
 

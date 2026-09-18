@@ -39,6 +39,9 @@ setup(
             # Movimiento
             'hold = h1_2_arm_control.hold:main',
             'move_joint = h1_2_arm_control.move_joint:main',
+            # Ensayo de cinemática directa, para comparar con el simulador
+            'fk_right_arm_raise = h1_2_arm_control.fk_right_arm_raise:main',
+            'plot_fk_raise = h1_2_arm_control.plot_fk_raise:main',
             # Plantilla para encadenar init -> algoritmo -> reposo
             # en UN proceso, que es la única forma de que el brazo
             # no se caiga entre medias.

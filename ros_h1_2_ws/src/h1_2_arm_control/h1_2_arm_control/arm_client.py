@@ -351,6 +351,16 @@ class H12Client:
         with self._lock:
             return float(self._q_des[idx])
 
+    def dq_des(self, idx: int) -> float:
+        """La velocidad de referencia que se está publicando ahora mismo.
+
+        Hace falta para registrar lo que de verdad se mandó, en vez de volver a
+        evaluar la trayectoria desde fuera: el lazo la evalúa contra su propio
+        reloj, y las dos lecturas no caerían en el mismo instante.
+        """
+        with self._lock:
+            return float(self._dq_des[idx])
+
     def q_all(self) -> np.ndarray:
         s = self.state()
         return np.array([s.motor_state[i].q for i in range(NUM_CMD_MOTOR)])

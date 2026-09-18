@@ -98,6 +98,8 @@ y al terminar la sesión, `-p action:=exit`.
 | `rest_pose` | vuelta a la postura de reposo **sin que la mano roce la pierna** |
 
 | `algorithm_template` | plantilla: colocar → tu algoritmo → devolver, en UN proceso |
+| `fk_right_arm_raise` | ensayo del brazo derecho, para comparar con el simulador |
+| `plot_fk_raise` | gráficas de ese ensayo; superpone varios CSV |
 | `six_seven` | el gesto de balanza con las dos manos, palmas arriba |
 
 ### `six_seven`
@@ -304,3 +306,42 @@ motores se quedan con la última consigna.
   en colisión ya es tarde.
 - **Piernas**: en `/lowcmd` nadie más manda, así que `legs:=hold` las sostiene.
   Con `free` se mueven solas por la reacción del brazo — medido.
+
+## Validar el simulador contra el robot
+
+`fk_right_arm_raise` es la contraparte de `h1_2_algoritms/fk_right_arm_raise.py`,
+que hace lo mismo sobre MuJoCo. Lleva los dos brazos a 0°, recorre una
+trayectoria quíntica hasta `q_goal` con los 7 motores del brazo derecho,
+registra a 100 Hz y devuelve los brazos a reposo — **todo en un proceso**.
+
+```bash
+ros2 run h1_2_arm_control debug_mode --ros-args -p action:=enter
+ros2 run h1_2_arm_control fk_right_arm_raise
+ros2 run h1_2_arm_control debug_mode --ros-args -p action:=exit
+
+ros2 run h1_2_arm_control plot_fk_raise <csv_real> \
+    --compare <csv_sim> --labels "real,simulación"
+```
+
+El CSV tiene **las mismas 50 columnas** que el del simulador, en el mismo
+orden, y la trayectoria y sus valores por defecto también son los mismos. Los
+dos se superponen sin tocar nada.
+
+### Por qué la comparación es válida
+
+El simulador calcula el efector con una tabla **DH**; este paquete lo calcula
+con **pinocchio sobre el URDF**. Si las dos cinemáticas no coincidieran,
+comparar los efectores mediría la diferencia entre ellas y no entre simulación
+y realidad. Comprobado antes de escribir nada:
+
+| comprobación | resultado |
+|---|---|
+| FK del URDF contra la DH, 5 configuraciones | **0.00 mm**, **0.0000°** |
+| Mi FK contra las columnas `ee_*` de los CSV del simulador (1200 filas) | **0.0002 mm**, 0.0229° † |
+
+† esos 0.0229° son la precisión con la que el CSV guarda los decimales, no un
+error de cálculo.
+
+El cuaternión se calcula con la **misma** implementación que el simulador, a
+propósito: su signo es ambiguo —q y −q son la misma rotación— y dos versiones
+distintas darían columnas con el signo cambiado que parecerían un salto.

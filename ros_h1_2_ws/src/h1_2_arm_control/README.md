@@ -100,6 +100,7 @@ y al terminar la sesión, `-p action:=exit`.
 | `algorithm_template` | plantilla: colocar → tu algoritmo → devolver, en UN proceso |
 | `fk_right_arm_raise` | ensayo del brazo derecho, para comparar con el simulador |
 | `plot_fk_raise` | gráficas de ese ensayo; superpone varios CSV |
+| `fk_check` | comprueba que la cinemática es la misma que la del simulador |
 | `six_seven` | el gesto de balanza con las dos manos, palmas arriba |
 
 ### `six_seven`
@@ -329,18 +330,26 @@ dos se superponen sin tocar nada.
 
 ### Por qué la comparación es válida
 
-El simulador calcula el efector con una tabla **DH**; este paquete lo calcula
-con **pinocchio sobre el URDF**. Si las dos cinemáticas no coincidieran,
-comparar los efectores mediría la diferencia entre ellas y no entre simulación
-y realidad. Comprobado antes de escribir nada:
+La cinemática de `fk.py` es **la misma tabla DH** que usa el simulador, copiada
+de `h1_2_algoritms.fk_functions`. Está copiada y no importada porque los dos
+paquetes viven en workspaces distintos; si un día cambia allí, hay que traer el
+cambio aquí — y `fk_check` lo detecta.
+
+```bash
+ros2 run h1_2_arm_control fk_check
+```
 
 | comprobación | resultado |
 |---|---|
-| FK del URDF contra la DH, 5 configuraciones | **0.00 mm**, **0.0000°** |
-| Mi FK contra las columnas `ee_*` de los CSV del simulador (1200 filas) | **0.0002 mm**, 0.0229° † |
+| contra la DH de `h1_2_algoritms`, ambos brazos | **0.00e+00** (idéntica) |
+| contra el URDF de `h1_2_inspire_description`, con pinocchio | 0.0003 mm, **0.0000°** |
+| contra las columnas `ee_*` de los CSV del simulador (1200 filas) | **0.0000 mm**, 0.0229° † |
 
-† esos 0.0229° son la precisión con la que el CSV guarda los decimales, no un
-error de cálculo.
+† esos 0.0229° son la precisión con la que el CSV guarda los decimales.
+
+Esto no es una formalidad. Al portar la tabla se intercambió el signo del
+offset de hombro entre brazos, y costaba **30° exactos** de orientación y
+253 mm de posición. Lo encontró la comprobación, no una lectura del código.
 
 El cuaternión se calcula con la **misma** implementación que el simulador, a
 propósito: su signo es ambiguo —q y −q son la misma rotación— y dos versiones

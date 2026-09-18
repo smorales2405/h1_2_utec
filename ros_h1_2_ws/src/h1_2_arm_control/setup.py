@@ -49,6 +49,8 @@ setup(
             'algorithm_template = h1_2_arm_control.algorithm_template:main',
             # Gestos
             'six_seven = h1_2_arm_control.gestures.six_seven:main',
+            # Disparado desde el mando, con el robot de pie (arm_sdk)
+            'six_seven_remote = h1_2_arm_control.gestures.six_seven_remote:main',
         ],
     },
 )

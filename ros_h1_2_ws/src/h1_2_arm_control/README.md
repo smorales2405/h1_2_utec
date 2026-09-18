@@ -170,6 +170,48 @@ contra `max_ref_velocity`; frecuencia contra el ancho de banda medido; y el
 margen de par que deja la gravedad. Si algo no cuadra lo dice, dice cuánto
 falta, y no ejecuta.
 
+### `six_seven_remote` — disparado desde el mando, con el robot DE PIE
+
+```bash
+ros2 run h1_2_arm_control six_seven_remote --ros-args \
+    -p amplitude_deg:=7.5 -p speed:=0.75 -p duration:=10.0
+```
+
+Escucha el mando y, al pulsar `R2+up`, toma los brazos, hace el gesto y los
+devuelve exactamente donde estaban. Igual que las acciones de fábrica de
+saludar o dar la mano. **Mientras espera no publica nada**: el robot tiene sus
+brazos enteros.
+
+Este es el único nodo del paquete que va por **`arm_sdk`** y no por `lowcmd`, y
+el único que se usa con el robot de pie. `lowcmd` exige soltar antes el
+controlador de alto nivel, y con el robot en pie eso **lo tira**: nadie
+equilibra. `arm_sdk` cede los brazos mientras la locomoción sigue mandando.
+
+> **F7.3, comprobado el 2026-09-17.** Quedaba abierto si `arm_sdk` servía de
+> algo: cuando se probó con el robot en reposo no hacía nada. De pie y en
+> Motion Mode sí funciona — sostener dio 0.28° de deriva, y pedir +3° en un
+> codo movió +1.80° con peso 0.5, o sea el 60 %, que es lo que corresponde a
+> ese peso. En reposo no hacía nada porque no había con quién mezclar.
+
+Usa el conjunto **`tuned`**, no `tuned_gff`: en `arm_sdk` el servicio del robot
+aplica su propia compensación de gravedad, y sumar la nuestra sería contarla
+dos veces.
+
+| parámetro | por defecto | qué es |
+|---|---|---|
+| `combo` | `R2+up` | combinación que dispara; nombres de `BOTONES` |
+| `weight` | 1.0 | mezcla con el controlador del robot: 1 = mandamos del todo |
+| `gains` | `tuned` | conjunto de `gains.yaml` |
+| `trigger_now` | false | dispara al arrancar, sin esperar al mando |
+| `once` | false | salir tras el primer gesto |
+
+Los de la postura y la oscilación son los mismos que `six_seven`.
+
+**La transición va por etapas, y hace falta.** En Motion Mode el codo está a
+~39°, que exige `|roll| ≥ 4.88°`, y el gesto pide 5.0°: **0.12° de margen**. En
+un solo tramo `ramp_to` recorta con el codo más estirado de los dos y rozaría
+el tope todo el camino. Flexionando el codo primero el requisito cae a 0.94°.
+
 ## ⚠ No encadenes comandos para meter tu algoritmo en medio
 
 Lo natural sería esto, y **no funciona**:

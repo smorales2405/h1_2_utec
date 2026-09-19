@@ -76,6 +76,7 @@ class ArmSdkClient:
         self._weight_target = 0.0
         self._weight_rate = 1.0
         self.q0 = np.zeros(35)
+        self.señal: int | None = None
         self.collision_clamps = 0
         self.cycles = 0
         self.late = 0
@@ -424,6 +425,11 @@ def instala_señales(cliente: "ArmSdkClient") -> None:
     """
     def _cae(signum, _frame):
         print(f"\n  señal {signum}: soltando los brazos…", flush=True)
+        # Se anota cuál fue: que systemd te pida parar con SIGTERM no es un
+        # fallo, y salir con 130 hace que la unidad quede marcada como
+        # «Failed». Con `Restart=always` eso no rompe nada, pero ensucia el
+        # diagnóstico justo donde se va a mirar cuando algo vaya mal de verdad.
+        cliente.señal = signum
         try:
             cliente.cierra()
         finally:

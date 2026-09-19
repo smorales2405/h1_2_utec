@@ -43,6 +43,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import signal
 import struct
 import sys
 import time
@@ -302,7 +303,9 @@ def main(argv=None) -> int:
                 return 0
             print(f"\n  esperando «{a.combo}»…\n", flush=True)
     except KeyboardInterrupt:
-        return 130
+        # SIGTERM es una parada pedida, no un fallo: 0. SIGINT desde una
+        # terminal conserva el 130 de siempre.
+        return 0 if cli.señal == signal.SIGTERM else 130
     finally:
         cli.cierra()
 

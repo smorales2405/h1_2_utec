@@ -23,6 +23,16 @@ de un publicador ROS. La matemática del gesto, la tabla de motores
 (`joints.py`), las ganancias (`gains.yaml`) y la protección de autocolisión son
 los mismos ficheros, copiados.
 
+## Estado: instalado y corriendo
+
+Desplegado en `unitree-h1-2-pc4` el 2026-09-19. Servicio `h1_2_six_seven`,
+**activo y habilitado para el arranque**. Comprobado sobre el robot:
+
+- el demonio arranca ahí y recibe `rt/lowstate` **sin indicarle interfaz**;
+- `systemctl stop` atiende SIGTERM y sale limpiamente, sin marcar la unidad
+  como fallida;
+- `systemctl start` lo levanta de nuevo.
+
 ## Instalar
 
 ```bash

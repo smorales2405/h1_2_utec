@@ -40,15 +40,25 @@ arriba. `tuned` está sintonizado sin feedforward, que es lo que corresponde
 aquí.
 
 ───────────────────────────────────────────────────────────────────────────
-POR QUÉ LA TRANSICIÓN VA POR ETAPAS
+POR QUÉ LA RECOLOCACIÓN VA TODA A LA VEZ
 ───────────────────────────────────────────────────────────────────────────
 
-El tope de autocolisión del hombro depende del codo. En Motion Mode el codo
-está a ~39°, que exige |roll| >= 4.88°, y el gesto pide 5.0°: **0.12° de
-margen**. En un solo tramo `ramp_to` recorta con el codo más estirado de los
-dos, así que rozaría el tope todo el camino.
+Porque el hombro hace de **contrapeso** del codo. Al flexionarse, el codo lleva
+el antebrazo y la mano hacia adelante y el centro de masas se va con ellos; el
+hombro retrocediendo lo compensa. Si se mueve el codo primero y el hombro
+después, la compensación llega tarde y el robot da un paso para no caerse —
+observado el 2026-09-17: echaba a andar y solo paraba con `start`.
 
-Flexionando el codo primero, el requisito cae a 0.94° y sobran 4°.
+Antes esto iba escalonado por miedo a la autocolisión, porque el tope del
+hombro depende del codo. Medido: con el codo en los ~39° de Motion Mode el tope
+exige |roll| >= 4.88°, y el camino recto hasta la postura del gesto **nunca se
+acerca a él** —el roll empieza en 13.5° y baja más despacio de lo que el codo
+relaja el requisito, así que el margen mínimo es de 5° a 7.5°—. Lo que iba
+justo no era el camino sino el recorte conservador de `ramp_to`, que evalúa el
+tope con el codo más estirado de los dos extremos.
+
+Así que se comprueba el camino de verdad, muestreándolo, y solo se escalona si
+ese camino choca. Con un `shoulder_roll` holgado nunca hace falta.
 """
 from __future__ import annotations
 
@@ -110,14 +120,42 @@ def lee_teclas(state) -> int | None:
     return struct.unpack_from("<H", b, 2)[0]
 
 
+def camino_libre(gains, desde: dict, hasta: dict, n: int = 40):
+    """¿Es segura la recta de `desde` a `hasta` en el espacio articular?
+
+    `ramp_to` aplica el mismo factor a todas las articulaciones, así que el
+    camino ES una recta y basta muestrearla. Devuelve (ok, peor_margen, dónde).
+
+    Esto sustituye al escalonado. Mover el codo primero y el hombro después es
+    lo PEOR que se puede hacer cuando el hombro va de contrapeso: el codo tira
+    el centro de masas adelante y la compensación llega tarde. Si el camino
+    simultáneo es seguro —y con un `shoulder_roll` holgado lo es— hay que
+    moverlo todo a la vez.
+    """
+    peor, donde = float("inf"), 0.0
+    for k in range(n + 1):
+        f = k / n
+        q = {i: desde[i] + f * (hasta[i] - desde[i]) for i in hasta}
+        for i_roll, i_elb in gains.cond_pairs().items():
+            if i_roll not in q or i_elb not in q:
+                continue
+            minimo = gains.roll_min_abs(i_roll, q[i_elb])
+            if minimo is None:
+                continue
+            margen = abs(q[i_roll]) - minimo
+            if margen < peor:
+                peor, donde = margen, f
+    return peor > 0.0, peor, donde
+
+
 class SixSevenRemote(Node):
     def __init__(self, nombre="h1_2_six_seven_remote"):
         super().__init__(nombre)
         p = {
             "combo": "R2+up",
             # postura del gesto, en GRADOS
-            "shoulder_roll_deg": 5.0,
-            "shoulder_pitch_deg": 17.0,
+            "shoulder_roll_deg": 7.5,
+            "shoulder_pitch_deg": 25.0,
             "elbow_deg": 0.0,
             "amplitude_deg": 7.5,
             "palm_up_left_deg": -90.0,
@@ -150,10 +188,17 @@ class SixSevenRemote(Node):
             # Con `keep_posture`, el gesto es solo la oscilación del codo
             # alrededor de su valor de Motion Mode. La perturbación pasa de 39°
             # a la amplitud pedida.
-            "keep_posture": True,
-            # Girar las palmas aunque se conserve la postura. Las muñecas pesan
-            # poco, así que perturban mucho menos que el codo.
-            "palms_up": False,
+            # `False` porque con el hombro haciendo de contrapeso —25°, que
+            # retrocede mientras el codo se flexiona— la recolocación ya no
+            # desestabiliza, y el gesto se ve mucho mejor desde la postura
+            # propia que desde la de pie. Ponerlo a `True` vuelve a oscilar
+            # alrededor de la postura de Motion Mode, sin recolocar: es la
+            # opción conservadora si el robot vuelve a moverse.
+            "keep_posture": False,
+            # Girar las palmas cuando se CONSERVA la postura. Sin conservarla,
+            # las palmas ya van en `_postura()`. Las muñecas pesan poco, así
+            # que perturban mucho menos que el codo.
+            "palms_up": True,
             "dry_run": False,
         }
         for k, v in p.items():
@@ -221,19 +266,28 @@ class SixSevenRemote(Node):
                  if abs(q - q_motion[i]) > math.radians(0.2)}
         if mueve:
             recorrido = max(abs(postura[i] - q_motion[i]) for i in mueve)
+            libre, margen, donde = camino_libre(cli.gains, q_motion, postura)
             print(f"  recolocando {len(mueve)} articulaciones, "
                   f"recorrido mayor {math.degrees(recorrido):.1f}°")
-            # Por etapas, y el orden importa: con el codo en la postura de
-            # Motion Mode (~39°) el tope de autocolisión exige casi exactamente
-            # el roll que la postura del gesto pide. Flexionando primero, sobra.
-            codos = [i for i in mueve if BY_INDEX[i].name.endswith("elbow")]
-            munecas = [i for i in mueve if BY_INDEX[i].group == "wrist"]
-            resto = [i for i in mueve if i not in codos and i not in munecas]
-            for etapa, grupo in (("codos", codos), ("hombros", resto),
-                                 ("muñecas", munecas)):
-                if grupo:
-                    print(f"    · {etapa}…")
-                    cli.ramp_to({i: postura[i] for i in grupo}, speed=v)
+            if libre:
+                # TODO A LA VEZ. Es lo que hace que el contrapeso funcione: si
+                # el codo se flexiona antes de que el hombro retroceda, el
+                # centro de masas se va adelante y el robot da un paso. Moviendo
+                # las dos cosas juntas, la compensación es instantánea.
+                print(f"    · todo a la vez (margen de autocolisión "
+                      f"{math.degrees(margen):.1f}°)")
+                cli.ramp_to(postura, speed=v)
+            else:
+                # El camino recto choca, así que hay que escalonar: flexionar el
+                # codo primero relaja el tope del hombro. Se pierde el efecto de
+                # contrapeso, pero es eso o rozar la pierna.
+                print(f"    ⚠ el camino recto viola la envolvente en "
+                      f"{math.degrees(margen):.1f}° (a mitad {donde:.0%}); "
+                      f"se escalona, y el contrapeso será peor")
+                codos = [i for i in mueve if BY_INDEX[i].name.endswith("elbow")]
+                otros = [i for i in mueve if i not in codos]
+                cli.ramp_to({i: postura[i] for i in codos}, speed=v)
+                cli.ramp_to({i: postura[i] for i in otros}, speed=v)
             for i in mueve:
                 cli.wait_settled(i)
         else:

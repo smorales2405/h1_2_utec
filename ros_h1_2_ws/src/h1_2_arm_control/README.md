@@ -202,8 +202,8 @@ dos veces.
 | `combo` | `R2+up` | combinación que dispara; nombres de `BOTONES` |
 | `weight` | 1.0 | mezcla con el controlador del robot: 1 = mandamos del todo |
 | `gains` | `tuned` | conjunto de `gains.yaml` |
-| `keep_posture` | **true** | oscilar donde ya están los brazos, sin recolocarlos |
-| `palms_up` | false | girar las palmas aunque se conserve la postura |
+| `keep_posture` | false | oscilar donde ya están los brazos, sin recolocarlos |
+| `palms_up` | true | girar las palmas cuando se conserva la postura |
 | `trigger_now` | false | dispara al arrancar, sin esperar al mando |
 | `once` | false | salir tras el primer gesto |
 
@@ -242,10 +242,24 @@ robot anda igualmente, el problema no son los brazos y hay que cambiar `combo`.
 > —si no lo comandas queda con kp=0 y se descuelga— pero explica por qué bajar
 > el peso ayuda.
 
-**La transición por etapas, cuando se recoloca.** En Motion Mode el codo está a
-~39°, que exige `|roll| ≥ 4.88°`, y el gesto pide 5.0°: **0.12° de margen**. En
-un solo tramo `ramp_to` recorta con el codo más estirado de los dos y rozaría
-el tope todo el camino. Flexionando el codo primero el requisito cae a 0.94°.
+**La recolocación va toda a la vez, y eso es lo que la hace estable.** El
+hombro hace de **contrapeso** del codo: al flexionarse, el codo lleva el
+antebrazo y la mano adelante y el centro de masas se va con ellos; el hombro
+retrocediendo lo compensa. Moverlos por separado —codo primero, hombro
+después— es lo peor posible: la compensación llega tarde y el robot da un paso.
+
+Por eso los valores por defecto llevan `shoulder_pitch_deg: 25.0`, por encima
+de los ~17° de Motion Mode: el hombro **retrocede** mientras el codo se
+flexiona.
+
+El escalonado anterior existía por miedo a la autocolisión. Medido: el camino
+recto **nunca se acerca al tope** —el `roll` empieza en 13.5° y baja más
+despacio de lo que el codo relaja el requisito, con 5° a 7.5° de margen
+mínimo—. Lo que iba justo no era el camino sino el recorte conservador de
+`ramp_to`, que evalúa el tope con el codo más estirado de los dos extremos.
+
+Así que el nodo **muestrea el camino** antes de moverse y solo escalona si ese
+camino choca de verdad, avisando de que el contrapeso será peor.
 
 ## ⚠ No encadenes comandos para meter tu algoritmo en medio
 

@@ -169,6 +169,29 @@ class SixSevenRemote(Node):
             "gains": "tuned",
             "weight": 1.0,
             "approach_speed": 0.25,
+            # Rampa de peso al tomar el control. Es lo que evita el tirón al
+            # entrar, así que bajarla mucho no compensa; 1 s sigue siendo una
+            # rampa. Va ANTES de la recolocación, no entre ésta y el gesto.
+            "engage_ramp": 1.0,
+            # Quietud exigida antes de arrancar el gesto. Con `wait_all_settled`
+            # el coste es este valor una sola vez, no una vez por articulación.
+            "settle": 0.15,
+            # Tolerancia de velocidad para dar una articulación por quieta.
+            #
+            # 0.05 y no el 0.02 que usa el resto del paquete, y hay una razón
+            # medida: con el robot DE PIE los brazos nunca están del todo
+            # quietos, porque el controlador de equilibrio los microajusta.
+            # Medido el 2026-09-18 sobre el robot parado, 6000 muestras:
+            # los picos llegan a 0.062 rad/s, y las catorce cumplen |dq| < 0.02
+            # a la vez solo el 37 % del tiempo —conseguir 0.15 s SEGUIDOS es
+            # casi imposible, así que se agotaba el plazo de 3 s siempre y eso
+            # eran 3 de los 5 segundos muertos antes del gesto—. Con 0.05
+            # cumplen el 99.8 %.
+            #
+            # Colgado del arnés y sin controlador, 0.02 sigue siendo lo
+            # correcto; por eso el valor va aquí y no en el cliente.
+            "settle_dq_tol": 0.05,
+            "settle_timeout": 1.5,
             "rate_hz": 250.0,
             "once": False,          # salir tras el primer gesto
             # Dispara el gesto nada más arrancar, sin esperar al mando. Es
@@ -260,7 +283,10 @@ class SixSevenRemote(Node):
         fade = float(self.p("fade")) or min(0.5 / max(freq, 1e-3), dur / 3.0)
 
         print(f"\n  ── gesto ──────────────────────────────────────────")
-        cli.engage(ramp=2.0)
+        t = {}
+        t0 = time.monotonic()
+        cli.engage(ramp=float(self.p("engage_ramp")))
+        t["tomar el control"] = time.monotonic() - t0
 
         mueve = {i: q for i, q in postura.items()
                  if abs(q - q_motion[i]) > math.radians(0.2)}
@@ -276,7 +302,9 @@ class SixSevenRemote(Node):
                 # las dos cosas juntas, la compensación es instantánea.
                 print(f"    · todo a la vez (margen de autocolisión "
                       f"{math.degrees(margen):.1f}°)")
+                t1 = time.monotonic()
                 cli.ramp_to(postura, speed=v)
+                t["recolocar"] = time.monotonic() - t1
             else:
                 # El camino recto choca, así que hay que escalonar: flexionar el
                 # codo primero relaja el tope del hombro. Se pierde el efecto de
@@ -286,10 +314,16 @@ class SixSevenRemote(Node):
                       f"se escalona, y el contrapeso será peor")
                 codos = [i for i in mueve if BY_INDEX[i].name.endswith("elbow")]
                 otros = [i for i in mueve if i not in codos]
+                t1 = time.monotonic()
                 cli.ramp_to({i: postura[i] for i in codos}, speed=v)
                 cli.ramp_to({i: postura[i] for i in otros}, speed=v)
-            for i in mueve:
-                cli.wait_settled(i)
+                t["recolocar"] = time.monotonic() - t1
+            t1 = time.monotonic()
+            cli.wait_all_settled(mueve,
+                                 dq_tol=float(self.p("settle_dq_tol")),
+                                 timeout=float(self.p("settle_timeout")),
+                                 estable=float(self.p("settle")))
+            t["esperar quietud"] = time.monotonic() - t1
         else:
             print(f"  sin recolocar: se oscila alrededor de la postura de "
                   f"Motion Mode")
@@ -301,10 +335,12 @@ class SixSevenRemote(Node):
                            q_base=postura[i_l])
         cli.set_trajectory(i_r, balancin(amp, freq, dur, fade, +1.0),
                            q_base=postura[i_r])
+        t["hasta el gesto"] = time.monotonic() - t0
         cli.sleep(dur)
         cli.clear_trajectory()
-        for i in (i_l, i_r):
-            cli.wait_settled(i)
+        cli.wait_all_settled((i_l, i_r),
+                             dq_tol=float(self.p("settle_dq_tol")),
+                             timeout=float(self.p("settle_timeout")))
 
         # `release()` devuelve a `q0`, que es la postura de Motion Mode que
         # había al enganchar, y baja el peso en rampa. Es exactamente lo que
@@ -312,6 +348,7 @@ class SixSevenRemote(Node):
         print("  devolviendo a la postura de Motion Mode…")
         cli.release(home_speed=v, weight_ramp=2.0)
 
+        print("  tiempos: " + "  ".join(f"{k} {v:.2f}s" for k, v in t.items()))
         peor = max(ARM_INDICES, key=lambda i: abs(cli.q(i) - q_motion[i]))
         print(f"  vuelta: desviación máxima {math.degrees(abs(cli.q(peor) - q_motion[peor])):.2f}° "
               f"({BY_INDEX[peor].name})")

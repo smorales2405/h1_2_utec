@@ -62,8 +62,7 @@ class Goto(ArmNode):
 
             cli.engage()
             cli.ramp_to(destino, speed=v)
-            for i in destino:
-                cli.wait_settled(i)
+            cli.wait_all_settled(destino)
             cli.sleep(float(self.p("hold")))
             self.tabla(cli, q0)
             # Soltar DONDE SE HA PEDIDO, no donde estaba: colocar y deshacerlo

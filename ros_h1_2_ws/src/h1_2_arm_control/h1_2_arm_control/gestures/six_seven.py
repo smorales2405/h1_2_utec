@@ -343,8 +343,7 @@ class SixSeven(ArmNode):
             cli.ramp_to(brazos, speed=v_ramp)
             print("  palmas arriba…")
             cli.ramp_to(munecas, speed=v_ramp)
-            for i in postura:
-                cli.wait_settled(i)
+            cli.wait_all_settled(postura)
 
             print(f"\n── 3/4 · gesto ({dur * freq:.1f} ciclos) ────────────")
             cli.set_trajectory(i_l, balancin(amp, freq, dur, fade, -1.0),
@@ -355,8 +354,7 @@ class SixSeven(ArmNode):
             # La envolvente ya ha devuelto la consigna a la referencia con
             # velocidad nula, así que soltarla aquí no es un corte.
             cli.clear_trajectory()
-            for i in (i_l, i_r):
-                cli.wait_settled(i)
+            cli.wait_all_settled((i_l, i_r))
             print(f"  acabó en L {math.degrees(cli.q(i_l)):+.2f}°   "
                   f"R {math.degrees(cli.q(i_r)):+.2f}°   "
                   f"(referencia {math.degrees(postura[i_l]):+.1f}°)")

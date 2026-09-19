@@ -204,6 +204,8 @@ dos veces.
 | `gains` | `tuned` | conjunto de `gains.yaml` |
 | `keep_posture` | false | oscilar donde ya están los brazos, sin recolocarlos |
 | `palms_up` | true | girar las palmas cuando se conserva la postura |
+| `engage_ramp` | 1.0 | s de rampa de peso al tomar el control |
+| `settle_dq_tol` | 0.05 | rad/s para dar una articulación por quieta |
 | `trigger_now` | false | dispara al arrancar, sin esperar al mando |
 | `once` | false | salir tras el primer gesto |
 
@@ -260,6 +262,37 @@ mínimo—. Lo que iba justo no era el camino sino el recorte conservador de
 
 Así que el nodo **muestrea el camino** antes de moverse y solo escalona si ese
 camino choca de verdad, avisando de que el contrapeso será peor.
+
+#### El tiempo muerto antes del gesto
+
+Medido y reducido de **6.4 s a 3.6 s**. El desglose sale por pantalla:
+
+```
+tiempos: tomar el control 1.31s  recolocar 2.09s  esperar quietud 0.17s
+```
+
+Dos cosas lo causaban, y las dos merecen explicación.
+
+**`wait_settled` se llamaba una vez por articulación.** Cada llamada exige
+0.15 s de quietud continua y arranca su propio contador, así que catorce
+articulaciones costaban 2.1 s de suelo *aunque estuvieran todas ya quietas*.
+`wait_all_settled` usa un contador único: el mismo criterio cuesta 0.15 s.
+
+**Y el criterio de quietud no valía para un robot de pie.** Pedía
+`|dq| < 0.02 rad/s` en las catorce a la vez, pero de pie el controlador de
+equilibrio microajusta los brazos continuamente. Medido sobre el robot parado,
+6000 muestras: los picos llegan a **0.062 rad/s**, y las catorce cumplen 0.02 a
+la vez solo el **37 % del tiempo** — conseguir 0.15 s seguidos es casi
+imposible, así que se agotaba el plazo de 3 s *siempre*. Con 0.05 cumplen el
+99.8 %, y la espera pasó de 3.02 s a 0.17 s.
+
+Colgado del arnés y sin controlador, 0.02 sigue siendo lo correcto; por eso el
+valor es un parámetro de este nodo y no del cliente.
+
+Lo que queda son 1.3 s de rampa de peso (`engage_ramp`) y 2.1 s de movimiento
+real, que a `approach_speed:=0.75` son los 90° de giro de muñeca. Para ganar
+más: subir `approach_speed`, o `fade` más corto para que la oscilación alcance
+amplitud antes.
 
 ## ⚠ No encadenes comandos para meter tu algoritmo en medio
 

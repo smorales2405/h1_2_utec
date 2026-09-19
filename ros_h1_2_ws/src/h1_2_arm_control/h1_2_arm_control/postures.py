@@ -45,8 +45,7 @@ def to_zero(cli, speed: float = 0.15, verbose: bool = True) -> None:
     if verbose:
         print("  3/3 · hombros a 0°, ya con el codo flexionado…")
     cli.ramp_to({i: 0.0 for i in rolls}, speed=speed)
-    for i in ARM_INDICES:
-        cli.wait_settled(i)
+    cli.wait_all_settled(ARM_INDICES)
 
 
 def to_rest(cli, speed: float = 0.15, verbose: bool = True) -> dict[int, float]:
@@ -84,6 +83,5 @@ def to_rest(cli, speed: float = 0.15, verbose: bool = True) -> dict[int, float]:
     if verbose:
         print("  3/3 · a la postura de reposo…")
     cli.ramp_to(reposo, speed=speed)
-    for i in ARM_INDICES:
-        cli.wait_settled(i)
+    cli.wait_all_settled(ARM_INDICES)
     return reposo

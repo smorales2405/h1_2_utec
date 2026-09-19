@@ -200,8 +200,7 @@ class FkRightArmRaise(ArmNode):
                 siguiente += dt
                 cli.sleep(max(0.0, siguiente - time.monotonic()))
             cli.clear_trajectory()
-            for i in idx:
-                cli.wait_settled(i)
+            cli.wait_all_settled(idx)
             print(f"  {len(rec)} muestras en {t:.1f} s "
                   f"({len(rec)/max(t,1e-9):.1f} Hz reales)")
 

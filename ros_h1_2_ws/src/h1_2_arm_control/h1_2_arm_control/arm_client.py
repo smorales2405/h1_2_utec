@@ -689,6 +689,34 @@ class H12Client:
             time.sleep(0.02)
         return False
 
+    def wait_all_settled(self, indices, dq_tol: float = 0.02,
+                         timeout: float = 3.0, estable: float = 0.15) -> bool:
+        """Como `wait_settled` pero de VARIAS a la vez, no una tras otra.
+
+        Llamar a `wait_settled` en bucle sobre las catorce del brazo cuesta
+        14 × `estable` = 2.1 s de suelo **aunque estén todas ya quietas**,
+        porque cada llamada empieza su propio contador. Aquí el contador es
+        uno solo y arranca cuando TODAS cumplen a la vez, así que el mismo
+        criterio cuesta 0.15 s.
+
+        No es una micro-optimización: esos 2 s salen justo entre que el brazo
+        llega a la postura y empieza el gesto, que es donde más se notan.
+        """
+        idx = list(indices)
+        t0 = time.monotonic()
+        quietas_desde = None
+        while time.monotonic() - t0 < timeout:
+            self._raise_if_aborted()
+            if all(abs(self.dq(i)) < dq_tol for i in idx):
+                if quietas_desde is None:
+                    quietas_desde = time.monotonic()
+                elif time.monotonic() - quietas_desde >= estable:
+                    return True
+            else:
+                quietas_desde = None
+            time.sleep(0.02)
+        return False
+
     def sleep(self, seconds: float) -> None:
         """Como time.sleep, pero corta si salta la seguridad."""
         t_end = time.monotonic() + seconds

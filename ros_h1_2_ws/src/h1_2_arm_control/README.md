@@ -202,12 +202,47 @@ dos veces.
 | `combo` | `R2+up` | combinación que dispara; nombres de `BOTONES` |
 | `weight` | 1.0 | mezcla con el controlador del robot: 1 = mandamos del todo |
 | `gains` | `tuned` | conjunto de `gains.yaml` |
+| `keep_posture` | **true** | oscilar donde ya están los brazos, sin recolocarlos |
+| `palms_up` | false | girar las palmas aunque se conserve la postura |
 | `trigger_now` | false | dispara al arrancar, sin esperar al mando |
 | `once` | false | salir tras el primer gesto |
 
 Los de la postura y la oscilación son los mismos que `six_seven`.
 
-**La transición va por etapas, y hace falta.** En Motion Mode el codo está a
+#### Si el robot se pone a caminar
+
+Observado el 2026-09-17: durante la recolocación inicial el robot a veces se
+desestabilizaba y **echaba a andar solo**, sin tocar el joystick, y había que
+pulsar `start` para pararlo.
+
+La causa probable es el tamaño de la perturbación. Recolocar lleva el codo de
+sus ~39° de Motion Mode a 0° —39 grados en los dos brazos a la vez— más 90° de
+giro de muñeca. Eso mueve el centro de masas de un robot que se está
+equilibrando. Las acciones de fábrica no hacen eso: parten de la postura de pie
+y se mueven poco.
+
+Por eso `keep_posture` viene **activado**: el gesto es solo la oscilación del
+codo alrededor de su valor de Motion Mode, y la perturbación pasa de 39° a la
+amplitud pedida.
+
+Si aun así se mueve, quedan dos palancas:
+
+- **`weight`**, que es la mezcla con el controlador del robot. Con 0.5 le dejas
+  la mitad de la autoridad, también sobre la cintura. Ojo: el recorrido sale
+  proporcionalmente menor, así que hay que pedir más amplitud.
+- **`approach_speed`**, más lento.
+
+Y conviene descartar una causa distinta antes que ninguna otra: **que `R2+up`
+sea ya una combinación de fábrica**. Basta pulsarla con este nodo parado; si el
+robot anda igualmente, el problema no son los brazos y hay que cambiar `combo`.
+
+> **`arm_sdk` cede 15 motores, no 14**: los catorce del brazo **y `waist_yaw`**,
+> que se comanda con kp=200. O sea que con `weight:=1.0` le estamos clavando el
+> torso a un robot que se equilibra. Es la forma documentada de usar `arm_sdk`
+> —si no lo comandas queda con kp=0 y se descuelga— pero explica por qué bajar
+> el peso ayuda.
+
+**La transición por etapas, cuando se recoloca.** En Motion Mode el codo está a
 ~39°, que exige `|roll| ≥ 4.88°`, y el gesto pide 5.0°: **0.12° de margen**. En
 un solo tramo `ramp_to` recorta con el codo más estirado de los dos y rozaría
 el tope todo el camino. Flexionando el codo primero el requisito cae a 0.94°.

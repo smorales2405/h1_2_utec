@@ -117,7 +117,7 @@ class SixSevenRemote(Node):
             "combo": "R2+up",
             # postura del gesto, en GRADOS
             "shoulder_roll_deg": 5.0,
-            "shoulder_pitch_deg": 0.0,
+            "shoulder_pitch_deg": 17.0,
             "elbow_deg": 0.0,
             "amplitude_deg": 7.5,
             "palm_up_left_deg": -90.0,
@@ -138,6 +138,22 @@ class SixSevenRemote(Node):
             # mando: dos cosas que pueden fallar de forma independiente y que
             # conviene no depurar a la vez.
             "trigger_now": False,
+            # Oscilar ALREDEDOR DE DONDE YA ESTÁN los brazos, sin recolocarlos.
+            #
+            # Recolocar es lo que desestabiliza: en Motion Mode el codo está a
+            # ~39° y la postura del gesto lo lleva a 0°, o sea 39 grados de
+            # recorrido en los dos brazos a la vez, más 90° de giro de muñeca.
+            # Eso mueve el centro de masas de un robot que se está
+            # equilibrando. Las acciones de fábrica no hacen eso: parten de la
+            # postura de pie y se mueven poco.
+            #
+            # Con `keep_posture`, el gesto es solo la oscilación del codo
+            # alrededor de su valor de Motion Mode. La perturbación pasa de 39°
+            # a la amplitud pedida.
+            "keep_posture": True,
+            # Girar las palmas aunque se conserve la postura. Las muñecas pesan
+            # poco, así que perturban mucho menos que el codo.
+            "palms_up": False,
             "dry_run": False,
         }
         for k, v in p.items():
@@ -169,8 +185,26 @@ class SixSevenRemote(Node):
         }
 
     # ── el gesto, una vez ──────────────────────────────────────────────────
+    def _postura_objetivo(self, cli) -> dict:
+        """Dónde poner los brazos antes de oscilar.
+
+        Con `keep_posture` es donde ya están —la postura de pie del
+        controlador de locomoción— y entonces la única perturbación es la
+        propia oscilación.
+        """
+        if not self.p("keep_posture"):
+            return self._postura()
+        postura = {i: cli.q(i) for i in ARM_INDICES}
+        if self.p("palms_up"):
+            postura[BY_NAME["L_wrist_roll"].idx] = math.radians(
+                float(self.p("palm_up_left_deg")))
+            postura[BY_NAME["R_wrist_roll"].idx] = math.radians(
+                float(self.p("palm_up_right_deg")))
+        return postura
+
     def _gesto(self, cli) -> None:
-        postura = self._postura()
+        q_motion = {i: cli.q(i) for i in ARM_INDICES}
+        postura = self._postura_objetivo(cli)
         amp = abs(math.radians(float(self.p("amplitude_deg"))))
         vel = abs(float(self.p("speed")))
         dur = float(self.p("duration"))
@@ -180,29 +214,34 @@ class SixSevenRemote(Node):
         freq = vel / (2.0 * math.pi * amp)
         fade = float(self.p("fade")) or min(0.5 / max(freq, 1e-3), dur / 3.0)
 
-        # Donde estaba en Motion Mode. `release()` vuelve solo aquí, pero se
-        # guarda para enseñarlo y para comprobar el retorno.
-        q_motion = {i: cli.q(i) for i in ARM_INDICES}
-
         print(f"\n  ── gesto ──────────────────────────────────────────")
         cli.engage(ramp=2.0)
 
-        # Por etapas, y el orden importa: con el codo en la postura de Motion
-        # Mode (~39°) el tope de autocolisión exige casi exactamente el roll que
-        # el gesto pide. Flexionando primero, sobra margen.
-        codos = [BY_NAME["L_elbow"].idx, BY_NAME["R_elbow"].idx]
-        munecas = [i for i in postura if BY_INDEX[i].group == "wrist"]
-        resto = [i for i in postura if i not in codos and i not in munecas]
-        print("  1/4 · flexionando los codos…")
-        cli.ramp_to({i: postura[i] for i in codos}, speed=v)
-        print("  2/4 · hombros…")
-        cli.ramp_to({i: postura[i] for i in resto}, speed=v)
-        print("  3/4 · palmas arriba…")
-        cli.ramp_to({i: postura[i] for i in munecas}, speed=v)
-        for i in postura:
-            cli.wait_settled(i)
+        mueve = {i: q for i, q in postura.items()
+                 if abs(q - q_motion[i]) > math.radians(0.2)}
+        if mueve:
+            recorrido = max(abs(postura[i] - q_motion[i]) for i in mueve)
+            print(f"  recolocando {len(mueve)} articulaciones, "
+                  f"recorrido mayor {math.degrees(recorrido):.1f}°")
+            # Por etapas, y el orden importa: con el codo en la postura de
+            # Motion Mode (~39°) el tope de autocolisión exige casi exactamente
+            # el roll que la postura del gesto pide. Flexionando primero, sobra.
+            codos = [i for i in mueve if BY_INDEX[i].name.endswith("elbow")]
+            munecas = [i for i in mueve if BY_INDEX[i].group == "wrist"]
+            resto = [i for i in mueve if i not in codos and i not in munecas]
+            for etapa, grupo in (("codos", codos), ("hombros", resto),
+                                 ("muñecas", munecas)):
+                if grupo:
+                    print(f"    · {etapa}…")
+                    cli.ramp_to({i: postura[i] for i in grupo}, speed=v)
+            for i in mueve:
+                cli.wait_settled(i)
+        else:
+            print(f"  sin recolocar: se oscila alrededor de la postura de "
+                  f"Motion Mode")
 
-        print(f"  4/4 · oscilando {m} ±{float(self.p('amplitude_deg')):.1f}° "
+        print(f"  oscilando {m} ±{float(self.p('amplitude_deg')):.1f}° "
+              f"alrededor de {math.degrees(postura[i_l]):.1f}°, "
               f"a {freq:.2f} Hz, {dur:.0f} s…")
         cli.set_trajectory(i_l, balancin(amp, freq, dur, fade, -1.0),
                            q_base=postura[i_l])
@@ -230,7 +269,7 @@ class SixSevenRemote(Node):
     # ── comprobaciones previas ─────────────────────────────────────────────
     def _comprueba(self, cli) -> bool:
         ok = True
-        postura = self._postura()
+        postura = self._postura_objetivo(cli)
         amp = abs(math.radians(float(self.p("amplitude_deg"))))
         vel = abs(float(self.p("speed")))
         dur = float(self.p("duration"))

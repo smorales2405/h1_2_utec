@@ -1,0 +1,27 @@
+[Unit]
+Description=Gesto six-seven del H1-2, disparado desde el mando
+# El robot tarda en levantar su pila DDS. El demonio espera el primer
+# `rt/lowstate` por su cuenta, pero no tiene sentido pelearse desde el segundo
+# cero del arranque.
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=unitree
+WorkingDirectory=/home/unitree/h1_2_six_seven/src
+ExecStart=/home/unitree/teleop_venv/bin/python /home/unitree/h1_2_six_seven/src/six_seven_daemon.py
+Restart=always
+RestartSec=5
+
+# SIGTERM, que es lo que el demonio atrapa para bajar el peso en rampa antes de
+# morir. El plazo generoso es a propósito: soltar los brazos de un robot de pie
+# no se interrumpe a medias.
+KillSignal=SIGTERM
+TimeoutStopSec=20
+
+# Sin buffering, para que `journalctl -u` enseñe lo que pasa en el momento.
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

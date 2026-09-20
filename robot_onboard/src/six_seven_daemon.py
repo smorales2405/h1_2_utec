@@ -78,8 +78,11 @@ MODOS = {
     "L2+B  (amortiguación)": "L2+B",
     "L2+up (preparado)": "L2+up",
     "R2+X  (movimiento)": "R2+X",
-    "start": "start",
 }
+# `start` NO está, a propósito. Cambia de modo como las otras cuatro, pero no
+# es una petición de soltar: es «ponte de pie y quédate quieto», y se pulsa a
+# menudo sin querer decir «para lo que estés haciendo». Decisión del operador
+# el 2026-09-20. Si alguna vez hace falta, se añade aquí y ya está.
 
 
 def mascara(combo: str) -> int:

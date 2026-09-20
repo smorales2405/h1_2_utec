@@ -90,9 +90,13 @@ firmware, no este proceso.
 **Durante el gesto, sí podía.** Esos ~16 s publicamos con peso 1, así que una
 petición de cambio de modo se encontraba con los brazos cogidos. Ahora el
 cliente vigila el mando en cada ciclo y suelta inmediatamente si aparece
-`L2+Y`, `L2+B`, `L2+up`, `R2+X` o `start`. Importa sobre todo por `L2+B`, que
-es amortiguación y se pulsa cuando algo va mal: ignorarla diez segundos sería
-lo contrario de lo que hay que hacer.
+`L2+Y`, `L2+B`, `L2+up` o `R2+X`. Importa sobre todo por `L2+B`, que es
+amortiguación y se pulsa cuando algo va mal: ignorarla diez segundos sería lo
+contrario de lo que hay que hacer.
+
+**`start` no está en esa lista, a propósito.** Cambia de modo como las otras
+cuatro, pero no es una petición de soltar —es «ponte de pie y quédate quieto»—
+y se pulsa a menudo sin querer decir «para lo que estés haciendo».
 
 Las máscaras no se solapan con la nuestra, así que no hay disparos falsos:
 
@@ -103,7 +107,6 @@ Las máscaras no se solapan con la nuestra, así que no hay disparos falsos:
 | `L2+B` amortiguación | `0x0220` |
 | `L2+up` preparado | `0x1020` |
 | `R2+X` movimiento | `0x0410` |
-| `start` | `0x0004` |
 
 ### Lo que queda sin verificar
 

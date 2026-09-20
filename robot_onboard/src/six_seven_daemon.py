@@ -38,6 +38,12 @@ Esto va a estar siempre corriendo, así que:
 * **Un gesto cada vez.** Pulsar la combinación mientras se ejecuta no hace nada.
 * **Si algo aborta** —par, temperatura, estado rancio— el peso baja a cero y el
   demonio vuelve a esperar en vez de caerse.
+* **El mando manda.** Si durante el gesto aparece una combinación de cambio de
+  modo (`L2+Y`, `L2+B`, `L2+up`, `R2+X` o `start`), se suelta inmediatamente.
+  Mientras el gesto corre publicamos en `rt/arm_sdk` con peso 1, así que
+  seguir diez segundos más agarrando los brazos impediría el cambio de modo
+  que se está pidiendo — y `L2+B` es amortiguación, que se pulsa justo cuando
+  algo va mal.
 """
 from __future__ import annotations
 
@@ -59,6 +65,21 @@ BOTONES = {"R1": 0, "L1": 1, "start": 2, "select": 3,
            "R2": 4, "L2": 5, "F1": 6, "F3": 7,
            "A": 8, "B": 9, "X": 10, "Y": 11,
            "up": 12, "right": 13, "down": 14, "left": 15}
+
+
+# Combinaciones de fábrica que cambian el modo del robot. Si alguna aparece
+# mientras el gesto se está ejecutando, se suelta inmediatamente: el robot está
+# pidiendo cambiar de modo y nosotros le tenemos los brazos cogidos.
+#
+# `L2+B` es amortiguación y se pulsa cuando algo va mal, así que ignorarla diez
+# segundos sería justo lo contrario de lo que hay que hacer.
+MODOS = {
+    "L2+Y  (par cero)": "L2+Y",
+    "L2+B  (amortiguación)": "L2+B",
+    "L2+up (preparado)": "L2+up",
+    "R2+X  (movimiento)": "R2+X",
+    "start": "start",
+}
 
 
 def mascara(combo: str) -> int:
@@ -170,6 +191,8 @@ class Gesto:
         i_r = BY_NAME[f"R_{a.moving_joint}"].idx
 
         t = {}
+        # Vigilar el mando durante todo el gesto, no solo antes de empezar.
+        cli.teclas_de_aborto = {n: mascara(c) for n, c in MODOS.items()}
         t0 = time.monotonic()
         cli.engage(ramp=a.engage_ramp)
         t["control"] = time.monotonic() - t0
@@ -210,6 +233,7 @@ class Gesto:
         cli.wait_all_settled((i_l, i_r), dq_tol=a.settle_dq_tol,
                              timeout=a.settle_timeout)
 
+        cli.teclas_de_aborto = {}
         cli.release(home_to=q_motion, home_speed=a.approach_speed,
                     weight_ramp=a.engage_ramp + 0.5)
         print("  tiempos: " + "  ".join(f"{k} {v:.2f}s" for k, v in t.items()),
@@ -295,6 +319,7 @@ def main(argv=None) -> int:
                 try:
                     gesto.ejecuta(cli)
                 except SafetyAbort as e:
+                    cli.teclas_de_aborto = {}
                     # Abortar no debe tumbar el servicio: se suelta y se sigue
                     # esperando, que es lo que un demonio tiene que hacer.
                     print(f"  ⚠ abortado: {e}", flush=True)

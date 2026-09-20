@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import math
 import signal
+import struct
 import threading
 import time
 
@@ -77,6 +78,10 @@ class ArmSdkClient:
         self._weight_rate = 1.0
         self.q0 = np.zeros(35)
         self.señal: int | None = None
+        # Combinaciones del mando que ABORTAN el gesto en cuanto aparecen.
+        # Las pone el demonio; el cliente solo las vigila, porque es el único
+        # que mira el estado en cada ciclo.
+        self.teclas_de_aborto: dict[str, int] = {}
         self.collision_clamps = 0
         self.cycles = 0
         self.late = 0
@@ -358,6 +363,11 @@ class ArmSdkClient:
         if self._abort and w <= 1e-3:
             self._running = False
 
+    @staticmethod
+    def _teclas(s) -> int:
+        b = bytes(bytearray(s.wireless_remote))
+        return struct.unpack_from("<H", b, 2)[0] if len(b) >= 4 else 0
+
     def _seguridad(self, s) -> None:
         if self._abort:
             # ya abortando: el lazo sigue publicando mientras baja el peso
@@ -366,6 +376,17 @@ class ArmSdkClient:
                 self._weight_rate = 1.0 / 0.4
                 self._traj.clear()
             return
+        # El mando manda. Si aparece una combinación de cambio de modo
+        # —`L2+B` es amortiguación, que se pulsa cuando algo va mal— hay que
+        # soltar los brazos YA, no dentro de diez segundos: el robot está
+        # intentando cambiar de modo y nosotros se los estamos sujetando.
+        if self.teclas_de_aborto:
+            k = self._teclas(s)
+            for nombre, m in self.teclas_de_aborto.items():
+                if m and (k & m) == m:
+                    self._abort = f"el mando pidió «{nombre}»"
+                    return
+
         ahora = time.monotonic()
         for i in ARM_INDICES:
             j = BY_INDEX[i]

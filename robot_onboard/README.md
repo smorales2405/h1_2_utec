@@ -76,6 +76,35 @@ python3 six_seven_daemon.py --keep-posture --amplitude-deg 4.0 --speed 0.3
   baja a cero y el demonio vuelve a esperar, en vez de caerse.
 - **`Restart=always`** por si aun así muere.
 
+### ¿Interfiere con los comandos de modo del mando?
+
+**En espera, no.** Medido con el demonio esperando: **cero tráfico en
+`rt/arm_sdk` en 12 s**. No publica nada hasta que se dispara. Y leer
+`rt/lowstate` no puede estorbar a nadie: cada suscriptor DDS recibe su copia,
+no se consume el mensaje.
+
+Gasta un 23 % de un núcleo de los doce del PC2 mientras espera —el coste de
+deserializar `rt/lowstate` a 500 Hz en Python— pero el mando lo atiende el
+firmware, no este proceso.
+
+**Durante el gesto, sí podía.** Esos ~16 s publicamos con peso 1, así que una
+petición de cambio de modo se encontraba con los brazos cogidos. Ahora el
+cliente vigila el mando en cada ciclo y suelta inmediatamente si aparece
+`L2+Y`, `L2+B`, `L2+up`, `R2+X` o `start`. Importa sobre todo por `L2+B`, que
+es amortiguación y se pulsa cuando algo va mal: ignorarla diez segundos sería
+lo contrario de lo que hay que hacer.
+
+Las máscaras no se solapan con la nuestra, así que no hay disparos falsos:
+
+| combinación | máscara |
+|---|---|
+| `R2+up` (el gesto) | `0x1010` |
+| `L2+Y` par cero | `0x0820` |
+| `L2+B` amortiguación | `0x0220` |
+| `L2+up` preparado | `0x1020` |
+| `R2+X` movimiento | `0x0410` |
+| `start` | `0x0004` |
+
 ### Lo que queda sin verificar
 
 Qué hace el robot si el proceso muere de golpe (`kill -9`, corte de luz al PC2)

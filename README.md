@@ -8,6 +8,10 @@ despliegue y los parches al código de terceros. Los repositorios upstream no se
 vendorizan — se clonan siguiendo las instrucciones de abajo.
 
 ```
+docs/
+└── CAPACITACION_H1_2.md          resumen de la capacitación Robotics 4.0: seguridad, modos,
+                                  bajo nivel, arm_sdk, MuJoCo. Leer antes de escribir control
+
 h1_2_joint_control/           Control y sintonización articular (SIN teleoperación)
 ├── README.md                     guía completa
 ├── config/gains.yaml             conjuntos de ganancias + topes de seguridad

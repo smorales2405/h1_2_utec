@@ -14,7 +14,30 @@
      left almost every link at SolidWorks' default 1000 kg/m3. The flange is
      NOT in the visual or collision model. The centre of mass is unchanged and
      the tensor is scaled by 0.696619/0.314091 = 2.217891, which keeps the
-     vendor's mass distribution. Both palms carry the same values, mirrored. -->
+     vendor's mass distribution. Both palms carry the same values, mirrored.
+
+     Joint zeros and limits follow the RH56DFTP user manual, section 2.6.11
+     (printed pages 21 and 22), which defines one chord angle per DOF against
+     the metacarpal plane. For every actuated joint q=0 is the hand FULLY OPEN
+     and the upper limit is FULLY CLOSED, so the SDK scale maps uniformly:
+
+       ANGLE_SET = 1000 * (1 - q / q_max)        q = q_max * (1 - ANGLE_SET/1000)
+
+     | DOF            | manual angle    | open  | closed | q_max (rad) |
+     | fingers        | alpha           | 176   | 20     | see below   |
+     | thumb bending  | theta           | 70    | -13    | 1.06242     |
+     | thumb rotation | beta            | 165   | 90     | 1.30900     |
+
+     q_max per finger: index 1.60795, middle 1.59037, ring 1.60951,
+     little 1.67173. They differ because each finger seats at its own angle on
+     the palm, so the same 176..20 sweep needs a slightly different joint
+     travel. The mimic joints carry multiplier * q_max.
+
+     Every joint origin was rotated so that q=0 lands exactly on the open
+     angle; the shifts were 0.4 to 1.9 degrees except thumb_swing, which moved
+     12.85 degrees. No joint axis was changed: all six close as q grows.
+     Verified by computing the manual's angles on this model: all twelve
+     endpoints land on target to better than 0.001 degrees. -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <link name="left_hand_base_link">
@@ -65,11 +88,11 @@
     </collision>
   </link>
   <joint name="left_thumb_swing_joint" type="revolute">
-    <origin xyz="-0.035227 0.0908 -0.040206" rpy="0 0 0"/>
+    <origin xyz="-0.035227 0.0908 -0.040206" rpy="0 -0 0.224255962277"/>
     <parent link="left_hand_base_link"/>
     <child link="left_thumb_swing"/>
     <axis xyz="0 0 1"/>
-    <limit lower="0" upper="1.70" effort="1" velocity="100"/>
+    <limit lower="0" upper="1.30899614247" effort="1" velocity="100"/>
   </joint>
 
   <link name="left_thumb_1">
@@ -96,11 +119,11 @@
     </collision>
   </link>
   <joint name="left_thumb_1_joint" type="revolute">
-    <origin xyz="-0.0096402 -0.0097687 0.00125" rpy="1.5708 0 0.037536"/>
+    <origin xyz="-0.0096402 -0.0097687 0.00125" rpy="1.57080000191 0.0322660551661 0.037536118561"/>
     <parent link="left_thumb_swing"/>
     <child link="left_thumb_1"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="0.92" effort="1" velocity="100"/>
+    <limit lower="0" upper="1.06242095936" effort="1" velocity="100"/>
   </joint>
 
   <link name="left_thumb_2">
@@ -127,11 +150,11 @@
     </collision>
   </link>
   <joint name="left_thumb_2_joint" type="revolute">
-    <origin xyz="-0.0385855343215257 0.0137354280979689 -0.00085000000007604" rpy="0 0 0"/>
+    <origin xyz="-0.0385855343215257 0.0137354280979689 -0.00085000000007604" rpy="0 0 -0.0129064220665"/>
     <parent link="left_thumb_1"/>
     <child link="left_thumb_2"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="3.14" effort="1" velocity="100"/>
+    <limit lower="0" upper="0.424968383745" effort="1" velocity="100"/>
     <mimic joint="left_thumb_1_joint" multiplier="0.40" offset="0"/>
   </joint>
 
@@ -159,11 +182,11 @@
     </collision>
   </link>
   <joint name="left_thumb_3_joint" type="revolute">
-    <origin xyz="-0.0204656980659991 0.00837680232935447 0.000199999999999881" rpy="0 0 0"/>
+    <origin xyz="-0.0204656980659991 0.00837680232935447 0.000199999999999881" rpy="0 0 -0.0193596330998"/>
     <parent link="left_thumb_2"/>
     <child link="left_thumb_3"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="3.14" effort="1" velocity="100"/>
+    <limit lower="0" upper="0.637452575618" effort="1" velocity="100"/>
     <mimic joint="left_thumb_1_joint" multiplier="0.60" offset="0"/>
   </joint>
 
@@ -191,11 +214,11 @@
     </collision>
   </link>
   <joint name="left_index_1_joint" type="revolute">
-    <origin xyz="-0.048156 0.11125 0.045404" rpy="1.6057 0 -1.5708"/>
+    <origin xyz="-0.048156 0.11125 0.045404" rpy="1.60570928804 -0.0230624359379 -1.57160543366"/>
     <parent link="left_hand_base_link"/>
     <child link="left_index_1"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.6" effort="1" velocity="100"/>
+    <limit lower="0" upper="1.60795403606" effort="1" velocity="100"/>
   </joint>
 
   <link name="left_index_2">
@@ -222,11 +245,11 @@
     </collision>
   </link>
   <joint name="left_index_2_joint" type="revolute">
-    <origin xyz="0.00259487212105013 0.0326721877470773 -0.000299999999999988" rpy="0 0 0"/>
+    <origin xyz="0.00259487212105013 0.0326721877470773 -0.000299999999999988" rpy="0 -0 0.0242303183457"/>
     <parent link="left_index_1"/>
     <child link="left_index_2"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.6" effort="1" velocity="100"/>
+    <limit lower="0" upper="1.68835173786" effort="1" velocity="100"/>
     <mimic joint="left_index_1_joint" multiplier="1.05" offset="0"/>
   </joint>
 
@@ -254,11 +277,11 @@
     </collision>
   </link>
   <joint name="left_middle_1_joint" type="revolute">
-    <origin xyz="-0.026577 0.11125 0.046044" rpy="1.5708 0 -1.5708"/>
+    <origin xyz="-0.026577 0.11125 0.046044" rpy="1.57080000168 -0.0302474957799 -1.57080011114"/>
     <parent link="left_hand_base_link"/>
     <child link="left_middle_1"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.6" effort="1" velocity="100"/>
+    <limit lower="0" upper="1.590368352" effort="1" velocity="100"/>
   </joint>
 
   <link name="left_middle_2">
@@ -285,11 +308,11 @@
     </collision>
   </link>
   <joint name="left_middle_2_joint" type="revolute">
-    <origin xyz="0.0028436 0.032651 -0.0003" rpy="0 0 0"/>
+    <origin xyz="0.0028436 0.032651 -0.0003" rpy="0 -0 0.0317598705691"/>
     <parent link="left_middle_1"/>
     <child link="left_middle_2"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.6" effort="1" velocity="100"/>
+    <limit lower="0" upper="1.6698867696" effort="1" velocity="100"/>
     <mimic joint="left_middle_1_joint" multiplier="1.05" offset="0"/>
   </joint>
 
@@ -317,11 +340,11 @@
     </collision>
   </link>
   <joint name="left_ring_1_joint" type="revolute">
-    <origin xyz="-0.004945 0.11125 0.045939" rpy="1.5184 0 -1.5708"/>
+    <origin xyz="-0.004945 0.11125 0.045939" rpy="1.51838056831 -0.0272178525657 -1.56937222492"/>
     <parent link="left_hand_base_link"/>
     <child link="left_ring_1"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.6" effort="1" velocity="100"/>
+    <limit lower="0" upper="1.60951229147" effort="1" velocity="100"/>
   </joint>
 
   <link name="left_ring_2">
@@ -348,11 +371,11 @@
     </collision>
   </link>
   <joint name="left_ring_2_joint" type="revolute">
-    <origin xyz="0.0031431 0.032624 -0.0003" rpy="0 0 0"/>
+    <origin xyz="0.0031431 0.032624 -0.0003" rpy="0 -0 0.0286180295277"/>
     <parent link="left_ring_1"/>
     <child link="left_ring_2"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.6" effort="1" velocity="100"/>
+    <limit lower="0" upper="1.68998790605" effort="1" velocity="100"/>
     <mimic joint="left_ring_1_joint" multiplier="1.05" offset="0"/>
   </joint>
 
@@ -380,11 +403,11 @@
     </collision>
   </link>
   <joint name="left_little_1_joint" type="revolute">
-    <origin xyz="0.016446 0.11125 0.042817" rpy="1.4661 0 -1.5708"/>
+    <origin xyz="0.016446 0.11125 0.042817" rpy="1.46609698912 -0.00756999419343 -1.57000452558"/>
     <parent link="left_hand_base_link"/>
     <child link="left_little_1"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.6" effort="1" velocity="100"/>
+    <limit lower="0" upper="1.67172785459" effort="1" velocity="100"/>
   </joint>
 
   <link name="left_little_2">
@@ -411,11 +434,11 @@
     </collision>
   </link>
   <joint name="left_little_2_joint" type="revolute">
-    <origin xyz="0.0023072 0.032694 -0.0003" rpy="0 0 0"/>
+    <origin xyz="0.0023072 0.032694 -0.0003" rpy="0 -0 0.00799225759443"/>
     <parent link="left_little_1"/>
     <child link="left_little_2"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.6" effort="1" velocity="100"/>
+    <limit lower="0" upper="1.75531424732" effort="1" velocity="100"/>
     <mimic joint="left_little_1_joint" multiplier="1.05" offset="0"/>
   </joint>
 

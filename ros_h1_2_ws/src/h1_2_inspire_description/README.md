@@ -39,8 +39,38 @@ meshes/
 ### Inspire RH56DFTP hands (12 joints each)
 Each hand has 6 actuated joints and 6 mimic joints:
 
-Both hands use the **same joint names** (`*_thumb_swing`, `*_thumb_1..3`) and the
-**same limits** (`*_thumb_swing` `[0, 1.70]`, `*_thumb_1` `[0, 0.92]`, fingers `[0, 1.6]`).
+Both hands use the **same joint names** (`*_thumb_swing`, `*_thumb_1..3`).
+
+**`q = 0` is the hand fully open and the upper limit is fully closed, on every
+actuated joint.** The zeros and limits are set from the RH56DFTP user manual,
+section 2.6.11 (printed pages 21-22), which defines one chord angle per DOF
+measured against the metacarpal plane:
+
+| DOF | Manual angle | Open | Closed | `q_max` (rad) |
+|---|---|---|---|---|
+| index | α | 176° | 20° | 1.60795 |
+| middle | α | 176° | 20° | 1.59037 |
+| ring | α | 176° | 20° | 1.60951 |
+| little | α | 176° | 20° | 1.67173 |
+| thumb bending | θ | 70° | −13° | 1.06242 |
+| thumb rotation | β | 165° | 90° | 1.30900 |
+
+The four fingers differ slightly because each seats at its own angle on the
+palm, so the same 176°→20° sweep costs a slightly different joint travel. Mimic
+joints carry `multiplier × q_max`.
+
+Because the convention is uniform, the SDK scale maps with one formula for all
+six DOF:
+
+```python
+ANGLE_SET = 1000 * (1 - q / q_max)      # URDF -> hand
+q         = q_max * (1 - ANGLE_SET/1000) # hand -> URDF
+```
+
+Every joint origin was rotated so `q = 0` lands exactly on the open angle. The
+shifts were 0.4°–1.9° except `*_thumb_swing`, which moved 12.85°. No joint axis
+changed: all six close as `q` grows. Verified by recomputing the manual's angles
+on this model — all twelve endpoints land on target to better than 0.001°.
 
 The **right hand's digits are the exact mirror of the left hand's** across the
 palm's `y=0` plane — verified to 0.000000 mm vertex-for-vertex, at rest and

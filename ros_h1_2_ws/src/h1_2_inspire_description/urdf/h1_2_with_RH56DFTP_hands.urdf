@@ -903,11 +903,11 @@
     </collision>
   </link>
   <joint name="left_thumb_swing_joint" type="revolute">
-    <origin rpy="0 0 0" xyz="-0.035227 0.0908 -0.040206"/>
+    <origin rpy="0 -0 0.224255962277" xyz="-0.035227 0.0908 -0.040206"/>
     <parent link="left_hand_base_link"/>
     <child link="left_thumb_swing"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.70" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.30899614247" velocity="100"/>
   </joint>
   <link name="left_thumb_1">
     <inertial>
@@ -932,11 +932,11 @@
     </collision>
   </link>
   <joint name="left_thumb_1_joint" type="revolute">
-    <origin rpy="1.5708 0 0.037536" xyz="-0.0096402 -0.0097687 0.00125"/>
+    <origin rpy="1.57080000191 0.0322660551661 0.037536118561" xyz="-0.0096402 -0.0097687 0.00125"/>
     <parent link="left_thumb_swing"/>
     <child link="left_thumb_1"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="0.92" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.06242095936" velocity="100"/>
   </joint>
   <link name="left_thumb_2">
     <inertial>
@@ -961,11 +961,11 @@
     </collision>
   </link>
   <joint name="left_thumb_2_joint" type="revolute">
-    <origin rpy="0 0 0" xyz="-0.0385855343215257 0.0137354280979689 -0.00085000000007604"/>
+    <origin rpy="0 0 -0.0129064220665" xyz="-0.0385855343215257 0.0137354280979689 -0.00085000000007604"/>
     <parent link="left_thumb_1"/>
     <child link="left_thumb_2"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="3.14" velocity="100"/>
+    <limit effort="1" lower="0" upper="0.424968383745" velocity="100"/>
     <mimic joint="left_thumb_1_joint" multiplier="0.40" offset="0"/>
   </joint>
   <link name="left_thumb_3">
@@ -991,11 +991,11 @@
     </collision>
   </link>
   <joint name="left_thumb_3_joint" type="revolute">
-    <origin rpy="0 0 0" xyz="-0.0204656980659991 0.00837680232935447 0.000199999999999881"/>
+    <origin rpy="0 0 -0.0193596330998" xyz="-0.0204656980659991 0.00837680232935447 0.000199999999999881"/>
     <parent link="left_thumb_2"/>
     <child link="left_thumb_3"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="3.14" velocity="100"/>
+    <limit effort="1" lower="0" upper="0.637452575618" velocity="100"/>
     <mimic joint="left_thumb_1_joint" multiplier="0.60" offset="0"/>
   </joint>
   <link name="left_index_1">
@@ -1021,11 +1021,11 @@
     </collision>
   </link>
   <joint name="left_index_1_joint" type="revolute">
-    <origin rpy="1.6057 0 -1.5708" xyz="-0.048156 0.11125 0.045404"/>
+    <origin rpy="1.60570928804 -0.0230624359379 -1.57160543366" xyz="-0.048156 0.11125 0.045404"/>
     <parent link="left_hand_base_link"/>
     <child link="left_index_1"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.6" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.60795403606" velocity="100"/>
   </joint>
   <link name="left_index_2">
     <inertial>
@@ -1050,11 +1050,11 @@
     </collision>
   </link>
   <joint name="left_index_2_joint" type="revolute">
-    <origin rpy="0 0 0" xyz="0.00259487212105013 0.0326721877470773 -0.000299999999999988"/>
+    <origin rpy="0 -0 0.0242303183457" xyz="0.00259487212105013 0.0326721877470773 -0.000299999999999988"/>
     <parent link="left_index_1"/>
     <child link="left_index_2"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.6" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.68835173786" velocity="100"/>
     <mimic joint="left_index_1_joint" multiplier="1.05" offset="0"/>
   </joint>
   <link name="left_middle_1">
@@ -1080,11 +1080,11 @@
     </collision>
   </link>
   <joint name="left_middle_1_joint" type="revolute">
-    <origin rpy="1.5708 0 -1.5708" xyz="-0.026577 0.11125 0.046044"/>
+    <origin rpy="1.57080000168 -0.0302474957799 -1.57080011114" xyz="-0.026577 0.11125 0.046044"/>
     <parent link="left_hand_base_link"/>
     <child link="left_middle_1"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.6" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.590368352" velocity="100"/>
   </joint>
   <link name="left_middle_2">
     <inertial>
@@ -1109,11 +1109,11 @@
     </collision>
   </link>
   <joint name="left_middle_2_joint" type="revolute">
-    <origin rpy="0 0 0" xyz="0.0028436 0.032651 -0.0003"/>
+    <origin rpy="0 -0 0.0317598705691" xyz="0.0028436 0.032651 -0.0003"/>
     <parent link="left_middle_1"/>
     <child link="left_middle_2"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.6" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.6698867696" velocity="100"/>
     <mimic joint="left_middle_1_joint" multiplier="1.05" offset="0"/>
   </joint>
   <link name="left_ring_1">
@@ -1139,11 +1139,11 @@
     </collision>
   </link>
   <joint name="left_ring_1_joint" type="revolute">
-    <origin rpy="1.5184 0 -1.5708" xyz="-0.004945 0.11125 0.045939"/>
+    <origin rpy="1.51838056831 -0.0272178525657 -1.56937222492" xyz="-0.004945 0.11125 0.045939"/>
     <parent link="left_hand_base_link"/>
     <child link="left_ring_1"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.6" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.60951229147" velocity="100"/>
   </joint>
   <link name="left_ring_2">
     <inertial>
@@ -1168,11 +1168,11 @@
     </collision>
   </link>
   <joint name="left_ring_2_joint" type="revolute">
-    <origin rpy="0 0 0" xyz="0.0031431 0.032624 -0.0003"/>
+    <origin rpy="0 -0 0.0286180295277" xyz="0.0031431 0.032624 -0.0003"/>
     <parent link="left_ring_1"/>
     <child link="left_ring_2"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.6" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.68998790605" velocity="100"/>
     <mimic joint="left_ring_1_joint" multiplier="1.05" offset="0"/>
   </joint>
   <link name="left_little_1">
@@ -1198,11 +1198,11 @@
     </collision>
   </link>
   <joint name="left_little_1_joint" type="revolute">
-    <origin rpy="1.4661 0 -1.5708" xyz="0.016446 0.11125 0.042817"/>
+    <origin rpy="1.46609698912 -0.00756999419343 -1.57000452558" xyz="0.016446 0.11125 0.042817"/>
     <parent link="left_hand_base_link"/>
     <child link="left_little_1"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.6" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.67172785459" velocity="100"/>
   </joint>
   <link name="left_little_2">
     <inertial>
@@ -1227,11 +1227,11 @@
     </collision>
   </link>
   <joint name="left_little_2_joint" type="revolute">
-    <origin rpy="0 0 0" xyz="0.0023072 0.032694 -0.0003"/>
+    <origin rpy="0 -0 0.00799225759443" xyz="0.0023072 0.032694 -0.0003"/>
     <parent link="left_little_1"/>
     <child link="left_little_2"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.6" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.75531424732" velocity="100"/>
     <mimic joint="left_little_1_joint" multiplier="1.05" offset="0"/>
   </joint>
   <link name="right_hand_base_link">
@@ -1279,11 +1279,11 @@
     </collision>
   </link>
   <joint name="right_thumb_swing_joint" type="revolute">
-    <origin rpy="0 0 0" xyz="-0.035227 -0.0908 -0.040206"/>
+    <origin rpy="0 -0 -0.224255962277" xyz="-0.035227 -0.0908 -0.040206"/>
     <parent link="right_hand_base_link"/>
     <child link="right_thumb_swing"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.70" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.30899614247" velocity="100"/>
   </joint>
   <link name="right_thumb_1">
     <inertial>
@@ -1308,11 +1308,11 @@
     </collision>
   </link>
   <joint name="right_thumb_1_joint" type="revolute">
-    <origin rpy="-1.5708 0 -0.037536" xyz="-0.0096402 0.0097687 0.00125"/>
+    <origin rpy="-1.57080000191 0.0322660551661 -0.037536118561" xyz="-0.0096402 0.0097687 0.00125"/>
     <parent link="right_thumb_swing"/>
     <child link="right_thumb_1"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="0.92" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.06242095936" velocity="100"/>
   </joint>
   <link name="right_thumb_2">
     <inertial>
@@ -1337,11 +1337,11 @@
     </collision>
   </link>
   <joint name="right_thumb_2_joint" type="revolute">
-    <origin rpy="0 0 0" xyz="-0.0385855343215257 -0.0137354280979689 -0.00085000000007604"/>
+    <origin rpy="0 0 0.0129064220665" xyz="-0.0385855343215257 -0.0137354280979689 -0.00085000000007604"/>
     <parent link="right_thumb_1"/>
     <child link="right_thumb_2"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="3.14" velocity="100"/>
+    <limit effort="1" lower="0" upper="0.424968383745" velocity="100"/>
     <mimic joint="right_thumb_1_joint" multiplier="0.40" offset="0"/>
   </joint>
   <link name="right_thumb_3">
@@ -1367,11 +1367,11 @@
     </collision>
   </link>
   <joint name="right_thumb_3_joint" type="revolute">
-    <origin rpy="0 0 0" xyz="-0.0204656980659991 -0.00837680232935447 0.000199999999999881"/>
+    <origin rpy="0 0 0.0193596330998" xyz="-0.0204656980659991 -0.00837680232935447 0.000199999999999881"/>
     <parent link="right_thumb_2"/>
     <child link="right_thumb_3"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="3.14" velocity="100"/>
+    <limit effort="1" lower="0" upper="0.637452575618" velocity="100"/>
     <mimic joint="right_thumb_1_joint" multiplier="0.60" offset="0"/>
   </joint>
   <link name="right_index_1">
@@ -1397,11 +1397,11 @@
     </collision>
   </link>
   <joint name="right_index_1_joint" type="revolute">
-    <origin rpy="-1.6057 0 1.5708" xyz="-0.048156 -0.11125 0.045404"/>
+    <origin rpy="-1.60570928804 -0.0230624359379 1.57160543366" xyz="-0.048156 -0.11125 0.045404"/>
     <parent link="right_hand_base_link"/>
     <child link="right_index_1"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.6" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.60795403606" velocity="100"/>
   </joint>
   <link name="right_index_2">
     <inertial>
@@ -1426,11 +1426,11 @@
     </collision>
   </link>
   <joint name="right_index_2_joint" type="revolute">
-    <origin rpy="0 0 0" xyz="0.00259487212105013 -0.0326721877470773 -0.000299999999999988"/>
+    <origin rpy="0 -0 -0.0242303183457" xyz="0.00259487212105013 -0.0326721877470773 -0.000299999999999988"/>
     <parent link="right_index_1"/>
     <child link="right_index_2"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.6" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.68835173786" velocity="100"/>
     <mimic joint="right_index_1_joint" multiplier="1.05" offset="0"/>
   </joint>
   <link name="right_middle_1">
@@ -1456,11 +1456,11 @@
     </collision>
   </link>
   <joint name="right_middle_1_joint" type="revolute">
-    <origin rpy="-1.5708 0 1.5708" xyz="-0.026577 -0.11125 0.046044"/>
+    <origin rpy="-1.57080000168 -0.0302474957799 1.57080011114" xyz="-0.026577 -0.11125 0.046044"/>
     <parent link="right_hand_base_link"/>
     <child link="right_middle_1"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.6" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.590368352" velocity="100"/>
   </joint>
   <link name="right_middle_2">
     <inertial>
@@ -1485,11 +1485,11 @@
     </collision>
   </link>
   <joint name="right_middle_2_joint" type="revolute">
-    <origin rpy="0 0 0" xyz="0.0028436 -0.032651 -0.0003"/>
+    <origin rpy="0 -0 -0.0317598705691" xyz="0.0028436 -0.032651 -0.0003"/>
     <parent link="right_middle_1"/>
     <child link="right_middle_2"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.6" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.6698867696" velocity="100"/>
     <mimic joint="right_middle_1_joint" multiplier="1.05" offset="0"/>
   </joint>
   <link name="right_ring_1">
@@ -1515,11 +1515,11 @@
     </collision>
   </link>
   <joint name="right_ring_1_joint" type="revolute">
-    <origin rpy="-1.5184 0 1.5708" xyz="-0.004945 -0.11125 0.045939"/>
+    <origin rpy="-1.51838056831 -0.0272178525657 1.56937222492" xyz="-0.004945 -0.11125 0.045939"/>
     <parent link="right_hand_base_link"/>
     <child link="right_ring_1"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.6" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.60951229147" velocity="100"/>
   </joint>
   <link name="right_ring_2">
     <inertial>
@@ -1544,11 +1544,11 @@
     </collision>
   </link>
   <joint name="right_ring_2_joint" type="revolute">
-    <origin rpy="0 0 0" xyz="0.0031431 -0.032624 -0.0003"/>
+    <origin rpy="0 -0 -0.0286180295277" xyz="0.0031431 -0.032624 -0.0003"/>
     <parent link="right_ring_1"/>
     <child link="right_ring_2"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.6" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.68998790605" velocity="100"/>
     <mimic joint="right_ring_1_joint" multiplier="1.05" offset="0"/>
   </joint>
   <link name="right_little_1">
@@ -1574,11 +1574,11 @@
     </collision>
   </link>
   <joint name="right_little_1_joint" type="revolute">
-    <origin rpy="-1.4661 0 1.5708" xyz="0.016446 -0.11125 0.042817"/>
+    <origin rpy="-1.46609698912 -0.00756999419343 1.57000452558" xyz="0.016446 -0.11125 0.042817"/>
     <parent link="right_hand_base_link"/>
     <child link="right_little_1"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.6" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.67172785459" velocity="100"/>
   </joint>
   <link name="right_little_2">
     <inertial>
@@ -1603,11 +1603,11 @@
     </collision>
   </link>
   <joint name="right_little_2_joint" type="revolute">
-    <origin rpy="0 0 0" xyz="0.0023072 -0.032694 -0.0003"/>
+    <origin rpy="0 -0 -0.00799225759443" xyz="0.0023072 -0.032694 -0.0003"/>
     <parent link="right_little_1"/>
     <child link="right_little_2"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.6" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.75531424732" velocity="100"/>
     <mimic joint="right_little_1_joint" multiplier="1.05" offset="0"/>
   </joint>
   <!-- Left hand attached to left_wrist_yaw_link -->

@@ -4,8 +4,8 @@
      Actuated joints (6): left_thumb_swing_joint, left_thumb_1_joint,
        left_index_1_joint, left_middle_1_joint, left_ring_1_joint, left_little_1_joint
      Mimic joints: left_thumb_2_joint (0.40×), left_thumb_3_joint (0.60×),
-       left_index_2_joint (1.05×), left_middle_2_joint (1.05×),
-       left_ring_2_joint (1.05×), left_little_2_joint (1.05×)
+       left_index_2_joint (0.85×), left_middle_2_joint (0.85×),
+       left_ring_2_joint (0.85×), left_little_2_joint (0.85×)
      Palm mass is set from a scale reading of the real hand: 0.840 kg for the
      whole hand, wrist flange included. The 12 digits keep their exported
      0.143381 kg, so the palm carries 0.840 - 0.143381 = 0.696619 kg. The
@@ -16,28 +16,45 @@
      the tensor is scaled by 0.696619/0.314091 = 2.217891, which keeps the
      vendor's mass distribution. Both palms carry the same values, mirrored.
 
-     Joint zeros and limits follow the RH56DFTP user manual, section 2.6.11
-     (printed pages 21 and 22), which defines one chord angle per DOF against
-     the metacarpal plane. For every actuated joint q=0 is the hand FULLY OPEN
-     and the upper limit is FULLY CLOSED, so the SDK scale maps uniformly:
+     q=0 is the hand FULLY OPEN and the upper limit is FULLY CLOSED on every
+     actuated joint, so all six close as q grows.
 
-       ANGLE_SET = 1000 * (1 - q / q_max)        q = q_max * (1 - ANGLE_SET/1000)
+     The ZEROS follow the RH56DFTP user manual, section 2.6.11 (printed pages
+     21 and 22), which defines one chord angle per DOF against the metacarpal
+     plane: alpha = 176 deg (fingers), theta = 70 deg (thumb bending) and
+     beta = 165 deg (thumb rotation) at ANGLE_SET = 1000. Every joint origin was
+     rotated so that q=0 lands on those angles. Photos of the real hand agree
+     to within about 3 deg (thumb rotation: 3 to 6 deg).
 
-     | DOF            | manual angle    | open  | closed | q_max (rad) |
-     | fingers        | alpha           | 176   | 20     | see below   |
-     | thumb bending  | theta           | 70    | -13    | 1.06242     |
-     | thumb rotation | beta            | 165   | 90     | 1.30900     |
+     The UPPER LIMITS do not follow the manual: the real hand stops short of
+     the manual's closed angles. They were measured on photos of the real hand
+     at ANGLE_SET = 0, 500 and 1000 (inspire_hand_interface/Caracterizacion/
+     imagenes/angulos limite). This model was rendered in MuJoCo through a
+     virtual camera fitted to each photo, and the joint values were swept
+     until the rendered silhouette matched the photographed one.
 
-     q_max per finger: index 1.60795, middle 1.59037, ring 1.60951,
-     little 1.67173. They differ because each finger seats at its own angle on
-     the palm, so the same 176..20 sweep needs a slightly different joint
-     travel. The mimic joints carry multiplier * q_max.
+     | DOF            | q_max (rad) | real closed angle | manual closed |
+     | fingers        | 1.620       | alpha 31 to 37    | alpha 20      |
+     | thumb bending  | 0.660       | theta about 19    | theta -13     |
+     | thumb rotation | 1.190       | beta 96 to 97     | beta 90       |
 
-     Every joint origin was rotated so that q=0 lands exactly on the open
-     angle; the shifts were 0.4 to 1.9 degrees except thumb_swing, which moved
-     12.85 degrees. No joint axis was changed: all six close as q grows.
-     Verified by computing the manual's angles on this model: all twelve
-     endpoints land on target to better than 0.001 degrees. -->
+     The four fingers share one q_max that minimises the error over the four
+     photos (per finger 1.58 to 1.74). The finger mimic multiplier is 0.85,
+     not the vendor's 1.05, which folded the distal phalanx into the palm.
+     0.85 reproduces the closed pose to 0.5 deg of fingertip orientation. The
+     real coupling is not linear (about 0.65 at mid travel, 0.82 closed), so
+     at ANGLE_SET = 500 the modelled fingertip is about 13 deg too bent. The
+     thumb multipliers 0.40 and 0.60 cannot be resolved from the photos and
+     stay as exported.
+
+     The SDK scale is NOT linear in the finger proximal joints: at
+     ANGLE_SET = 500 they have already covered 64 percent of their travel.
+     Interpolate between the measured points, with s = 1 - ANGLE_SET/1000:
+
+     | s            | 0 | 0.5        | 1     |
+     | finger *_1   | 0 | 1.05       | 1.620 |
+     | thumb_1      | 0 | 0.38       | 0.660 |
+     | thumb_swing  | 0 | (no photo) | 1.190 |  -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <link name="left_hand_base_link">
@@ -92,7 +109,7 @@
     <parent link="left_hand_base_link"/>
     <child link="left_thumb_swing"/>
     <axis xyz="0 0 1"/>
-    <limit lower="0" upper="1.30899614247" effort="1" velocity="100"/>
+    <limit lower="0" upper="1.19" effort="1" velocity="100"/>
   </joint>
 
   <link name="left_thumb_1">
@@ -123,7 +140,7 @@
     <parent link="left_thumb_swing"/>
     <child link="left_thumb_1"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.06242095936" effort="1" velocity="100"/>
+    <limit lower="0" upper="0.66" effort="1" velocity="100"/>
   </joint>
 
   <link name="left_thumb_2">
@@ -154,7 +171,7 @@
     <parent link="left_thumb_1"/>
     <child link="left_thumb_2"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="0.424968383745" effort="1" velocity="100"/>
+    <limit lower="0" upper="0.264" effort="1" velocity="100"/>
     <mimic joint="left_thumb_1_joint" multiplier="0.40" offset="0"/>
   </joint>
 
@@ -186,7 +203,7 @@
     <parent link="left_thumb_2"/>
     <child link="left_thumb_3"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="0.637452575618" effort="1" velocity="100"/>
+    <limit lower="0" upper="0.396" effort="1" velocity="100"/>
     <mimic joint="left_thumb_1_joint" multiplier="0.60" offset="0"/>
   </joint>
 
@@ -218,7 +235,7 @@
     <parent link="left_hand_base_link"/>
     <child link="left_index_1"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.60795403606" effort="1" velocity="100"/>
+    <limit lower="0" upper="1.62" effort="1" velocity="100"/>
   </joint>
 
   <link name="left_index_2">
@@ -249,8 +266,8 @@
     <parent link="left_index_1"/>
     <child link="left_index_2"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.68835173786" effort="1" velocity="100"/>
-    <mimic joint="left_index_1_joint" multiplier="1.05" offset="0"/>
+    <limit lower="0" upper="1.377" effort="1" velocity="100"/>
+    <mimic joint="left_index_1_joint" multiplier="0.85" offset="0"/>
   </joint>
 
   <link name="left_middle_1">
@@ -281,7 +298,7 @@
     <parent link="left_hand_base_link"/>
     <child link="left_middle_1"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.590368352" effort="1" velocity="100"/>
+    <limit lower="0" upper="1.62" effort="1" velocity="100"/>
   </joint>
 
   <link name="left_middle_2">
@@ -312,8 +329,8 @@
     <parent link="left_middle_1"/>
     <child link="left_middle_2"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.6698867696" effort="1" velocity="100"/>
-    <mimic joint="left_middle_1_joint" multiplier="1.05" offset="0"/>
+    <limit lower="0" upper="1.377" effort="1" velocity="100"/>
+    <mimic joint="left_middle_1_joint" multiplier="0.85" offset="0"/>
   </joint>
 
   <link name="left_ring_1">
@@ -344,7 +361,7 @@
     <parent link="left_hand_base_link"/>
     <child link="left_ring_1"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.60951229147" effort="1" velocity="100"/>
+    <limit lower="0" upper="1.62" effort="1" velocity="100"/>
   </joint>
 
   <link name="left_ring_2">
@@ -375,8 +392,8 @@
     <parent link="left_ring_1"/>
     <child link="left_ring_2"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.68998790605" effort="1" velocity="100"/>
-    <mimic joint="left_ring_1_joint" multiplier="1.05" offset="0"/>
+    <limit lower="0" upper="1.377" effort="1" velocity="100"/>
+    <mimic joint="left_ring_1_joint" multiplier="0.85" offset="0"/>
   </joint>
 
   <link name="left_little_1">
@@ -407,7 +424,7 @@
     <parent link="left_hand_base_link"/>
     <child link="left_little_1"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.67172785459" effort="1" velocity="100"/>
+    <limit lower="0" upper="1.62" effort="1" velocity="100"/>
   </joint>
 
   <link name="left_little_2">
@@ -438,8 +455,8 @@
     <parent link="left_little_1"/>
     <child link="left_little_2"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.75531424732" effort="1" velocity="100"/>
-    <mimic joint="left_little_1_joint" multiplier="1.05" offset="0"/>
+    <limit lower="0" upper="1.377" effort="1" velocity="100"/>
+    <mimic joint="left_little_1_joint" multiplier="0.85" offset="0"/>
   </joint>
 
 </robot>

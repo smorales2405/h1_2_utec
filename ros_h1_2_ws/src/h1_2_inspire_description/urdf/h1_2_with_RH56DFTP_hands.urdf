@@ -907,7 +907,7 @@
     <parent link="left_hand_base_link"/>
     <child link="left_thumb_swing"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.30899614247" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.19" velocity="100"/>
   </joint>
   <link name="left_thumb_1">
     <inertial>
@@ -936,7 +936,7 @@
     <parent link="left_thumb_swing"/>
     <child link="left_thumb_1"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.06242095936" velocity="100"/>
+    <limit effort="1" lower="0" upper="0.66" velocity="100"/>
   </joint>
   <link name="left_thumb_2">
     <inertial>
@@ -965,7 +965,7 @@
     <parent link="left_thumb_1"/>
     <child link="left_thumb_2"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="0.424968383745" velocity="100"/>
+    <limit effort="1" lower="0" upper="0.264" velocity="100"/>
     <mimic joint="left_thumb_1_joint" multiplier="0.40" offset="0"/>
   </joint>
   <link name="left_thumb_3">
@@ -995,7 +995,7 @@
     <parent link="left_thumb_2"/>
     <child link="left_thumb_3"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="0.637452575618" velocity="100"/>
+    <limit effort="1" lower="0" upper="0.396" velocity="100"/>
     <mimic joint="left_thumb_1_joint" multiplier="0.60" offset="0"/>
   </joint>
   <link name="left_index_1">
@@ -1025,7 +1025,7 @@
     <parent link="left_hand_base_link"/>
     <child link="left_index_1"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.60795403606" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.62" velocity="100"/>
   </joint>
   <link name="left_index_2">
     <inertial>
@@ -1054,8 +1054,8 @@
     <parent link="left_index_1"/>
     <child link="left_index_2"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.68835173786" velocity="100"/>
-    <mimic joint="left_index_1_joint" multiplier="1.05" offset="0"/>
+    <limit effort="1" lower="0" upper="1.377" velocity="100"/>
+    <mimic joint="left_index_1_joint" multiplier="0.85" offset="0"/>
   </joint>
   <link name="left_middle_1">
     <inertial>
@@ -1084,7 +1084,7 @@
     <parent link="left_hand_base_link"/>
     <child link="left_middle_1"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.590368352" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.62" velocity="100"/>
   </joint>
   <link name="left_middle_2">
     <inertial>
@@ -1113,8 +1113,8 @@
     <parent link="left_middle_1"/>
     <child link="left_middle_2"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.6698867696" velocity="100"/>
-    <mimic joint="left_middle_1_joint" multiplier="1.05" offset="0"/>
+    <limit effort="1" lower="0" upper="1.377" velocity="100"/>
+    <mimic joint="left_middle_1_joint" multiplier="0.85" offset="0"/>
   </joint>
   <link name="left_ring_1">
     <inertial>
@@ -1143,7 +1143,7 @@
     <parent link="left_hand_base_link"/>
     <child link="left_ring_1"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.60951229147" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.62" velocity="100"/>
   </joint>
   <link name="left_ring_2">
     <inertial>
@@ -1172,8 +1172,8 @@
     <parent link="left_ring_1"/>
     <child link="left_ring_2"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.68998790605" velocity="100"/>
-    <mimic joint="left_ring_1_joint" multiplier="1.05" offset="0"/>
+    <limit effort="1" lower="0" upper="1.377" velocity="100"/>
+    <mimic joint="left_ring_1_joint" multiplier="0.85" offset="0"/>
   </joint>
   <link name="left_little_1">
     <inertial>
@@ -1202,7 +1202,7 @@
     <parent link="left_hand_base_link"/>
     <child link="left_little_1"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.67172785459" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.62" velocity="100"/>
   </joint>
   <link name="left_little_2">
     <inertial>
@@ -1231,8 +1231,8 @@
     <parent link="left_little_1"/>
     <child link="left_little_2"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.75531424732" velocity="100"/>
-    <mimic joint="left_little_1_joint" multiplier="1.05" offset="0"/>
+    <limit effort="1" lower="0" upper="1.377" velocity="100"/>
+    <mimic joint="left_little_1_joint" multiplier="0.85" offset="0"/>
   </joint>
   <link name="right_hand_base_link">
     <inertial>
@@ -1283,7 +1283,7 @@
     <parent link="right_hand_base_link"/>
     <child link="right_thumb_swing"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.30899614247" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.19" velocity="100"/>
   </joint>
   <link name="right_thumb_1">
     <inertial>
@@ -1312,7 +1312,7 @@
     <parent link="right_thumb_swing"/>
     <child link="right_thumb_1"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.06242095936" velocity="100"/>
+    <limit effort="1" lower="0" upper="0.66" velocity="100"/>
   </joint>
   <link name="right_thumb_2">
     <inertial>
@@ -1341,7 +1341,7 @@
     <parent link="right_thumb_1"/>
     <child link="right_thumb_2"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="0.424968383745" velocity="100"/>
+    <limit effort="1" lower="0" upper="0.264" velocity="100"/>
     <mimic joint="right_thumb_1_joint" multiplier="0.40" offset="0"/>
   </joint>
   <link name="right_thumb_3">
@@ -1371,7 +1371,7 @@
     <parent link="right_thumb_2"/>
     <child link="right_thumb_3"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="0.637452575618" velocity="100"/>
+    <limit effort="1" lower="0" upper="0.396" velocity="100"/>
     <mimic joint="right_thumb_1_joint" multiplier="0.60" offset="0"/>
   </joint>
   <link name="right_index_1">
@@ -1401,7 +1401,7 @@
     <parent link="right_hand_base_link"/>
     <child link="right_index_1"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.60795403606" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.62" velocity="100"/>
   </joint>
   <link name="right_index_2">
     <inertial>
@@ -1430,8 +1430,8 @@
     <parent link="right_index_1"/>
     <child link="right_index_2"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.68835173786" velocity="100"/>
-    <mimic joint="right_index_1_joint" multiplier="1.05" offset="0"/>
+    <limit effort="1" lower="0" upper="1.377" velocity="100"/>
+    <mimic joint="right_index_1_joint" multiplier="0.85" offset="0"/>
   </joint>
   <link name="right_middle_1">
     <inertial>
@@ -1460,7 +1460,7 @@
     <parent link="right_hand_base_link"/>
     <child link="right_middle_1"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.590368352" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.62" velocity="100"/>
   </joint>
   <link name="right_middle_2">
     <inertial>
@@ -1489,8 +1489,8 @@
     <parent link="right_middle_1"/>
     <child link="right_middle_2"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.6698867696" velocity="100"/>
-    <mimic joint="right_middle_1_joint" multiplier="1.05" offset="0"/>
+    <limit effort="1" lower="0" upper="1.377" velocity="100"/>
+    <mimic joint="right_middle_1_joint" multiplier="0.85" offset="0"/>
   </joint>
   <link name="right_ring_1">
     <inertial>
@@ -1519,7 +1519,7 @@
     <parent link="right_hand_base_link"/>
     <child link="right_ring_1"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.60951229147" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.62" velocity="100"/>
   </joint>
   <link name="right_ring_2">
     <inertial>
@@ -1548,8 +1548,8 @@
     <parent link="right_ring_1"/>
     <child link="right_ring_2"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.68998790605" velocity="100"/>
-    <mimic joint="right_ring_1_joint" multiplier="1.05" offset="0"/>
+    <limit effort="1" lower="0" upper="1.377" velocity="100"/>
+    <mimic joint="right_ring_1_joint" multiplier="0.85" offset="0"/>
   </joint>
   <link name="right_little_1">
     <inertial>
@@ -1578,7 +1578,7 @@
     <parent link="right_hand_base_link"/>
     <child link="right_little_1"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.67172785459" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.62" velocity="100"/>
   </joint>
   <link name="right_little_2">
     <inertial>
@@ -1607,8 +1607,8 @@
     <parent link="right_little_1"/>
     <child link="right_little_2"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.75531424732" velocity="100"/>
-    <mimic joint="right_little_1_joint" multiplier="1.05" offset="0"/>
+    <limit effort="1" lower="0" upper="1.377" velocity="100"/>
+    <mimic joint="right_little_1_joint" multiplier="0.85" offset="0"/>
   </joint>
   <!-- Left hand attached to left_wrist_yaw_link -->
   <joint name="left_inspire_hand_mount_joint" type="fixed">

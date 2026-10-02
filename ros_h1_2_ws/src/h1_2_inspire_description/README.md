@@ -42,35 +42,67 @@ Each hand has 6 actuated joints and 6 mimic joints:
 Both hands use the **same joint names** (`*_thumb_swing`, `*_thumb_1..3`).
 
 **`q = 0` is the hand fully open and the upper limit is fully closed, on every
-actuated joint.** The zeros and limits are set from the RH56DFTP user manual,
-section 2.6.11 (printed pages 21-22), which defines one chord angle per DOF
-measured against the metacarpal plane:
+actuated joint.** All six close as `q` grows.
 
-| DOF | Manual angle | Open | Closed | `q_max` (rad) |
-|---|---|---|---|---|
-| index | α | 176° | 20° | 1.60795 |
-| middle | α | 176° | 20° | 1.59037 |
-| ring | α | 176° | 20° | 1.60951 |
-| little | α | 176° | 20° | 1.67173 |
-| thumb bending | θ | 70° | −13° | 1.06242 |
-| thumb rotation | β | 165° | 90° | 1.30900 |
+**Zeros — from the manual.** The RH56DFTP user manual, section 2.6.11 (printed
+pages 21-22), defines one chord angle per DOF measured against the metacarpal
+plane. At `ANGLE_SET = 1000` the hand reads α = 176° (fingers), θ = 70° (thumb
+bending) and β = 165° (thumb rotation). Every joint origin was rotated so that
+`q = 0` lands exactly on those angles (shifts of 0.4°–1.9°, 12.85° for
+`*_thumb_swing`). Photos of the real hand agree to within about 3° (3°–6° for the
+thumb rotation).
 
-The four fingers differ slightly because each seats at its own angle on the
-palm, so the same 176°→20° sweep costs a slightly different joint travel. Mimic
-joints carry `multiplier × q_max`.
+**Upper limits — from photos of the real hand.** The real hand stops well short of
+the manual's closed angles, so the limits were measured instead. Photos of the
+hand at `ANGLE_SET = 0`, `500` and `1000`
+(`inspire_hand_interface/Caracterizacion/imagenes/angulos limite`) were compared
+with this model rendered in MuJoCo through a virtual camera fitted to each photo,
+sweeping the joint values until the rendered silhouette matched the photographed
+one.
 
-Because the convention is uniform, the SDK scale maps with one formula for all
-six DOF:
+| DOF | `q_max` (rad) | Real closed angle | Manual closed angle |
+|---|---|---|---|
+| index, middle, ring, little | **1.620** | α ≈ 31°–37° | α = 20° |
+| thumb bending | **0.660** | θ ≈ 19° | θ = −13° |
+| thumb rotation | **1.190** | β ≈ 96°–97° | β = 90° |
+
+The four fingers share one `q_max` that minimises the error over the four photos
+(the per-finger fits range from 1.58 to 1.74). Mimic joints carry
+`multiplier × q_max`.
+
+**Finger mimic multiplier: 0.85**, not the vendor's 1.05. With 1.05 the distal
+phalanx folded into the palm at full closure. 0.85 reproduces the closed pose to
+0.5° of fingertip orientation. The real coupling is not linear (about 0.65 at mid
+travel, 0.82 closed), and a URDF mimic can only be linear, so at
+`ANGLE_SET = 500` the modelled fingertip is about 13° more bent than the real one.
+The thumb multipliers 0.40 / 0.60 cannot be resolved from the photos and stay as
+exported.
+
+**Mapping the SDK scale.** `ANGLE_SET` is *not* linear in the finger proximal
+joints: at `ANGLE_SET = 500` they have already covered 64 % of their travel (the
+distal joints about 49 %). Interpolate between the measured points, with
+`s = 1 − ANGLE_SET/1000`:
+
+| `s` | 0 (open) | 0.5 | 1 (closed) |
+|---|---|---|---|
+| `*_index/middle/ring/little_1` | 0 | 1.05 | 1.620 |
+| `*_thumb_1` | 0 | 0.38 | 0.660 |
+| `*_thumb_swing` | 0 | no photo, linear | 1.190 |
 
 ```python
-ANGLE_SET = 1000 * (1 - q / q_max)      # URDF -> hand
-q         = q_max * (1 - ANGLE_SET/1000) # hand -> URDF
-```
+import numpy as np
 
-Every joint origin was rotated so `q = 0` lands exactly on the open angle. The
-shifts were 0.4°–1.9° except `*_thumb_swing`, which moved 12.85°. No joint axis
-changed: all six close as `q` grows. Verified by recomputing the manual's angles
-on this model — all twelve endpoints land on target to better than 0.001°.
+S = [0.0, 0.5, 1.0]
+Q = {'finger':      [0.0, 1.05,  1.620],
+     'thumb_1':     [0.0, 0.38,  0.660],
+     'thumb_swing': [0.0, 0.595, 1.190]}   # no photo at 500: linear midpoint
+
+def angle_set_to_q(angle_set, dof):        # hand -> URDF
+    return float(np.interp(1 - angle_set / 1000.0, S, Q[dof]))
+
+def q_to_angle_set(q, dof):                # URDF -> hand
+    return int(round(1000 * (1 - np.interp(q, Q[dof], S))))
+```
 
 The **right hand's digits are the exact mirror of the left hand's** across the
 palm's `y=0` plane — verified to 0.000000 mm vertex-for-vertex, at rest and
@@ -332,7 +364,7 @@ from omni.isaac.core.articulations import Articulation
 robot = Articulation("/World/h1_2_with_inspire_hands")
 robot.initialize()
 
-# Example: couple left_index_2 to left_index_1 (multiplier 1.05)
+# Example: couple left_index_2 to left_index_1 (multiplier 0.85)
 def apply_mimic(primary_joint: str, mimic_joint: str, multiplier: float):
     idx_p = robot.get_dof_index(primary_joint)
     idx_m = robot.get_dof_index(mimic_joint)
@@ -349,16 +381,16 @@ Complete coupling table:
 |---|---|---|
 | `left_thumb_2_joint` | `left_thumb_1_joint` | 0.40 |
 | `left_thumb_3_joint` | `left_thumb_1_joint` | 0.60 |
-| `left_index_2_joint` | `left_index_1_joint` | 1.05 |
-| `left_middle_2_joint` | `left_middle_1_joint` | 1.05 |
-| `left_ring_2_joint` | `left_ring_1_joint` | 1.05 |
-| `left_little_2_joint` | `left_little_1_joint` | 1.05 |
+| `left_index_2_joint` | `left_index_1_joint` | 0.85 |
+| `left_middle_2_joint` | `left_middle_1_joint` | 0.85 |
+| `left_ring_2_joint` | `left_ring_1_joint` | 0.85 |
+| `left_little_2_joint` | `left_little_1_joint` | 0.85 |
 | `right_thumb_2_joint` | `right_thumb_1_joint` | 0.40 |
 | `right_thumb_3_joint` | `right_thumb_1_joint` | 0.60 |
-| `right_index_2_joint` | `right_index_1_joint` | 1.05 |
-| `right_middle_2_joint` | `right_middle_1_joint` | 1.05 |
-| `right_ring_2_joint` | `right_ring_1_joint` | 1.05 |
-| `right_little_2_joint` | `right_little_1_joint` | 1.05 |
+| `right_index_2_joint` | `right_index_1_joint` | 0.85 |
+| `right_middle_2_joint` | `right_middle_1_joint` | 0.85 |
+| `right_ring_2_joint` | `right_ring_1_joint` | 0.85 |
+| `right_little_2_joint` | `right_little_1_joint` | 0.85 |
 
 ### Common problems and solutions
 

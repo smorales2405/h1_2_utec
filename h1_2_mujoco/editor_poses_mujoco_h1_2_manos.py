@@ -108,19 +108,57 @@ Comandos aquí:
 """
 
 
-def limites_del_selector():
-    """LIMITES y MARGEN del selector real, leidos de su codigo sin importarlo (no hace falta el SDK)."""
+def constantes_del_selector(*nombres):
+    """Constantes del selector real, leidas de su codigo sin importarlo (no hace falta el SDK)."""
     arbol = ast.parse(SELECTOR.read_text(encoding="utf-8"))
-    lim, margen = None, None
+    valores = {}
     for nodo in arbol.body:
-        if isinstance(nodo, ast.Assign) and isinstance(nodo.targets[0], ast.Name):
-            if nodo.targets[0].id == "LIMITES":
-                lim = ast.literal_eval(nodo.value)
-            elif nodo.targets[0].id == "MARGEN":
-                margen = ast.literal_eval(nodo.value)
-    if lim is None or margen is None:
-        raise RuntimeError(f"no encuentro LIMITES/MARGEN en {SELECTOR}")
-    return {j: (lo + margen, hi - margen) for j, (lo, hi) in lim.items()}
+        if isinstance(nodo, ast.Assign) and isinstance(nodo.targets[0], ast.Name) and nodo.targets[0].id in nombres:
+            valores[nodo.targets[0].id] = ast.literal_eval(nodo.value)
+    faltan = [n for n in nombres if n not in valores]
+    if faltan:
+        raise RuntimeError(f"no encuentro {', '.join(faltan)} en {SELECTOR}")
+    return valores
+
+
+def limites_del_selector():
+    """LIMITES del selector real con su MARGEN ya aplicado: {junta: (min, max)}."""
+    c = constantes_del_selector("LIMITES", "MARGEN")
+    return {j: (lo + c["MARGEN"], hi - c["MARGEN"]) for j, (lo, hi) in c["LIMITES"].items()}
+
+
+def leer_rutina(arg, poses_dir: Path):
+    """(ruta, pasos) de una rutina: un fichero, o un número/nombre de la carpeta de poses.
+    ValueError si no existe o no es del H1-2."""
+    ruta = Path(arg).expanduser()
+    if not ruta.is_file():
+        candidatas = sorted(poses_dir.glob(f"{arg}_*.json")) or sorted(poses_dir.glob(f"{arg}*.json"))
+        if not candidatas:
+            raise ValueError(f"no encuentro '{arg}' en {poses_dir}")
+        ruta = candidatas[0]
+    rutina = json.loads(ruta.read_text(encoding="utf-8"))
+    if rutina.get("robot") not in (None, "unitree_h1_2"):
+        raise ValueError(f"{ruta.name} es para '{rutina.get('robot')}', no para el H1-2.")
+    pasos = []
+    for n, p in enumerate(rutina.get("pasos", []), 1):
+        paso = {"nombre": p.get("nombre", f"Paso {n}"), "duracion": float(p.get("duracion", 1.0)),
+                "posiciones": dict(p.get("posiciones", {}))}
+        if p.get("manos"):
+            paso["manos"] = {lado: gm.normalizar(q) for lado, q in p["manos"].items() if lado in gm.LADOS}
+        pasos.append(paso)
+    return ruta, pasos
+
+
+def texto_pasos(pasos):
+    """Una línea por paso: juntas que se apartan de 0 y el gesto de cada mano."""
+    lineas = []
+    for n, p in enumerate(pasos, 1):
+        r = ", ".join(f"{k}={math.degrees(v):+.0f}" for k, v in p["posiciones"].items() if abs(v) > math.radians(2))
+        manos = p.get("manos")
+        m = (f" | manos: izq {texto_mano(manos['izq'])}, der {texto_mano(manos['der'])}"
+             if manos else " | manos: sin cambio")
+        lineas.append(f"  {n:02d}. {p['nombre']:<20s} {p['duracion']:.1f} s   {r or 'todo ~0'}{m}")
+    return lineas
 
 
 def texto_mano(q):
@@ -300,12 +338,7 @@ class Editor:
         if not self.pasos:
             print("[INFO] Sin pasos.")
             return
-        for n, p in enumerate(self.pasos, 1):
-            r = ", ".join(f"{k}={math.degrees(v):+.0f}" for k, v in p["posiciones"].items() if abs(v) > math.radians(2))
-            manos = p.get("manos")
-            m = (f" | manos: izq {texto_mano(manos['izq'])}, der {texto_mano(manos['der'])}"
-                 if manos else " | manos: sin cambio")
-            print(f"  {n:02d}. {p['nombre']:<20s} {p['duracion']:.1f} s   {r or 'todo ~0'}{m}")
+        print("\n".join(texto_pasos(self.pasos)))
 
     def ir(self, n):
         paso = self.pasos[n - 1]
@@ -355,25 +388,7 @@ class Editor:
               f"= espejo del {lado}.")
 
     def cargar(self, arg):
-        ruta = Path(arg).expanduser()
-        if not ruta.is_file():
-            candidatas = sorted(self.poses_dir.glob(f"{arg}_*.json")) or sorted(self.poses_dir.glob(f"{arg}*.json"))
-            if not candidatas:
-                print(f"[ERROR] No encuentro '{arg}' en {self.poses_dir}")
-                return
-            ruta = candidatas[0]
-        rutina = json.loads(ruta.read_text(encoding="utf-8"))
-        if rutina.get("robot") not in (None, "unitree_h1_2"):
-            print(f"[ERROR] {ruta.name} es para '{rutina.get('robot')}', no para el H1-2.")
-            return
-        pasos = []
-        for n, p in enumerate(rutina.get("pasos", []), 1):
-            paso = {"nombre": p.get("nombre", f"Paso {n}"), "duracion": float(p.get("duracion", 1.0)),
-                    "posiciones": dict(p.get("posiciones", {}))}
-            if p.get("manos"):
-                paso["manos"] = {lado: gm.normalizar(q) for lado, q in p["manos"].items() if lado in gm.LADOS}
-            pasos.append(paso)
-        self.pasos = pasos
+        ruta, self.pasos = leer_rutina(arg, self.poses_dir)
         self.guardado = True
         sin_manos = sum(1 for p in self.pasos if "manos" not in p)
         print(f"[OK] Cargada {ruta.name}: {len(self.pasos)} pasos"
@@ -520,8 +535,14 @@ def main():
     ap.add_argument("--poses", default=str(POSES_DEFECTO), help="carpeta donde se guardan las rutinas")
     ap.add_argument("--margen", type=float, default=mod.MARGEN_DEFECTO,
                     help="m: avisar también de lo que quede a menos de esto sin tocarse (0 = solo choques)")
+    ap.add_argument("--fisica", action="store_true",
+                    help="ejecutar rutinas y gestos con gravedad, contactos y el robot colgado de un pórtico")
     a = ap.parse_args()
-    Editor(Path(a.poses).expanduser().resolve(), a.margen).correr()
+    if a.fisica:
+        import simulador_fisica
+        simulador_fisica.Simulador(Path(a.poses).expanduser().resolve()).correr()
+    else:
+        Editor(Path(a.poses).expanduser().resolve(), a.margen).correr()
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@
 # (h1_2_joint_control/scripts/selector_poses_manos/poses). Se ejecuta EN ESTE PC (no en el robot).
 #   ./editor_mujoco.sh
 #   ./editor_mujoco.sh --poses /otra/carpeta --margen 0.03
+#   ./editor_mujoco.sh --fisica       rutinas y gestos con gravedad, contactos y el robot colgado de un pórtico
 # Python con mujoco: $PY, o el entorno h1_mujoco, o python3. Detalle: README.md
 AQUI="$(cd "$(dirname "$0")" && pwd)"
 if [ -z "${PY:-}" ]; then

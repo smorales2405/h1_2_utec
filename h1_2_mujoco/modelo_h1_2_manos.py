@@ -50,7 +50,7 @@ PAQUETE = REPO / "ros_h1_2_ws" / "src" / "h1_2_inspire_description"
 URDF_DEFECTO = PAQUETE / "urdf" / "h1_2_with_RH56DFTP_hands.urdf"
 
 ALTURA_PELVIS = 1.40        # m: pies en el aire
-MARGEN_DEFECTO = 0.020      # m: aviso de "cerca"
+MARGEN_DEFECTO = 0.005      # m: aviso de "cerca"
 GRUPO_COLISION_OCULTO = 3   # el visor muestra los grupos 0-2: las mallas de colisión no se ven
 ROJO = (0.95, 0.10, 0.10, 1.0)
 
@@ -167,6 +167,8 @@ def nombre_cuerpo(m: mujoco.MjModel, b: int) -> str:
 
 def grupo(nombre: str) -> str:
     """Parte del robot a la que pertenece un cuerpo, para el informe de colisiones."""
+    if nombre == "world":
+        return "suelo"
     for prefijo, lado in (("left_", "izq"), ("right_", "der")):
         if nombre.startswith(prefijo):
             if any(p in nombre for p in _PIEZAS_MANO):
@@ -250,3 +252,94 @@ def informe(hallazgos: list[tuple[str, str, float]]) -> list[str]:
         partes = ga if ga == gb else f"{ga} <-> {gb}"
         lineas.append(f"{etiqueta} {partes}: {a} / {b}  {dist * 1000:+.0f} mm")
     return lineas
+
+
+# ============================================================================= modo física
+# El mismo robot con gravedad, contactos y motores, colgado de un pórtico. Lo usa
+# simulador_fisica.py (./editor_mujoco.sh --fisica).
+
+# Juntas del cuerpo en el orden DDS (índice i de motor_cmd = JUNTAS_CUERPO[i]).
+JUNTAS_CUERPO = [f"{l}_{j}_joint" for l in ("left", "right")
+                 for j in ("hip_yaw", "hip_pitch", "hip_roll", "knee", "ankle_pitch", "ankle_roll")] + ["torso_joint"] + \
+                [f"{l}_{j}_joint" for l in ("left", "right")
+                 for j in ("shoulder_pitch", "shoulder_roll", "shoulder_yaw", "elbow", "wrist_roll", "wrist_pitch", "wrist_yaw")]
+# Como en unitree_mujoco/unitree_robots/h1_2/h1_2_handless.xml: <joint damping="1" armature="0.1"
+# frictionloss="0.2"/> y el ctrlrange de cada <motor> (N·m).
+JUNTA_CUERPO = dict(damping=1.0, armature=0.1, frictionloss=0.2)
+PAR_MAX = [200, 200, 200, 300, 60, 40] * 2 + [200] + [40, 40, 18, 18, 19, 19, 19] * 2
+
+# Manos. De la caracterización de la RH56DFTP (inspire_hand_interface/Caracterizacion): con SPEED_SET 1000
+# (el que pone el selector) el actuador avanza a ~3040 cuentas/s sin sobreimpulso, con ~65 ms de retardo
+# entre la orden y el movimiento. Recorridos libres: dedos 1820 cuentas, flexión del pulgar 860, rotación
+# 1505. Cada DOF va a velocidad constante hasta su objetivo: un servo de posición sigue a una consigna
+# limitada en velocidad.
+DOF_MANO = ("little_1", "ring_1", "middle_1", "index_1", "thumb_1", "thumb_swing")
+VEL_MANO = {"little_1": 2.71, "ring_1": 2.71, "middle_1": 2.71, "index_1": 2.71,   # 1.62 rad en 0.60 s
+            "thumb_1": 2.33, "thumb_swing": 2.40}                                  # 0.66 en 0.28 s, 1.19 en 0.50 s
+RETARDO_MANO = 0.065        # s
+# Servo de cada DOF: rigidez y amortiguamiento que siguen la consigna sin oscilar con dt = 2 ms; el par máximo
+# equivale a ~15 N en la yema (la hoja de datos da >= 30 N de agarre en las puntas de los dedos).
+JUNTA_DEDO = dict(damping=0.01, armature=0.002, frictionloss=0.0)
+KP_DEDO, KV_DEDO, PAR_MAX_DEDO = 20.0, 0.4, 1.0
+
+# Pórtico: una barra de 30 cm, 1 m por encima de dos enganches en la placa superior del torso, a cada lado
+# del soporte del cuello (y = ±0.10 m, 0.473 m sobre el origen de torso_link). Dos cuerdas rígidas (solo
+# tiran, no empujan) bajan de la barra a los enganches sin cruzar la cabeza. No se dibuja nada del pórtico
+# (ni barra, ni cuerdas, ni enganches). Las teclas 7/8 suben y bajan la barra; 9 suelta o vuelve a enganchar
+# las cuerdas.
+GANCHO = (0.0, 0.10, 0.473)     # en torso_link; el otro, con y cambiado de signo
+BARRA_MEDIA = 0.15              # m, media longitud de la barra
+ALTURA_BARRA = 1.0              # m por encima de los enganches
+
+
+def modelo_fisica(urdf: Path = URDF_DEFECTO):
+    """(modelo con física, pares excluidos). Motores 0-26 = juntas del cuerpo en orden DDS (par, N·m);
+    27-38 = servos de los dedos, mano izquierda y luego derecha en el orden de DOF_MANO (posición, rad)."""
+    spec = construir_spec(urdf)
+    excluidos = Colisiones(spec.compile(), 0.0).excluidos      # los que ya se tocan en la pose cero
+    for a, b in sorted(excluidos):
+        ex = spec.add_exclude()
+        ex.bodyname1, ex.bodyname2 = a, b
+    spec.body("pelvis").add_freejoint()
+    spec.option.gravity = [0.0, 0.0, -9.81]
+    spec.option.timestep = 0.002
+    spec.option.integrator = mujoco.mjtIntegrator.mjINT_IMPLICITFAST
+    suelo = spec.geom("floor")
+    suelo.contype, suelo.conaffinity = 1, 1
+    for j in spec.joints:
+        if j.type != mujoco.mjtJoint.mjJNT_HINGE:
+            continue
+        p = JUNTA_CUERPO if j.name in JUNTAS_CUERPO else JUNTA_DEDO
+        j.damping[0], j.armature, j.frictionloss = p["damping"], p["armature"], p["frictionloss"]
+    for nombre, par in zip(JUNTAS_CUERPO, PAR_MAX):
+        a = spec.add_actuator()
+        a.name, a.target, a.trntype = nombre, nombre, mujoco.mjtTrn.mjTRN_JOINT
+        a.gainprm[0] = 1.0
+        a.ctrllimited, a.ctrlrange = True, [-par, par]
+    for lado in ("left", "right"):
+        for k in DOF_MANO:
+            a = spec.add_actuator()
+            a.name, a.target, a.trntype = f"{lado}_{k}", f"{lado}_{k}_joint", mujoco.mjtTrn.mjTRN_JOINT
+            a.gainprm[0] = KP_DEDO
+            a.biastype = mujoco.mjtBias.mjBIAS_AFFINE
+            a.biasprm[1], a.biasprm[2] = -KP_DEDO, -KV_DEDO
+            a.forcelimited, a.forcerange = True, [-PAR_MAX_DEDO, PAR_MAX_DEDO]
+    # pórtico
+    torso = spec.body("torso_link")
+    z_gancho = ALTURA_PELVIS + GANCHO[2]               # en la pose cero, torso_link está en la pelvis
+    barra = spec.worldbody.add_body()
+    barra.name, barra.mocap, barra.pos = "portico", True, [GANCHO[0], 0.0, z_gancho + ALTURA_BARRA]
+    largo = float(((BARRA_MEDIA - GANCHO[1]) ** 2 + ALTURA_BARRA ** 2) ** 0.5)
+    for lado, s in (("izq", 1.0), ("der", -1.0)):
+        sb = barra.add_site()
+        sb.name, sb.pos, sb.group = f"portico_{lado}", [0.0, s * BARRA_MEDIA, 0.0], GRUPO_COLISION_OCULTO
+        st = torso.add_site()
+        st.name, st.pos = f"gancho_{lado}", [GANCHO[0], s * GANCHO[1], GANCHO[2]]
+        st.size, st.rgba, st.group = [0.012, 0, 0], [0.85, 0.65, 0.10, 1.0], GRUPO_COLISION_OCULTO
+        t = spec.add_tendon()
+        t.name = f"cuerda_{lado}"
+        t.wrap_site(f"portico_{lado}")
+        t.wrap_site(f"gancho_{lado}")
+        t.limited, t.range = True, [0.0, largo]
+        t.width, t.rgba, t.group = 0.006, [0.95, 0.80, 0.20, 1.0], GRUPO_COLISION_OCULTO
+    return spec.compile(), excluidos

@@ -10,7 +10,8 @@ gestos de mano, y las colisiones se comprueban.
 ```bash
 cd h1_2_mujoco
 ./editor_mujoco.sh                   # abre el visor y deja el menú en la terminal
-./editor_mujoco.sh --margen 0.03     # avisar de lo que quede a menos de 3 cm (por defecto 2 cm; 0 = solo choques)
+./editor_mujoco.sh --margen 0.03     # avisar de lo que quede a menos de 3 cm (por defecto 5 mm; 0 = solo choques)
+./editor_mujoco.sh --fisica          # ejecutar rutinas con gravedad, contactos y el robot colgado (ver abajo)
 ```
 
 ## Cómo se usa
@@ -82,7 +83,7 @@ El del selector de `code_cap`, con una clave `manos` por paso:
   fotograma de `p` y `mano`). La copia del visor sigue sin contactos y no se mueve sola.
 - **Qué avisa.** `[COLISIÓN]` cuando dos cuerpos se interpenetran: brazo con brazo, brazo con el cuerpo, una
   mano con cualquier parte del robot (incluidos sus propios dedos). `[CERCA]` cuando dos partes distintas
-  quedan a menos del margen (2 cm). Lo que choca se pinta de **rojo** en el visor.
+  quedan a menos del margen (5 mm). Lo que choca se pinta de **rojo** en el visor.
 - **Excluidos**, porque ya se tocan en la pose cero: `pelvis`/`torso_link`, `*_wrist_roll_link`/`*_wrist_yaw_link`
   y `*_hand_base_link`/`*_thumb_1`. Los pares que ya están a menos del margen en la pose cero
   (hombro y torso, dedos vecinos) solo avisan si chocan.
@@ -97,13 +98,72 @@ El del selector de `code_cap`, con una clave `manos` por paso:
 - Los brazos siguen en el robot el mismo camino que en `p` (los dos interpolan en línea recta). La mano real
   no exactamente: su control interno va con retraso. En las manos, lo fiable son los pasos capturados.
 
+## Modo física (`--fisica`)
+
+```bash
+./editor_mujoco.sh --fisica
+```
+
+El mismo robot con **gravedad, contactos y motores**, colgado de un **pórtico**: una barra 1 m por encima del
+torso de la que bajan dos cuerdas rígidas a dos enganches en la placa superior del torso,
+a cada lado del soporte del cuello. El pórtico no se dibuja (ni barra, ni cuerdas). Aquí no se diseña (no hay `c` ni `s`): se **ejecutan** rutinas y gestos
+como lo haría el selector real, y se ve qué hace el cuerpo.
+
+Empieza como el robot real en Debug antes de `MOVER`: colgado a 1.4 m, **sin consigna de posición** (los
+motores solo amortiguan), con los **brazos estirados y las manos apoyadas en la cadera** (codo 1.5 rad,
+hombro roll ±0.08 rad). El primer comando sujeta la postura medida y parte de ella. Al terminar una rutina
+(`p`) hace lo que el selector al salir: los brazos van a la **pose segura** (`poses/0_pose_segura.json`, 3 s)
+mientras las manos se abren, y luego pasa a **amortiguación** (kp en rampa hasta 0 en 2 s): los brazos caen y
+el robot queda otra vez sin mando. El siguiente comando parte de la postura medida, como un selector nuevo.
+
+| Tecla en el visor | Qué hace |
+|---|---|
+| `7` / `8` | subir / bajar el pórtico 5 cm |
+| `9` | soltar las cuerdas (el robot cae: en Debug no se equilibra) o volver a engancharlas con el largo que tengan |
+
+Al asentarse, la terminal dice a qué altura queda la pelvis y si los pies tocan el suelo.
+
+| Comando | Qué hace |
+|---|---|
+| `cargar <n\|fichero>` / `v` | abrir una rutina / ver sus pasos |
+| `p` / `ir <n>` | ejecutar la rutina entera, luego pose segura y amortiguación / solo el paso n |
+| `mano <gesto> izq\|der\|ambas [t=1]` | ejecutar un gesto |
+| `cero` | torso y brazos a 0 y manos abiertas, en 3 s |
+| `l` | juntas y dedos: mandado, medido y error |
+| `col` | contactos ahora mismo |
+| `reset` | volver al principio: colgado a 1.4 m, sin mando, brazos estirados, manos abiertas |
+| `x` | salir |
+
+**Cómo se mueve, igual que con el selector real:**
+- Torso y brazos con un PD por junta con las ganancias del selector (`Kp`, `Kd`, leídas de su código) y **sin
+  compensar la gravedad**: con los brazos al frente el hombro cede ~9°, como en el robot. Piernas sujetas en su
+  postura. Límites del selector, interpolación lineal y primer movimiento de al menos 3 s.
+- Juntas y motores del cuerpo con los parámetros de `unitree_mujoco` (`armature` 0.1, `damping` 1,
+  `frictionloss` 0.2 y los límites de par de cada motor).
+- Cada mano recibe postura a 25 Hz y la sigue como su firmware, con lo medido en la caracterización
+  (`inspire_hand_interface/Caracterizacion`): ~65 ms de retardo y velocidad constante con `SPEED_SET` 1000
+  (dedos 1.62 rad en 0.6 s, flexión del pulgar 0.66 rad en 0.28 s, rotación 1.19 rad en 0.5 s). `cerrada`
+  va por fases, esperando a que cada una termine. Si un dedo empuja más de 800 gf, se abre y la mano se para.
+
+**Qué informa**, por paso: los contactos (brazo con cuerpo, mano con cualquier parte, con el suelo) con su
+fuerza máxima, la protección de las manos si salta, y el error entre lo mandado y lo alcanzado. Los 5 pares
+que ya se tocan en la pose cero no colisionan.
+
+**Lo que es suposición:**
+- El modelo no tiene ganchos: los enganches van en la placa superior del torso, en y = ±0.10 m
+  (`GANCHO` en `modelo_h1_2_manos.py`).
+- El servo de cada dedo (rigidez, amortiguamiento, par máximo ≈ 15 N en la yema) está ajustado para seguir
+  la consigna sin oscilar; la caracterización da la velocidad y el retardo, no la dinámica interna.
+- La fricción y la inercia de los motores son las del modelo de Unitree, no medidas en nuestro robot.
+
 ## Archivos
 
 | Archivo | Qué es |
 |---|---|
 | `editor_mujoco.sh` | lanzador (busca un python con `mujoco`; `PY=/ruta/python` para otro) |
 | `editor_poses_mujoco_h1_2_manos.py` | el editor |
-| `modelo_h1_2_manos.py` | carga el URDF en MuJoCo (sin modificarlo), juntas mimic y comprobación de colisiones |
+| `simulador_fisica.py` | el modo física (`--fisica`) |
+| `modelo_h1_2_manos.py` | carga el URDF en MuJoCo (sin modificarlo), juntas mimic, colisiones y el modelo con física |
 
 Necesita `mujoco` ≥ 3.2 (probado con 3.14.0, el `python3` de este PC), el URDF
 `ros_h1_2_ws/src/h1_2_inspire_description/urdf/h1_2_with_RH56DFTP_hands.urdf` y, para los límites de los

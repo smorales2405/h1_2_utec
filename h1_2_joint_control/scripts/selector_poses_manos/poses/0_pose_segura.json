@@ -1,0 +1,50 @@
+{
+  "nombre_rutina": "00_pose_segura",
+  "fecha_creacion": "2026-07-08 13:31:03",
+  "robot": "unitree_h1_2",
+  "modelo": "h1_2_27dof_manos_rh56dftp",
+  "requiere_robot_quieto": true,
+  "descripcion": "Pose segura neutral del H1-2 (la de code_cap/selector_poses_real/poses/0_pose_segura.json) con las manos abiertas. El selector la usa al salir.",
+  "numero_pasos": 1,
+  "pasos": [
+    {
+      "nombre": "Pose segura neutral",
+      "posiciones": {
+        "12": 0.00133,
+        "13": -0.04299,
+        "14": 0.14,
+        "15": 0.05236,
+        "16": 1.05747,
+        "17": 0.0,
+        "18": 0.0,
+        "19": 0.0,
+        "20": -0.042555,
+        "21": -0.2168,
+        "22": 0.15708,
+        "23": 1.073175,
+        "24": 0.0,
+        "25": 0.0,
+        "26": 0.0
+      },
+      "duracion": 1.0,
+      "manos": {
+        "izq": {
+          "little_1": 0.0,
+          "ring_1": 0.0,
+          "middle_1": 0.0,
+          "index_1": 0.0,
+          "thumb_1": 0.0,
+          "thumb_swing": 0.0
+        },
+        "der": {
+          "little_1": 0.0,
+          "ring_1": 0.0,
+          "middle_1": 0.0,
+          "index_1": 0.0,
+          "thumb_1": 0.0,
+          "thumb_swing": 0.0
+        }
+      }
+    }
+  ]
+}

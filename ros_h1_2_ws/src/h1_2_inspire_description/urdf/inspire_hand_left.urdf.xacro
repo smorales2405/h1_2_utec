@@ -54,7 +54,7 @@
      | s            | 0 | 0.5        | 1     |
      | finger *_1   | 0 | 1.05       | 1.620 |
      | thumb_1      | 0 | 0.38       | 0.660 |
-     | thumb_swing  | 0 | (no photo) | 1.190 |  -->
+     | thumb_swing  | 0 | 0.61       | 1.190 |  -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <link name="left_hand_base_link">

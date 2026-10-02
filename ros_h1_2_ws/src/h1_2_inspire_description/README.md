@@ -80,14 +80,15 @@ exported.
 
 **Mapping the SDK scale.** `ANGLE_SET` is *not* linear in the finger proximal
 joints: at `ANGLE_SET = 500` they have already covered 64 % of their travel (the
-distal joints about 49 %). Interpolate between the measured points, with
+distal joints about 49 %). The thumb is nearly linear: 58 % for the bending and
+51 % for the rotation. Interpolate between the measured points, with
 `s = 1 − ANGLE_SET/1000`:
 
 | `s` | 0 (open) | 0.5 | 1 (closed) |
 |---|---|---|---|
 | `*_index/middle/ring/little_1` | 0 | 1.05 | 1.620 |
 | `*_thumb_1` | 0 | 0.38 | 0.660 |
-| `*_thumb_swing` | 0 | no photo, linear | 1.190 |
+| `*_thumb_swing` | 0 | 0.61 | 1.190 |
 
 ```python
 import numpy as np
@@ -95,7 +96,7 @@ import numpy as np
 S = [0.0, 0.5, 1.0]
 Q = {'finger':      [0.0, 1.05,  1.620],
      'thumb_1':     [0.0, 0.38,  0.660],
-     'thumb_swing': [0.0, 0.595, 1.190]}   # no photo at 500: linear midpoint
+     'thumb_swing': [0.0, 0.61,  1.190]}
 
 def angle_set_to_q(angle_set, dof):        # hand -> URDF
     return float(np.interp(1 - angle_set / 1000.0, S, Q[dof]))
@@ -103,6 +104,10 @@ def angle_set_to_q(angle_set, dof):        # hand -> URDF
 def q_to_angle_set(q, dof):                # URDF -> hand
     return int(round(1000 * (1 - np.interp(q, Q[dof], S))))
 ```
+
+A complete implementation for all six DOF, with the inverse, URDF joint names as
+input and a self-test that checks the table against these limits, lives in
+`h1_2_joint_control/scripts/selector_poses_manos/conversion_angle_set.py`.
 
 The **right hand's digits are the exact mirror of the left hand's** across the
 palm's `y=0` plane — verified to 0.000000 mm vertex-for-vertex, at rest and

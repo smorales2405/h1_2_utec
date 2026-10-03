@@ -1,0 +1,45 @@
+# Configuracion del seguidor de linea del H1-2 (reto R40-RT-H1_2-0001).
+# Ganancias, limites y tiempos viven aqui, no en el codigo (seccion 5 del PDF).
+# La geometria de la camara la escribe herramientas/calibrar_camara.py en
+# config/geometria.yaml, que pisa la seccion `geometria` de este fichero.
+
+red:
+  iface: eth0                             # DDS de Unitree: solo por el cable interno del robot
+  zmq_fotogramas: tcp://127.0.0.1:5556    # camara_servidor.py (root) -> procesos del usuario
+
+camara:
+  fps: 30
+  ancho: 640
+  alto: 480
+  color: false          # el IR izquierdo va siempre; el color y la profundidad, si se piden
+  profundidad: false
+  emisor: false         # con el emisor encendido se ven sus puntos sobre la cinta
+  puerto_video: 5000    # mosaico de depuracion en http://<robot>:5000 (0 = sin video)
+
+geometria:              # valores de una sola captura del 2026-10-02; calibrar en el Hito 1
+  calibrada: false
+  altura_m: 1.68
+  inclinacion_deg: 51.7
+  roll_deg: 0.0
+  yaw_deg: 0.0          # yaw de la camara respecto del cuerpo: sin medir
+  imu_roll_ref_deg: 0.0 # roll y pitch de la IMU del torso cuando se calibro
+  imu_pitch_ref_deg: 0.0
+  x_puntera_m: null     # distancia de la vertical de la camara a la puntera: medir
+
+limites:                # seccion 10 del PDF; robot.py ademas aplica estos topes por su cuenta
+  vx_max: 0.4
+  vy_max: 0.2
+  vyaw_max: 0.5
+  escala_primeras: 0.5  # las primeras tiradas de cada nivel, a la mitad
+
+supervisor:
+  hz_ordenes: 20
+  inclinacion_max_deg: 20
+  lowstate_max_s: 0.5
+  fotograma_max_s: 0.5  # sin fotogramas mas tiempo que esto -> parada (a ajustar)
+  palabra: SEGUIR
+  boton_parada: null    # elegir con lectores.sh mando-vivo: uno sin funcion en FSM 201 (R1, L1...)
+
+registro:
+  carpeta: datos
+  lowstate_cada: 5      # 1 de cada 5 rt/lowstate: ~100 Hz, como cuadrado.py

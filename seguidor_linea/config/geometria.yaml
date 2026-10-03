@@ -1,0 +1,20 @@
+# Escrito por herramientas/calibrar_camara.py: pisa la seccion `geometria` de seguidor.yaml
+calibrada: true
+fecha: '2026-10-03 05:46:17'
+camara: IR izquierda
+emisor_en_calibracion: true
+altura_m: 1.65
+altura_fuente: cinta
+inclinacion_deg: 50.659
+inclinacion_fuente: marcas
+inclinacion_plano_deg: 49.9
+roll_deg: -0.952
+yaw_deg: -1.006
+yaw_medido: true
+imu_roll_ref_deg: 1.495
+imu_pitch_ref_deg: -1.083
+x_puntera_m: 0.009
+alcance_ir_m:
+- 0.193
+- 4.863
+capturas: 30

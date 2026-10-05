@@ -16,15 +16,17 @@ cd h1_2_mujoco
 
 ## Cómo se usa
 
-1. Se abre el visor, con la escena del editor de `code_cap`, y el **H1-2 levantado** (pelvis fija a 1.4 m), los brazos a 0 y las **manos abiertas**
-   (q = 0). No hay gravedad, contactos ni actuadores: **no se mueve solo**.
+1. Se abre el visor, con la escena del editor de `code_cap`, y el **H1-2 levantado** (pelvis fija a 1.4 m) en la
+   **pose segura** con las **manos abiertas** (q = 0). No hay gravedad, contactos ni actuadores: **no se mueve
+   solo**. El Retroceso del visor también vuelve a la pose segura.
 2. **Barra espaciadora = pausa.** Con la pausa, el panel **«Joint»** (a la derecha) tiene un slider por junta:
    - torso y brazos (`torso_joint`, `left_shoulder_pitch_joint`…), limitados a lo que acepta el selector real;
    - dedos: las 6 juntas actuadas de cada mano (`*_little_1`, `*_ring_1`, `*_middle_1`, `*_index_1`,
      `*_thumb_1`, `*_thumb_swing`), de 0 (abierta) a q_max (cerrada). Los sliders de las falanges
      acopladas (`*_2`, `*_3`) **no hacen nada**: el editor las arrastra con su junta actuada.
 3. En la terminal, `c nombre t=2` captura la postura (brazos y dedos) como paso.
-4. `p` previsualiza la rutina y dice, paso a paso, si algo choca por el camino.
+4. `p` previsualiza la rutina como la ejecutará el robot: desde la pose segura, y de vuelta a ella al final
+   aunque la rutina no la guarde. Dice, paso a paso, si algo choca por el camino.
 5. `s nombre` guarda **`selector_poses_manos/poses/<N>_nombre.json`** con el siguiente número libre.
 
 | Comando | Qué hace |
@@ -34,8 +36,9 @@ cd h1_2_mujoco
 | `l` | listar las 15 juntas y las dos manos (grados) con sus límites |
 | `v` / `b` | ver los pasos / borrar el último |
 | `ir <n>` / `reemplazar <n>` | llevar el visor al paso n / sustituirlo por la postura actual |
-| `p` | previsualizar la rutina, comprobando colisiones |
+| `p` | previsualizar la rutina desde la pose segura y de vuelta a ella, comprobando colisiones |
 | `espejo izq\|der [manos]` | copiar un brazo al otro en espejo; con `manos`, también la mano |
+| `segura` | la pose segura, manos abiertas (la postura por defecto) |
 | `cero` | torso, brazos y manos a 0 (manos abiertas) |
 | `col` | colisiones de la postura actual |
 | `cargar <n\|fichero>` | abrir una rutina (también las de `code_cap`, sin manos) |
@@ -109,12 +112,10 @@ torso de la que bajan dos cuerdas rígidas a dos enganches en la placa superior 
 a cada lado del soporte del cuello. El pórtico no se dibuja (ni barra, ni cuerdas). Aquí no se diseña (no hay `c` ni `s`): se **ejecutan** rutinas y gestos
 como lo haría el selector real, y se ve qué hace el cuerpo.
 
-Empieza como el robot real en Debug antes de `MOVER`: colgado a 1.4 m, **sin consigna de posición** (los
-motores solo amortiguan), con los **brazos estirados y las manos apoyadas en la cadera** (codo 1.5 rad,
-hombro roll ±0.08 rad). El primer comando sujeta la postura medida y parte de ella. Al terminar una rutina
-(`p`) hace lo que el selector al salir: los brazos van a la **pose segura** (`poses/0_pose_segura.json`, 3 s)
-mientras las manos se abren, y luego pasa a **amortiguación** (kp en rampa hasta 0 en 2 s): los brazos caen y
-el robot queda otra vez sin mando. El siguiente comando parte de la postura medida, como un selector nuevo.
+Empieza como el selector real tras `MOVER`: colgado a 1.4 m y **sujetando la pose segura**
+(`poses/0_pose_segura.json`, manos abiertas). Cada rutina (`p`) parte de ahí y **termina en la pose segura**:
+si su último paso no lo es, se añade uno automático de 3 s. El robot se queda sujetándola, sin pasar a
+amortiguación.
 
 | Tecla en el visor | Qué hace |
 |---|---|
@@ -126,12 +127,12 @@ Al asentarse, la terminal dice a qué altura queda la pelvis y si los pies tocan
 | Comando | Qué hace |
 |---|---|
 | `cargar <n\|fichero>` / `v` | abrir una rutina / ver sus pasos |
-| `p` / `ir <n>` | ejecutar la rutina entera, luego pose segura y amortiguación / solo el paso n |
+| `p` / `ir <n>` | ejecutar la rutina entera, terminando en la pose segura / solo el paso n |
 | `mano <gesto> izq\|der\|ambas [t=1]` | ejecutar un gesto |
-| `cero` | torso y brazos a 0 y manos abiertas, en 3 s |
+| `segura` / `cero` | ir a la pose segura / torso y brazos a 0 y manos abiertas, en 3 s |
 | `l` | juntas y dedos: mandado, medido y error |
 | `col` | contactos ahora mismo |
-| `reset` | volver al principio: colgado a 1.4 m, sin mando, brazos estirados, manos abiertas |
+| `reset` | volver al principio: colgado a 1.4 m en la pose segura |
 | `x` | salir |
 
 **Cómo se mueve, igual que con el selector real:**

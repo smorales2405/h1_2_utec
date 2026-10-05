@@ -30,6 +30,11 @@
 #   - Los pasos sin "manos" las dejan como están: las rutinas del selector de
 #     code_cap valen tal cual (solo brazos).
 #
+# La POSE SEGURA (poses/0_pose_segura.json, manos abiertas) es la postura por
+# defecto: el selector va a ella al empezar (tras MOVER), la añade al final de
+# cada rutina que no termine en ella (no hace falta guardarla en la rutina) y se
+# queda sujetándola entre rutinas. Solo al salir pasa a amortiguación.
+#
 # REQUISITOS FÍSICOS, antes de lanzarlo:
 #   1. Robot COLGADO del arnés, con los pies sin tocar el suelo. En Debug el
 #      robot no se equilibra: las piernas se quedan en la postura inicial.
@@ -49,6 +54,7 @@
 #   número = ejecutar rutina
 #   l      = listar rutinas otra vez
 #   x      = salir: vuelve a la pose segura, abre las manos y suelta en amortiguación
+#            (entre rutinas no: se queda en la pose segura)
 # -----------------------------------------------------------------------------
 
 from __future__ import annotations
@@ -119,6 +125,10 @@ MARGEN = 0.05
 
 DURACION_MINIMA_PRIMER_MOVIMIENTO = 3.0
 T_SOLTAR = 2.0
+# Pose segura: la postura por defecto (al empezar, al final de cada rutina y al salir). El editor de MuJoCo
+# lee estas dos constantes de aquí.
+DUR_POSE_SEGURA = 3.0      # s para ir a ella
+TOL_POSE_SEGURA = 0.01     # rad: un paso "es" la pose segura si brazos y dedos están a menos de esto
 
 # Manos Inspire RH56DFTP por Modbus TCP (registros: code_cap/manos/README.md).
 IP_MANO = {"izq": "192.168.124.211", "der": "192.168.124.210"}   # al revés que la doc de Unitree
@@ -603,6 +613,32 @@ class H1_2RobotSelector:
                 gm.normalizar(q)        # KeyError si trae un DOF que no existe
         return routine
 
+    def cargar_pose_segura(self):
+        """El paso de poses/0_pose_segura.json (manos abiertas si no las trae). Sin él no se arranca."""
+        paso = self.load_routine(self.poses_dir / "0_pose_segura.json")["pasos"][0]
+        manos = paso.get("manos") or {lado: gm.gesto("abierta") for lado in gm.LADOS}
+        self.pose_segura = {"nombre": "pose segura", "duracion": DUR_POSE_SEGURA,
+                            "posiciones": {k: float(v) for k, v in paso["posiciones"].items()},
+                            "manos": {lado: gm.normalizar(q) for lado, q in manos.items()}}
+
+    def es_pose_segura(self, paso: dict) -> bool:
+        """Si el paso deja brazos y manos en la pose segura (a menos de TOL_POSE_SEGURA)."""
+        seg, pos, manos = self.pose_segura, paso.get("posiciones", {}), paso.get("manos") or {}
+        if any(abs(float(pos.get(k, float("inf"))) - v) > TOL_POSE_SEGURA for k, v in seg["posiciones"].items()):
+            return False
+        return all(lado in manos and all(abs(gm.normalizar(manos[lado])[k] - x) <= TOL_POSE_SEGURA
+                                         for k, x in q.items())
+                   for lado, q in seg["manos"].items())
+
+    def ejecutar_paso(self, paso: dict, titulo: str):
+        dur = float(paso.get("duracion", 1.0))
+        manos = paso.get("manos") or {}
+        texto = ", ".join(f"{lado} {gm.nombre_gesto(gm.normalizar(q)) or 'propia'}" for lado, q in manos.items())
+        print(f"  -> {titulo} | dur={dur:.2f}s{f' | manos: {texto}' if texto else ''}")
+        self.lanzar_manos(manos, dur)
+        self.move_to(paso.get("posiciones", {}), duration=dur)
+        self.esperar_manos()
+
     def PlayRoutine(self, routine: dict):
         name = routine.get("nombre_rutina", "routine")
         pasos = routine.get("pasos", [])
@@ -612,16 +648,11 @@ class H1_2RobotSelector:
         print("=" * 72)
 
         for idx, paso in enumerate(pasos, 1):
-            pname = paso.get("nombre", f"Paso {idx}")
-            dur = float(paso.get("duracion", 1.0))
-            manos = paso.get("manos") or {}
-            texto = ", ".join(f"{lado} {gm.nombre_gesto(gm.normalizar(q)) or 'propia'}" for lado, q in manos.items())
-            print(f"  -> {idx:02d}. {pname} | dur={dur:.2f}s{f' | manos: {texto}' if texto else ''}")
-            self.lanzar_manos(manos, dur)
-            self.move_to(paso.get("posiciones", {}), duration=dur)
-            self.esperar_manos()
+            self.ejecutar_paso(paso, f"{idx:02d}. {paso.get('nombre', f'Paso {idx}')}")
+        if not pasos or not self.es_pose_segura(pasos[-1]):
+            self.ejecutar_paso(self.pose_segura, "pose segura (automática)")
 
-        print("[INFO] Rutina finalizada.")
+        print("[INFO] Rutina finalizada: en la pose segura.")
 
     # ---------------------------------------------------------
     # Catálogo
@@ -654,7 +685,8 @@ class H1_2RobotSelector:
         print("=" * 72)
         print(f"Carpeta de rutinas: {self.poses_dir}")
         print(f"Manos: {', '.join(self.manos) if self.manos else 'NO (solo brazos)'}")
-        print("Comandos: número = ejecutar | l = listar | x = salir")
+        print("Comandos: número = ejecutar | l = listar | x = salir (pose segura y amortiguación)")
+        print("Cada rutina termina en la pose segura, y el robot se queda sujetándola.")
         print("-" * 72)
         for item in self.build_catalog():
             print(f"{item['number']:02d}. {item['path'].name}")
@@ -703,12 +735,10 @@ class H1_2RobotSelector:
             print(f"[INFO] Abriendo las manos ({T_ABRIR:.0f} s)...")
             hilo_manos = threading.Thread(target=self.abrir_manos, daemon=True)
             hilo_manos.start()
-        segura = self.poses_dir / "0_pose_segura.json"
-        if not self.amortiguado and segura.is_file():
+        if not self.amortiguado and getattr(self, "pose_segura", None):
             try:
-                print("[INFO] Volviendo a la pose segura (3 s)...")
-                paso = self.load_routine(segura)["pasos"][0]
-                self.move_to(paso["posiciones"], duration=3.0)
+                print(f"[INFO] Volviendo a la pose segura ({DUR_POSE_SEGURA:.0f} s)...")
+                self.move_to(self.pose_segura["posiciones"], duration=DUR_POSE_SEGURA)
             except Exception as e:
                 print(f"[WARN] No se pudo volver a la pose segura: {e}")
         if hilo_manos is not None:
@@ -772,6 +802,11 @@ def main():
         return
     if not selector.comprobar_modo_debug():
         return
+    try:
+        selector.cargar_pose_segura()
+    except Exception as e:
+        print(f"[ERROR] La pose segura es la postura por defecto y no se puede leer ({e}). No se arranca.")
+        return
     if not a.sin_manos and not selector.conectar_manos({"izq": a.ip_izq, "der": a.ip_der}, a.puerto_manos):
         print("[ERROR] Sin las dos manos no se arranca. Para mover solo los brazos: --sin-manos")
         return
@@ -787,9 +822,12 @@ def main():
             mano.preparar()
         selector.CrearPublicador()
         selector.StartWriter()
+        selector.ejecutar_paso(selector.pose_segura, "pose segura (inicio)")
         selector.selector_loop()
     except (KeyboardInterrupt, EOFError):
         print("\n[INFO] Interrumpido. Cerrando...")
+    except RuntimeError as e:
+        print(f"[ERROR] {e}")
     finally:
         selector.StopAndShutdown()
         print("[INFO] Programa terminado.")

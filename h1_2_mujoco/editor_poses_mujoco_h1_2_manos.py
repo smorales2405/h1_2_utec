@@ -21,6 +21,9 @@
 #     (definidos en h1_2_joint_control/scripts/selector_poses_manos/gestos_mano.py).
 #   - c captura también los dedos; cero también los pone a 0; espejo ... manos
 #     también copia la mano.
+#   - La pose segura (poses/0_pose_segura.json) es la postura por defecto, como en
+#     el selector real: el visor empieza en ella (y vuelve a ella con Retroceso),
+#     'p' parte de ella y termina en ella aunque la rutina no la guarde.
 #   - Colisiones: una segunda copia del modelo, con contactos, comprueba la postura
 #     del visor y avisa en la terminal de los choques (brazo con brazo, brazo con
 #     cuerpo, mano con cualquier parte) y de lo que queda a menos del margen. Lo
@@ -96,9 +99,10 @@ Comandos aquí:
   b                         borrar el último paso
   ir <n>                    poner el paso n en el visor (para retocarlo)
   reemplazar <n>            sustituir el paso n por la postura actual
-  p                         previsualizar la rutina animada, comprobando colisiones
+  p                         previsualizar la rutina como en el robot: desde la pose segura y de vuelta a ella
   mano <gesto> izq|der|ambas [t=1]   gestos: {', '.join(gm.GESTOS)}
   espejo izq|der [manos]    copiar el brazo izquierdo al derecho (o al revés); con 'manos', la mano también
+  segura                    la pose segura (la postura por defecto), manos abiertas
   cero                      torso, brazos y manos a 0 (manos abiertas)
   col                       colisiones de la postura actual
   cargar <n|fichero>        abrir una rutina de la carpeta de poses (sustituye a los pasos actuales)
@@ -147,6 +151,27 @@ def leer_rutina(arg, poses_dir: Path):
             paso["manos"] = {lado: gm.normalizar(q) for lado, q in p["manos"].items() if lado in gm.LADOS}
         pasos.append(paso)
     return ruta, pasos
+
+
+def pose_segura(poses_dir: Path):
+    """El paso de 0_pose_segura.json, como lo usa el selector real (manos abiertas si no las trae), o None."""
+    ruta = poses_dir / "0_pose_segura.json"
+    if not ruta.is_file():
+        return None
+    paso = leer_rutina(str(ruta), poses_dir)[1][0]
+    c = constantes_del_selector("DUR_POSE_SEGURA")
+    return {"nombre": "pose segura", "duracion": c["DUR_POSE_SEGURA"], "posiciones": paso["posiciones"],
+            "manos": paso.get("manos") or {lado: gm.gesto("abierta") for lado in gm.LADOS}}
+
+
+def es_pose_segura(paso, segura) -> bool:
+    """Como H1_2RobotSelector.es_pose_segura: brazos y manos a menos de TOL_POSE_SEGURA."""
+    tol = constantes_del_selector("TOL_POSE_SEGURA")["TOL_POSE_SEGURA"]
+    pos, manos = paso.get("posiciones", {}), paso.get("manos") or {}
+    if any(abs(float(pos.get(k, float("inf"))) - float(v)) > tol for k, v in segura["posiciones"].items()):
+        return False
+    return all(lado in manos and all(abs(gm.normalizar(manos[lado])[k] - x) <= tol for k, x in q.items())
+               for lado, q in segura["manos"].items())
 
 
 def texto_pasos(pasos):
@@ -204,6 +229,10 @@ class Editor:
         for g in range(self.m.ngeom):
             if not mod.es_de_colision(self.m, g):
                 self.visuales_de.setdefault(mod.nombre_cuerpo(self.m, self.m.geom_bodyid[g]), []).append(g)
+        self.segura = pose_segura(poses_dir)
+        if self.segura:
+            self.poner(self.segura["posiciones"], self.segura["manos"])
+            self.m.qpos0[:] = self.d.qpos       # el Retroceso del visor también vuelve a la pose segura
         mujoco.mj_forward(self.m, self.d)
         self.pasos = []
         self.guardado = True
@@ -339,6 +368,8 @@ class Editor:
             print("[INFO] Sin pasos.")
             return
         print("\n".join(texto_pasos(self.pasos)))
+        if self.segura and not es_pose_segura(self.pasos[-1], self.segura):
+            print(f"  + pose segura automática al final ({self.segura['duracion']:.1f} s)")
 
     def ir(self, n):
         paso = self.pasos[n - 1]
@@ -350,8 +381,14 @@ class Editor:
             return
         self.animando = True
         try:
+            if self.segura:                     # el robot empieza cada rutina en la pose segura
+                self.poner(self.segura["posiciones"], self.segura["manos"])
+                print("  (desde la pose segura)")
+            pasos = list(self.pasos)
+            if self.segura and not es_pose_segura(pasos[-1], self.segura):
+                pasos.append({**self.segura, "nombre": "pose segura (automática)"})
             brazos, manos = self.leer(), self.leer_manos()
-            for n, p in enumerate(self.pasos, 1):
+            for n, p in enumerate(pasos, 1):
                 fin_b = {int(k): v for k, v in p["posiciones"].items()}
                 fin_m = {lado: gm.normalizar(q, manos[lado]) for lado, q in (p.get("manos") or {}).items()}
                 print(f"  -> {n:02d}. {p['nombre']} ({p['duracion']:.1f} s): ", end="", flush=True)
@@ -364,7 +401,8 @@ class Editor:
         finally:
             self.ultimo_informe = None
             self.animando = False
-        print("[INFO] Fin de la previsualización (el visor queda en el último paso).")
+        print("[INFO] Fin de la previsualización (el visor queda en el último paso"
+              f"{', la pose segura' if self.segura else ''}).")
 
     def mano(self, nombre, lado, dur):
         objetivo = gm.gesto(nombre)
@@ -472,6 +510,11 @@ class Editor:
             if not resto or resto[0] not in ("izq", "der") or resto[1:] not in ([], ["manos"]):
                 raise ValueError("formato: espejo izq|der [manos]")
             self.espejo(resto[0], resto[1:] == ["manos"])
+        elif cmd == "segura":
+            if not self.segura:
+                raise ValueError(f"no hay 0_pose_segura.json en {self.poses_dir}")
+            self.poner(self.segura["posiciones"], self.segura["manos"])
+            print("[OK] Pose segura, manos abiertas.")
         elif cmd == "cero":
             self.poner({j: 0.0 for j in JUNTAS}, {lado: gm.gesto("abierta") for lado in gm.LADOS})
             print("[OK] Torso y brazos a 0, manos abiertas.")
@@ -520,6 +563,8 @@ class Editor:
 
     def correr(self):
         print(f"[INFO] Poses: {self.poses_dir}")
+        print("[INFO] Empieza en la pose segura." if self.segura else
+              f"[AVISO] No hay 0_pose_segura.json en {self.poses_dir}: empieza en 0 y 'p' no vuelve a la pose segura.")
         print(f"[INFO] Colisiones: margen {self.colisiones.margen * 1000:.0f} mm. Pares excluidos (ya se tocan "
               f"en la pose cero): {', '.join('/'.join(p) for p in sorted(self.colisiones.excluidos))}")
         threading.Thread(target=self.menu, daemon=True).start()

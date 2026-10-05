@@ -16,18 +16,36 @@ manos, por Modbus TCP. Las rutinas se diseñan en MuJoCo con `h1_2_mujoco/editor
 | `h1_2_robot_selector_manos.py` | el selector |
 | `gestos_mano.py` | gestos de mano y orden de `cerrada`; lo usa también el editor de MuJoCo |
 | `conversion_angle_set.py` | radianes del URDF ↔ ANGLE_SET de la mano real |
-| `poses/` | rutinas `.json`; `0_pose_segura.json` es la de salida (brazos de `code_cap`, manos abiertas) |
+| `poses/` | rutinas `.json`; `0_pose_segura.json` es la postura por defecto (brazos de `code_cap`, manos abiertas) |
 
 ## Llevarlo al robot
 
-Copiar la carpeta entera al PC2 (por ejemplo, junto a `~/robotics40/`): el selector importa `gestos_mano.py`
-y `conversion_angle_set.py` de su propia carpeta y lee las rutinas de `poses/`.
+En el PC2 vive en **`~/utec/selector_poses_manos/`** (copiada el 2026-10-02). Se copia la carpeta entera: el
+selector importa `gestos_mano.py` y `conversion_angle_set.py` de su propia carpeta y lee las rutinas de
+`poses/`. Desde la raíz del repositorio, en el PC:
 
 ```bash
-scp -r selector_poses_manos unitree@192.168.123.164:~/
+rsync -av --exclude '__pycache__' h1_2_joint_control/scripts/selector_poses_manos unitree@192.168.0.143:~/utec/
 ```
 
-Usa `~/teleop_venv/bin/python`, el que tiene `unitree_sdk2py` y `pymodbus` (`PY=/ruta/python` para otro).
+Para actualizarla tras cambiar el código o añadir rutinas, el mismo comando: solo copia lo que cambió.
+**Sin `--delete`**, para no borrar las rutinas que se hayan creado en el robot. Por cable, `unitree@192.168.123.164`.
+
+No hace falta configurar nada más en el robot (comprobado el 2026-10-02):
+- `~/teleop_venv/bin/python` (Python 3.10, `pymodbus` 3.6.9) tiene todo lo que importa el selector; su copia
+  del SDK (`~/pc2_offline/src/unitree_sdk2_python`) es idéntica a `~/unitree_sdk2_python` en las piezas que
+  usa. `PY=/ruta/python` para otro.
+- El lanzador quita el `CYCLONEDDS_URI` del SLAM que exporta el `.bashrc` del robot.
+
+Se lanza desde el PC con `ssh -t` (hace falta terminal para teclear `COLGADO`, `SOLTAR` y `MOVER`):
+
+```bash
+ssh -t unitree@192.168.0.143 ~/utec/selector_poses_manos/selector_manos.sh --sin-manos
+```
+
+> **Si se corta el SSH**, el selector muere sin su cierre: ni pose segura, ni rampa a amortiguación, ni manos
+> abiertas. Por WiFi es más probable: mejor por cable o desde una terminal en el propio PC2. El robot no tiene
+> `tmux` ni `screen`.
 
 ## Cómo se lanza
 
@@ -38,6 +56,11 @@ Usa `~/teleop_venv/bin/python`, el que tiene `unitree_sdk2py` y `pymodbus` (`PY=
 
 Pide escribir `COLGADO`; si el servicio de movimiento sigue activo, `SOLTAR` (llama a `ReleaseMode()`: las
 piernas se sueltan); y luego `MOVER`. Después: número = rutina, `l` = listar, `x` = salir.
+
+**La pose segura es la postura por defecto.** Tras `MOVER`, el robot va a ella (3 s, manos abiertas). Cada
+rutina parte de ahí y termina en ella: si su último paso no es la pose segura, el selector añade uno de 3 s
+(no hace falta guardarlo en la rutina). Entre rutinas, el robot se queda sujetándola. Solo al salir (`x`)
+pasa a amortiguación. Sin `poses/0_pose_segura.json`, el selector no arranca.
 
 Antes, en el robot:
 - robot **colgado** con los pies en el aire, Debug con `L2+R2` (`L2+A` da la postura de diagnóstico) y alguien

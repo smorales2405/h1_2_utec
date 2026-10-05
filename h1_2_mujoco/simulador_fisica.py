@@ -18,12 +18,10 @@
 #   - los contactos (brazo con cuerpo, mano con cualquier parte, con el suelo) se
 #     informan por paso, con su fuerza, y el error entre lo mandado y lo alcanzado.
 #
-# Empieza como el robot real en Debug antes de MOVER: colgado, SIN consigna de
-# posición (los motores solo amortiguan), con los brazos estirados y las manos
-# apoyadas en la cadera. El primer comando sujeta la postura medida y parte de
-# ella, como el selector. Al terminar una rutina ('p'), hace lo que el selector al
-# salir: pose segura (poses/0_pose_segura.json) abriendo las manos, y kp en rampa
-# hasta 0 (amortiguación): los brazos caen y el robot vuelve a quedar sin mando.
+# Empieza como el selector real tras MOVER: colgado y sujetando la POSE SEGURA
+# (poses/0_pose_segura.json, manos abiertas), la postura por defecto. 'p' ejecuta
+# la rutina desde ahí y termina en la pose segura (la añade si la rutina no acaba
+# en ella), y se queda sujetándola: no pasa a amortiguación.
 #
 # Teclas en el visor (como unitree_mujoco):  7 sube el pórtico 5 cm, 8 lo baja,
 # 9 suelta las cuerdas o vuelve a engancharlas. La altura de la pelvis sale en la
@@ -48,19 +46,13 @@ CLAVES = ed.CLAVES
 from conversion_angle_set import rad_a_angle_set   # noqa: E402  (en sys.path desde el editor)
 
 SEL = ed.constantes_del_selector("Kp", "Kd", "DURACION_MINIMA_PRIMER_MOVIMIENTO", "HZ_MANO", "FMAX_MANO",
-                                 "TOL_LLEGADA", "T_LLEGADA_MAX", "T_ABRIR", "T_SOLTAR")
+                                 "TOL_LLEGADA", "T_LLEGADA_MAX")
 KP, KD = np.array(SEL["Kp"], float), np.array(SEL["Kd"], float)
 DUR_MIN = SEL["DURACION_MINIMA_PRIMER_MOVIMIENTO"]
 
 PASOS_POR_FOTOGRAMA = 8         # 8 x 2 ms = 16 ms de simulación por fotograma: tiempo real
 VEL_PORTICO = 0.25              # m/s al subir o bajar con 7/8
 PASO_PORTICO = 0.05             # m por pulsación
-DUR_POSE_SEGURA = 3.0           # s, como el selector al salir
-T_CAIDA = 2.0                   # s que se siguen vigilando los contactos tras soltar a amortiguación
-# Postura al empezar, como el robot real colgado en Debug sin mando: brazos estirados (codo 1.5 rad, dentro del
-# límite del selector) y manos apoyadas en la cadera. Con el hombro roll a ±0.08 rad la muñeca queda a 2 mm del
-# muslo; con 0, lo atravesaría 45 mm. El resto, a 0.
-POSE_INICIAL = {14: 0.08, 16: 1.5, 21: -0.08, 23: 1.5}
 T_ASENTAR = 1.5                 # s tras la última tecla para informar de la altura
 DUR_CERO = 3.0                  # s para 'cero'
 TECLA_SUBIR, TECLA_BAJAR, TECLA_CUERDAS = ord("7"), ord("8"), ord("9")
@@ -68,18 +60,19 @@ G = 9.80665
 
 AYUDA = f"""
 MODO FÍSICA: el robot cuelga del pórtico y se mueve como lo mandaría el selector real.
-Empieza sin mando (brazos estirados, manos en la cadera); el primer comando parte de ahí.
+Empieza sujetando la pose segura (la postura por defecto); cada rutina termina en ella.
 Teclas en el visor: 7 sube el pórtico 5 cm, 8 lo baja, 9 suelta / engancha las cuerdas.
 Comandos aquí:
   cargar <n|fichero>        abrir una rutina de la carpeta de poses
   v                         ver los pasos de la rutina
-  p                         ejecutar la rutina entera; luego pose segura y amortiguación (como el selector)
+  p                         ejecutar la rutina entera; termina en la pose segura (como el selector)
   ir <n>                    ejecutar solo el paso n
   mano <gesto> izq|der|ambas [t=1]   gestos: {', '.join(gm.GESTOS)}
   cero                      torso y brazos a 0 y manos abiertas ({DUR_CERO:.0f} s)
   l                         juntas: mandado, medido y error (grados)
   col                       contactos ahora mismo
-  reset                     volver al principio: colgado a la altura inicial y sin mando
+  segura                    ir a la pose segura
+  reset                     volver al principio: colgado a la altura inicial, en la pose segura
   h                         esta ayuda
   x                         salir (o cerrar la ventana)
 """
@@ -112,13 +105,15 @@ class ManoSim:
         self.historial = deque([(-1.0, np.zeros(6))])
         self.fases, self.duraciones = [], []
         self.detenida = ""
-        self.primer_movimiento = True
+        # se empieza ya en la pose segura: el primer movimiento del selector (>= 3 s, el que va a ella) está hecho
+        self.primer_movimiento = False
         self.mensajes = []
 
-    def nueva_sesion(self):
-        """Como un selector nuevo: la protección se rearma y el primer movimiento vuelve a durar >= 3 s."""
-        self.detenida = ""
-        self.primer_movimiento = True
+    def poner(self, q, d):
+        """Coloca la mano en q (rad, orden CLAVES) sin moverla: postura, orden y consigna."""
+        self.q_cmd, self.consigna = q.copy(), q.copy()
+        self.historial = deque([(-1.0, q.copy())])
+        d.qpos[self.qadr] = q
 
     @property
     def ocupada(self):
@@ -208,6 +203,8 @@ class Simulador:
                     {m.body(f"{l}_ankle_pitch_link").id for l in ("left", "right")}
         self.cuerpo_parte = {b: mod.grupo(mod.nombre_cuerpo(m, b)) for b in range(m.nbody)}
         self.pasos = []
+        self.segura = ed.pose_segura(poses_dir)
+        self.mimic = mod.Mimic(m)
         self.lock = threading.RLock()
         self.terminar = False
         self.teclas = deque()
@@ -218,10 +215,6 @@ class Simulador:
     def reiniciar(self):
         with self.lock:
             mujoco.mj_resetData(self.m, self.d)
-            for j, q in POSE_INICIAL.items():
-                self.d.qpos[self.qadr[j]] = q
-            self.mandando = False               # sin consigna de posición hasta el primer comando
-            self.t_rampa = None                 # inicio de la rampa de kp a 0, al soltar a amortiguación
             self.m.tendon_limited[self.cuerdas] = 1
             self.m.tendon_range[self.cuerdas, 1] = self.largo_cuerda0
             self.z_portico = self.z_portico0
@@ -229,9 +222,17 @@ class Simulador:
             self.q_ini = self.d.qpos[self.qadr].copy()
             self.q_fin = self.q_ini.copy()
             self.t0, self.T = 0.0, 0.0
-            self.primer_movimiento = True
+            self.primer_movimiento = False      # ya en la pose segura: ver ManoSim.reiniciar
             for mano in self.manos.values():
                 mano.reiniciar()
+            if self.segura:                     # colgado y sujetando la pose segura
+                for j, q in self.segura["posiciones"].items():
+                    self.d.qpos[self.qadr[int(j)]] = q
+                for lado, mano in self.manos.items():
+                    mano.poner(np.array([self.segura["manos"][lado][k] for k in CLAVES]), self.d)
+                self.mimic.aplicar(self.d.qpos)
+                self.q_ini = self.d.qpos[self.qadr].copy()
+                self.q_fin = self.q_ini.copy()
             self.t_informe = None
             self.t_tick = 0.0
             mujoco.mj_forward(self.m, self.d)
@@ -279,13 +280,9 @@ class Simulador:
         z = d.mocap_pos[self.portico, 2]
         d.mocap_pos[self.portico, 2] = z + float(np.clip(self.z_portico - z, -VEL_PORTICO * m.opt.timestep,
                                                          VEL_PORTICO * m.opt.timestep))
-        # torso, brazos y piernas: PD como el LowCmd del selector (dq = 0, tau = 0); sin mando, solo amortiguan
+        # torso, brazos y piernas: PD como el LowCmd del selector (dq = 0, tau = 0)
         q, dq = d.qpos[self.qadr], d.qvel[self.dadr]
-        if self.mandando:
-            f = 1.0 if self.t_rampa is None else min(max(1.0 - (t - self.t_rampa) / SEL["T_SOLTAR"], 0.0), 1.0)
-            d.ctrl[:len(self.qadr)] = f * KP * (self.q_mandada(t) - q) - KD * dq
-        else:
-            d.ctrl[:len(self.qadr)] = -KD * dq
+        d.ctrl[:len(self.qadr)] = KP * (self.q_mandada(t) - q) - KD * dq
         # manos
         if t >= self.t_tick:
             self.t_tick = t + 1.0 / SEL["HZ_MANO"]
@@ -336,15 +333,11 @@ class Simulador:
               f"{', pies en el suelo' if pies else ''}.")
 
     # --------------------------------------------------------- movimientos (hilo de la terminal)
-    def mover(self, brazos, manos, duracion, dur_manos=None):
+    def mover(self, brazos, manos, duracion):
         """Como un paso del selector: brazos desde lo último mandado, manos en paralelo. Bloquea hasta que
         termina y devuelve (contactos con su fuerza máxima, error máximo de brazos, juntas recortadas)."""
         with self.lock:
             t = self.d.time
-            if not self.mandando:               # el primer comando sujeta la postura medida, como el selector
-                self.q_ini = self.q_fin = self.d.qpos[self.qadr].copy()
-                self.T = 0.0
-                self.mandando = True
             self.q_ini = self.q_mandada(t)
             self.q_fin = self.q_ini.copy()
             recortados = []
@@ -360,7 +353,7 @@ class Simulador:
                 self.primer_movimiento = False
             self.t0, self.T = t, dur
             for lado, q in (manos or {}).items():
-                self.manos[lado].tramo(q, float(duracion if dur_manos is None else dur_manos), t)
+                self.manos[lado].tramo(q, float(duracion), t)
             self.registro = {}
         while not self.terminar:
             time.sleep(0.02)
@@ -397,38 +390,13 @@ class Simulador:
         for linea in lineas:
             print("       " + linea)
 
-    def pose_segura(self):
-        """Como StopAndShutdown del selector: brazos a la pose segura en 3 s y manos abriéndose a la vez."""
-        segura = self.poses_dir / "0_pose_segura.json"
-        if not segura.is_file():
-            print(f"[AVISO] No hay {segura.name} en {self.poses_dir}: los brazos se quedan donde están.")
+    def ir_a_pose_segura(self, titulo):
+        """Un paso a la pose segura, como el que el selector añade al final de cada rutina."""
+        if not self.segura:
+            print(f"[AVISO] No hay 0_pose_segura.json en {self.poses_dir}: los brazos se quedan donde están.")
             return
-        _, pasos = ed.leer_rutina(str(segura), self.poses_dir)
-        self.informe(f"  -> pose segura ({DUR_POSE_SEGURA:.0f} s, manos abriéndose)",
-                     self.mover(pasos[0]["posiciones"], {lado: gm.gesto("abierta") for lado in gm.LADOS},
-                                DUR_POSE_SEGURA, dur_manos=SEL["T_ABRIR"]))
-
-    def soltar(self):
-        """Como el final de StopAndShutdown del selector: kp en rampa hasta 0 en T_SOLTAR s manteniendo kd
-        (amortiguación). Los brazos caen. Queda sin mando: el próximo comando es una sesión nueva del selector
-        (sujeta la postura medida y su primer movimiento dura al menos 3 s)."""
-        with self.lock:
-            if not self.mandando:
-                return
-            self.t_rampa, self.registro = self.d.time, {}
-            fin = self.t_rampa + SEL["T_SOLTAR"] + T_CAIDA
-        while not self.terminar and self.d.time < fin:
-            time.sleep(0.02)
-        with self.lock:
-            registro, self.registro = self.registro, None
-            self.mandando, self.t_rampa, self.primer_movimiento = False, None, True
-            for mano in self.manos.values():
-                mano.nueva_sesion()
-        lineas = self.texto_contactos(registro)
-        print(f"  -> amortiguación (kp a 0 en {SEL['T_SOLTAR']:.0f} s, los brazos caen): "
-              f"{'sin contactos' if not lineas else 'CON CONTACTOS'}")
-        for linea in lineas:
-            print("       " + linea)
+        s = self.segura
+        self.informe(f"{titulo} ({s['duracion']:.1f} s)", self.mover(s["posiciones"], s["manos"], s["duracion"]))
 
     def ejecutar_paso(self, n, p):
         self.informe(f"  -> {n:02d}. {p['nombre']} ({p['duracion']:.1f} s)",
@@ -438,9 +406,6 @@ class Simulador:
     def listar(self):
         with self.lock:
             mandada, medida = self.q_mandada(self.d.time), self.d.qpos[self.qadr].copy()
-            if not self.mandando:
-                mandada = medida.copy()
-                print("\n  (sin mando todavía: los motores solo amortiguan; 'mandado' = medido)")
             manos = {lado: (mano.q_cmd.copy(), self.d.qpos[mano.qadr].copy()) for lado, mano in self.manos.items()}
         print("\n  junta  nombre              mandado   medido    error (grados)")
         for j in range(12, 27):
@@ -474,11 +439,10 @@ class Simulador:
                 if self.terminar:
                     break
                 self.ejecutar_paso(n, p)
+            if self.pasos and not (self.segura and ed.es_pose_segura(self.pasos[-1], self.segura)):
+                self.ir_a_pose_segura("  -> pose segura (automática)")
             if self.pasos:
-                self.pose_segura()
-                self.soltar()
-                print("[INFO] Rutina terminada: en amortiguación, sin mando. El próximo comando parte de la "
-                      "postura medida.")
+                print("[INFO] Rutina terminada: en la pose segura.")
         elif cmd == "ir":
             n = int(resto[0])
             self.ejecutar_paso(n, self.pasos[n - 1])
@@ -499,9 +463,12 @@ class Simulador:
             with self.lock:
                 lineas = self.texto_contactos(self.contactos())
             print("[Ahora] " + ("sin contactos." if not lineas else "\n  " + "\n  ".join(lineas)))
+        elif cmd == "segura":
+            self.ir_a_pose_segura("[OK] Pose segura")
         elif cmd == "reset":
             self.reiniciar()
-            print("[OK] Reiniciado: colgado a la altura inicial, sin mando, brazos estirados y manos abiertas.")
+            print("[OK] Reiniciado: colgado a la altura inicial, en la pose segura."
+                  if self.segura else "[OK] Reiniciado: colgado a la altura inicial, todo a 0.")
         elif cmd == "x":
             return False
         elif cmd in ("c", "s", "b", "reemplazar", "espejo"):

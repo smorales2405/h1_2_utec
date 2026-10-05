@@ -6,9 +6,10 @@ crudos están en `seguidor_linea/datos/` de la PC y `~/utec/seguidor_linea/datos
 git; las figuras clave están copiadas en [`img/`](img/).
 
 Estado al 2026-10-05: **la cinta se cambió por una negra** (más oscura que el suelo); el Hito 1 se repitió
-con ella y se grabaron cuatro recorridos nuevos. De ellos sale la velocidad real y que **el robot avanza
+con ella, se grabaron los recorridos nuevos y **la percepción (Hito 2) está hecha y probada sobre ellos**
+(apartado 5). De ellos sale la velocidad real y que **el robot avanza
 en diagonal, ~7.5° a la izquierda del eje de la cámara y un 14 % más rápido de lo mandado** (apartado 3). La respuesta al giro y el balanceo no
-dependen de la cinta y siguen valiendo. Lo siguiente es la percepción (Hito 2).
+dependen de la cinta y siguen valiendo. Lo siguiente es el control y el supervisor en simulacro (Hito 3).
 
 ## 1. Geometría de la cámara (Hito 1)
 
@@ -289,7 +290,86 @@ yaw de la IMU, 0.10–0.13° (0.28° en el zigzag); el desplazamiento lateral, 0
 - Expresar la dirección de la línea en un marco fijo con el yaw de la IMU, tomado 10 ms antes de la llegada del fotograma.
 - Que un lazo de rumbo sobre la IMU la siga, como `cuadrado.py`. Ese mismo rumbo sirve para cruzar la interrupción de 40 cm (6.4.2).
 
-## 5. Hallazgos del entorno
+## 5. Percepción (Hito 2)
+
+`seguidor/percepcion.py` convierte cada fotograma en una `MedidaLinea`; `herramientas/evaluar_percepcion.py`
+la pasa por los datasets (con la postura lenta de la IMU) y la compara con un detector independiente, el
+mínimo de la calibración. Pruebas: 13 sintéticas (`tests/test_percepcion.py`: recta, curva, cinta oscura y
+clara, barra, barra con el robot girado, cruce, esquina, sin línea, borde de puerta, puntos del emisor,
+sombra, interrupción de 40 cm) y una de regresión sobre el recorrido alineado de la cinta negra.
+
+**Cómo funciona:**
+
+1. Vista desde arriba del suelo a 1 cm por píxel (0.2–3.0 m por delante, ±1 m a los lados), con la
+   geometría calibrada y la postura lenta del torso. Ahí la cinta mide siempre 5 cm.
+2. Filtro de franja de 5 cm **con contraste a los dos lados**: un borde (una puerta, un mueble) solo tiene
+   contraste a un lado y no cuenta.
+3. Las dos polaridades en cada fotograma; se queda la de más confianza. Umbral adaptativo por franja (6
+   veces el ruido robusto, mínimo 6 niveles).
+4. Ajuste robusto de recta o parábola sobre la **cadena continua** desde el punto más cercano, cortada en
+   el primer hueco de más de 0.5 m (la interrupción del nivel 3 es de 0.4 m).
+5. Barra de fin y esquina: cinta transversal **medida en perpendicular a la línea**, justo donde acaba.
+6. Confianza = filas con línea × contraste × residuo del ajuste.
+
+**Resultados con umbral adaptativo** (12 datasets, ~1000 fotogramas cada uno):
+
+| Dataset | Detectada (conf ≥ 0.5) | Donde la referencia ve la línea | Frente a la referencia: y / ángulo | Polaridad | Barra seguida | Se acerca a |
+| --- | --- | --- | --- | --- | --- | --- |
+| `051142` alineado, solo W | 61 % | 100 % | 0.3 cm / 0.41° | oscura, 100 % | 2.91 → 2.40 m | — |
+| `051344` girado a la derecha | 76 % | 100 % | 1.9 cm / 0.15° | oscura, 100 % | 2.89 → 0.31 m | 0.232 m/s |
+| `045509` girado a la derecha† | 63 % | 100 % | 2.0 cm / 0.22° | oscura, 100 % | 2.90 → 0.99 m | 0.229 m/s |
+| `051545` girado a la izquierda | 52 % | 100 % | 1.2 cm / 0.05° | oscura, 100 % | — | — |
+| `045707` girado a la izquierda† | 57 % | 100 % | 0.4 cm / 0.08° | oscura, 100 % | — | — |
+| `054236` girado a la izquierda | 52 % | 91 % | 1.0 cm / 0.05° | oscura, 100 % | — | — |
+| `051715` zigzag | 73 % | 100 % | 1.1 cm / 0.28° | oscura, 100 % | 2.90 → 0.48 m | 0.149 m/s |
+| `045836` zigzag† | 82 % | 100 % | 1.5 cm / 0.11° | oscura, 100 % | 2.93 → 0.45 m | 0.123 m/s |
+| `054959` con emisor | 60 % | 100 % | 1.6 cm / 0.18° | oscura, 100 % | 2.95 → 1.20 m | 0.240 m/s |
+| `060224` cinta blanca | 48 % | 98 % | 0.9 cm / 0.53° | clara, 100 % | 2.89 → 1.88 m | 0.257 m/s |
+| `060638` cinta blanca | 71 % | 97 % | 1.4 cm / 0.34° | clara, 100 % | 2.93 → 0.79 m | 0.243 m/s |
+| `061005` cinta blanca | 77 % | 99 % | 0.2 cm / 0.40° | clara, 100 % | 2.91 → 0.39 m | 0.221 m/s |
+
+- **Donde la línea se ve, se detecta: 99 % de media** respecto de la referencia. El total ronda el 50–80 %
+  porque los recorridos siguen andando fuera de la pista después de pasar la barra.
+- Las detecciones que la referencia no tiene (2–49 %) son la línea de verdad donde la referencia no llega:
+  muy girada, a más de 0.6 m a un lado o tan corta, cerca de la barra, que no reúne 60 puntos. Revisado
+  en los vídeos (`evaluacion_adaptativo.mp4`).
+- **Tiempo: 4.0 ms por fotograma de mediana y 8 ms de p95 en la PC** (falta medirlo en el PC2).
+- La barra se sigue desde ~2.9 m hasta 0.3 m; la velocidad a la que se acerca (0.22–0.26 m/s) coincide
+  con la del avance medido en el apartado 3. En los zigzags es menor porque el camino no es recto.
+- La polaridad sale bien en todos: oscura con la cinta negra y clara con la blanca.
+
+![Percepción: línea, punto adelantado y barra](img/percepcion_ejemplo.jpg)
+
+*`051344`: línea y punto adelantado (círculo); barra a 1.89 m y a 1.00 m; a la derecha, la vista desde arriba.*
+
+**Lo que corrigió cada iteración** (con los datasets):
+
+| Problema | Cambio |
+| --- | --- |
+| Barra no detectada con el robot girado | Cobertura medida en perpendicular a la línea, no por filas de la vista |
+| Bordes de puertas y muebles del fondo unidos a la línea | La línea es la cadena continua desde el punto más cercano |
+| Canto de una puerta detectado como línea (confianza 0.6) | Filtro de franja con contraste a los dos lados |
+| Polaridad invertida tras salir de la pista | Las dos polaridades en cada fotograma |
+| Esquina falsa con un lado fuera de la vista | Sin decidir hasta ver los dos lados |
+
+**Umbral fijo o adaptativo (6.2.2).** En los datasets (sin sombra) el fijo (15 niveles) detecta algo
+menos donde se ve la línea (98 % de media, con mínimos de 86–95 %) y admite más falsos en el suelo más
+ruidoso de la cinta blanca (10 % frente a 0 % en `060224`). Con una sombra sintética sobre la mitad de la
+pista:
+
+| Luz en la sombra | Contraste de la cinta | Adaptativo: confianza, alcance | Fijo: confianza, alcance |
+| --- | --- | --- | --- |
+| ×1.0 | 60 niveles | 1.00, 2.99 m | 0.97, 2.99 m |
+| ×0.5 | 30 niveles | 1.00, 2.99 m | 0.49, 2.99 m |
+| ×0.35 | 21 niveles | 0.85, 2.99 m | 0.34, 2.99 m |
+| ×0.25 | 15 niveles | 0.61, 2.99 m | 0.72, **1.21 m** |
+| ×0.15 | 9 niveles | 0.36, 2.99 m | 0.71, **1.20 m** |
+
+El adaptativo sigue la línea dentro de la sombra y baja la confianza con el contraste; el fijo la pierde
+por debajo de su umbral y, además, da más confianza justo cuando ve menos. Hay que confirmarlo en la zona de
+sombra real del nivel 3.
+
+## 6. Hallazgos del entorno
 
 - **El DDS no arranca con sudo** (`fs.protected_regular=2`, `/tmp/cdds.LOG` es de `unitree`): la cámara,
   que exige sudo, va en un proceso aparte (`camara_servidor.py`) y pasa los fotogramas por ZMQ.
@@ -300,10 +380,12 @@ yaw de la IMU, 0.10–0.13° (0.28° en el zigzag); el desplazamiento lateral, 0
 - Corregido: `ordenes.csv` redondeaba los instantes a 10 ms (6 cifras con `time.monotonic()` en ~6600 s).
   Ya se escriben con 12 cifras; los resultados de esta página salen del `lowstate.csv`, que no estaba afectado.
 
-## 6. Pendiente
+## 7. Pendiente
 
 - Grabar un recorrido con sombra (6.2.2), cuando esté.
 - Explicar el error residual de las distancias (−2 a −4 %): no es la altura (con 1.66 m sale igual). Puede que la cámara se incline algo más que el pitch de la IMU (~1.3 veces en estos datos): verificarlo con más recorridos con dos marcas.
 - Probar si vy ≈ −0.03 m/s corrige el avance en diagonal (6.3.4): `escalon_vyaw.py` aún no hace vy.
 - Elegir el botón de parada por software con `lectores.sh mando-vivo`.
-- Hito 2: `percepcion.py` y `evaluar_percepcion.py` sobre estos datasets.
+- Percepción: medir el tiempo por fotograma en el PC2; probarla en la sombra real (nivel 3), en curvas
+  (niveles 2 y 3) y en la esquina (nivel 4) cuando estén las pistas.
+- **Copiar `config/geometria.yaml` (1.66 m) al robot**: la WiFi se cayó al copiarlo.

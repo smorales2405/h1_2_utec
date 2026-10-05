@@ -16,7 +16,8 @@ L2 + B es la parada de emergencia; ninguna orden de marcha autónoma antes del H
 | 0 | Servidor de cámara, lectura del robot, registro, fuentes de fotogramas, geometría, pruebas | no |
 | Hito 1 | `herramientas/calibrar_camara.py`, `herramientas/comprobar.py`; calibrado el 2026-10-03 (`config/geometria.yaml`) | no |
 | Dataset | `herramientas/grabar_dataset.py` (cinta blanca y negra), `escalon_vyaw.py`, `analizar_escalon.py` y `analizar_dataset.py` | solo `escalon_vyaw.py` |
-| Hitos 2 y 3, niveles | por hacer: percepción, estimación, control, supervisor (`seguidor/vigilante.py` ya está) | — |
+| Hito 2 | `seguidor/percepcion.py` y `herramientas/evaluar_percepcion.py` (99 % de detección donde se ve la línea, 4 ms por fotograma) | no |
+| Hito 3, niveles | por hacer: estimación, control, supervisor (`seguidor/vigilante.py` ya está) | — |
 
 ## Dos procesos en el PC2
 
@@ -73,6 +74,7 @@ python3 -m pytest tests/
 | `seguidor/registro.py` | CSV de `rt/lowstate` a ~100 Hz (columnas de `datos_cuadrado/` + mando), CSV y JSON |
 | `seguidor/mando.py` | Botones y ejes del mando desde `wireless_remote` |
 | `seguidor/calibracion.py` | Detectores mínimos de la cinta (línea, barra, marcas) y la inclinación por marcas |
+| `seguidor/percepcion.py` | Percepción: fotograma → línea (desplazamiento, ángulo, curvatura, punto adelantado, confianza), barra de fin y esquina |
 | `seguidor/vigilante.py` | Paradas de la sección 10 que no dependen de la línea |
 | `seguidor/analisis.py` | Respuesta a escalones, cadencia y filtros para analizar registros |
 | `herramientas/` | Comprobación previa, calibración, grabación del dataset, escalones de vyaw y análisis de escalones y datasets |

@@ -100,10 +100,10 @@ método. Las filas marcadas **(revisado)** ya cambiaron con los datos; el detall
 | 6.1.4 Oscilación al andar | Medir roll y pitch de la IMU y el plano por fotograma mientras anda | Cadencia 1.43 Hz | Dataset caminando |
 | 6.1.5 Píxel → suelo **(revisado)** | Proyección inversa sobre el plano, corregida en cada fotograma con roll y pitch de la IMU | Cámara rígida al torso; la IMU está en el torso | Medido: la corrección por roll/pitch empeora la medida; se proyecta con la pose fija |
 | 6.2.1 Color, IR o profundidad **(medido)** | IR con el emisor apagado (alternado si hiciera falta profundidad) | Con emisor se ven puntos sobre la cinta | Confirmado: mismo contraste, pero con emisor el margen frente a falsos positivos cae 4 veces |
-| 6.2.2 Umbral | Detector de cresta de 5 cm sobre la vista desde arriba, en valor absoluto y con umbral adaptativo por franja | Cinta clara sobre oscuro; sombra en el nivel 3 | Umbral fijo frente a adaptativo en el dataset |
-| 6.2.3 Región | Tres franjas: 0.3–0.8, 0.8–1.5 y 1.5–2.5 m | Horizonte medido | % de detección por franja |
-| 6.2.4 Distractores | Ancho de 4–7 cm, continuidad entre franjas; la barra es un segmento transversal ≥ 40 cm | X, pórtico y reflejos vistos en la captura | Fotogramas con distractores etiquetados |
-| 6.2.5 Confianza | Producto de contraste, ajuste al ancho, residuo de la recta y fracción de franjas con detección | — | ms por fotograma medidos en el PC2 |
+| 6.2.2 Umbral **(medido)** | Detector de cresta de 5 cm sobre la vista desde arriba, en valor absoluto y con umbral adaptativo por franja | Cinta clara sobre oscuro; sombra en el nivel 3 | Adaptativo: 99 % frente a 98 % y sigue la línea en sombra sintética hasta 9 niveles; el fijo la pierde por debajo de 15. Falta la sombra real |
+| 6.2.3 Región **(revisado)** | Tres franjas: 0.3–0.8, 0.8–1.5 y 1.5–2.5 m | Horizonte medido | Cuatro: 0.2–0.8, 0.8–1.5, 1.5–2.5 y 2.5–3.0 m (la última, para ver antes el final y la barra) |
+| 6.2.4 Distractores **(revisado)** | Ancho de 4–7 cm, continuidad entre franjas; la barra es un segmento transversal ≥ 40 cm | X, pórtico y reflejos vistos en la captura | Franja con contraste a los dos lados (fuera bordes de puertas), cadena continua desde lo cercano, barra en perpendicular a la línea y donde acaba |
+| 6.2.5 Confianza **(medido)** | Producto de contraste, ajuste al ancho, residuo de la recta y fracción de franjas con detección | — | Filas con línea × contraste × residuo; 4.0 ms por fotograma en la PC (falta el PC2) |
 | 6.3.1–2 Retardo **(revisado)** | Retardo efectivo ~0.5 s más cámara y proceso (a medir) | 49 giros de `cuadrado.py` | Medido con `escalon_vyaw.py`: 0.3–0.45 s andando a 0.2 m/s, sin zona muerta a 0.15 rad/s |
 | 6.3.3 Ley de control | Persecución de un punto adelantado (*pure pursuit*), L = 0.8–1.2 m, vyaw = 2·vx·sin(α)/L | A 0.2 m/s, 0.6 s de retardo son 12 cm; L cabe en el horizonte | Simulacro y error lateral por tirada |
 | 6.3.4 vy, vyaw o ambos **(revisado)** | vyaw primero; vy = 0 salvo que una prueba muestre que reduce el error lateral | Andando solo con vx, el robot avanza ~7.5° a la izquierda del eje de la cámara (~3 cm/s) | Probar vy ≈ −0.03 m/s; si no, apuntar la dirección de avance y no el eje de la cámara |
@@ -163,7 +163,7 @@ Los lanzadores siguen el patrón de `comun.sh`: se reenvían solos por SSH si no
 | `seguidor/fuentes.py` | Fuente | `FuenteZmq`, `FuenteDataset` (misma interfaz) e `ImuDataset` | Ambos | 1 | hecho |
 | `seguidor/geometria.py` | Percepción | Píxel ↔ suelo, plano del suelo y vista desde arriba | Ambos | 1 | hecho |
 | `seguidor/calibracion.py` | Percepción | Detectores mínimos de la cinta (línea, barra, marcas) e inclinación por marcas | Ambos | 1 | hecho |
-| `seguidor/percepcion.py` | Percepción | `Fotograma` → `MedidaLinea` | Ambos | 2 | |
+| `seguidor/percepcion.py` | Percepción | `Fotograma` → `MedidaLinea` | Ambos | 2 | hecho |
 | `seguidor/estimacion.py` | Estimación | `MedidaLinea` + `Imu` → `EstadoLinea` | Ambos | 3 | |
 | `seguidor/control.py` | Control | `EstadoLinea` → `Orden` saturada | Ambos | 3 | |
 | `seguidor/supervisor.py` | Supervisor | Máquina de estados; único módulo que llama a `Move` y `StopMove` | Ambos | 3 | |
@@ -178,7 +178,7 @@ Los lanzadores siguen el patrón de `comun.sh`: se reenvían solos por SSH si no
 | `herramientas/escalon_vyaw.py` | 6.3 | Escalones de vyaw en lazo abierto, registro a 100 Hz, palabra ESCALON | Robot | Dataset | hecho |
 | `herramientas/analizar_escalon.py` | 6.3 | Retardo, t63/t90 de arranque y parada, ganancia y figura | PC | Dataset | hecho |
 | `herramientas/analizar_dataset.py` | 6.1.4, 6.3, 6.4.1 | Calidad, postura, balanceo, velocidad real y dirección de avance de un dataset | PC | Dataset | hecho |
-| `herramientas/evaluar_percepcion.py` | 6.2 | % de detección, confianza, ms por fotograma, vídeo con la línea superpuesta, umbral fijo frente a adaptativo | PC | 2 | |
+| `herramientas/evaluar_percepcion.py` | 6.2 | % de detección, confianza, ms por fotograma, vídeo con la línea superpuesta, umbral fijo frente a adaptativo | PC | 2 | hecho |
 | `herramientas/reproducir.py` | Simulacro sin robot | Pasa un dataset por estimación, control y supervisor, y compara las órdenes con lo que hizo el operador | PC | 3 | |
 | `herramientas/metricas.py` | Sección 9 | Error lateral, % de confianza, tiempo, roll y pitch máximos por tirada | PC | Cierre | |
 | `tests/` | Pruebas | Sintéticas (geometría, marcas, signos), del transporte y del vigilante; luego, sobre el dataset y del supervisor | PC con pytest; robot con unittest | 1–3 | en curso |
@@ -322,9 +322,10 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 **Hito 2: percepción sin robot**
 
 - [x] `geometria.py`, con pruebas sobre marcas conocidas
-- [ ] `percepcion.py`: vista desde arriba, cresta sin polaridad, franjas, confianza, barra y esquina
-- [ ] `evaluar_percepcion.py`: % de detección, ms por fotograma, vídeo superpuesto, umbral fijo frente a adaptativo
-- [ ] Pruebas automáticas sobre el dataset
+- [x] `percepcion.py`: vista desde arriba, franja con contraste a los dos lados, las dos polaridades, franjas, confianza, barra y esquina
+- [x] `evaluar_percepcion.py`: % de detección, ms por fotograma, vídeo superpuesto, umbral fijo frente a adaptativo
+- [x] Pruebas automáticas: 13 sintéticas y una de regresión sobre el dataset
+- [ ] Tiempo por fotograma en el PC2; sombra real, curvas y esquina cuando estén las pistas
 
 **Hito 3: control y supervisor en simulacro**
 

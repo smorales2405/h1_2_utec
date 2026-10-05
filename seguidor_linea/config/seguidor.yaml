@@ -26,6 +26,26 @@ geometria:              # valores de una sola captura del 2026-10-02; calibrar e
   imu_pitch_ref_deg: 0.0
   x_puntera_m: null     # distancia de la vertical de la camara a la puntera: medir
 
+percepcion:             # seguidor/percepcion.py (Hito 2)
+  resolucion_m: 0.01    # vista desde arriba: 1 cm por pixel
+  x_min_m: 0.20         # franja del suelo que se mira (m desde la vertical de la camara)
+  x_max_m: 3.0
+  y_max_m: 1.0          # +-1 m a los lados
+  ancho_cinta_m: 0.05
+  polaridad: auto       # auto | oscura | clara
+  umbral: adaptativo    # adaptativo (k veces el ruido de la franja) | fijo (niveles de gris)
+  umbral_sigmas: 6.0
+  umbral_minimo: 6.0    # niveles: por debajo nunca es linea, aunque el ruido sea muy bajo
+  umbral_fijo: 15.0
+  franjas_m: [[0.20, 0.8], [0.8, 1.5], [1.5, 2.5], [2.5, 3.0]]
+  franja_vista: 0.3     # fraccion de filas con linea para dar la franja por vista
+  tolerancia_ajuste_m: 0.04
+  hueco_max_m: 0.5     # la linea se corta en el primer hueco mayor (la interrupcion del nivel 3 es de 0.4 m)
+  distancia_objetivo_m: 1.0   # punto adelantado del pure pursuit
+  barra_cobertura: 0.55       # fraccion de +-35 cm alrededor de la linea cubierta por cinta transversal
+  barra_grosor_max_m: 0.12
+  barra_sigmas: 4.0
+
 limites:                # seccion 10 del PDF; robot.py ademas aplica estos topes por su cuenta
   vx_max: 0.4
   vy_max: 0.2

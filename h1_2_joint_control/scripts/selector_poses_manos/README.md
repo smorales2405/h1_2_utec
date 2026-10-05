@@ -13,6 +13,7 @@ manos, por Modbus TCP. Las rutinas se diseñan en MuJoCo con `h1_2_mujoco/editor
 | Archivo | Qué es |
 |---|---|
 | `selector_manos.sh` | lanzador, en el PC2 del robot |
+| `copiar_pose.sh` | copia una rutina de `poses/` al robot por su número (se ejecuta en el PC) |
 | `h1_2_robot_selector_manos.py` | el selector |
 | `gestos_mano.py` | gestos de mano y orden de `cerrada`; lo usa también el editor de MuJoCo |
 | `conversion_angle_set.py` | radianes del URDF ↔ ANGLE_SET de la mano real |
@@ -30,6 +31,20 @@ rsync -av --exclude '__pycache__' h1_2_joint_control/scripts/selector_poses_mano
 
 Para actualizarla tras cambiar el código o añadir rutinas, el mismo comando: solo copia lo que cambió.
 **Sin `--delete`**, para no borrar las rutinas que se hayan creado en el robot. Por cable, `unitree@192.168.123.164`.
+
+Para mandar **una sola rutina**, por su número, desde cualquier PC y cualquier usuario (busca `poses/` junto
+al script, no en una ruta fija):
+
+```bash
+./copiar_pose.sh 3                                        # poses/3_*.json -> ~/utec/selector_poses_manos/poses/
+ROBOT_SSH=unitree@192.168.123.164 ./copiar_pose.sh 3      # por cable
+```
+
+Si en el robot ya hay rutinas con ese número (`3_*.json`, aunque se llamen distinto), las sustituye; las de
+otros números (`30_*.json` incluida) no se tocan. Antes comprueba que la rutina es un JSON válido del H1-2, y
+después que llegó entera (sha256). Usa una sola conexión SSH: sin clave autorizada, pide la contraseña del
+robot una vez. La rutina se escribe con un nombre temporal y luego se renombra, así que el selector, aunque
+esté en marcha, nunca lee un archivo a medias: la versión nueva se usa la próxima vez que se elija ese número.
 
 No hace falta configurar nada más en el robot (comprobado el 2026-10-02):
 - `~/teleop_venv/bin/python` (Python 3.10, `pymodbus` 3.6.9) tiene todo lo que importa el selector; su copia

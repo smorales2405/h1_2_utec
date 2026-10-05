@@ -333,7 +333,8 @@ sombra, interrupción de 40 cm) y una de regresión sobre el recorrido alineado 
 - Las detecciones que la referencia no tiene (2–49 %) son la línea de verdad donde la referencia no llega:
   muy girada, a más de 0.6 m a un lado o tan corta, cerca de la barra, que no reúne 60 puntos. Revisado
   en los vídeos (`evaluacion_adaptativo.mp4`).
-- **Tiempo: 4.0 ms por fotograma de mediana y 8 ms de p95 en la PC** (falta medirlo en el PC2).
+- **Tiempo: 3.1–3.4 ms por fotograma de mediana y 6.1–6.4 ms de p95 en el PC2** (4.0 y 8 ms en la PC):
+  sobra margen a 30 fps (33 ms).
 - La barra se sigue desde ~2.9 m hasta 0.3 m; la velocidad a la que se acerca (0.22–0.26 m/s) coincide
   con la del avance medido en el apartado 3. En los zigzags es menor porque el camino no es recto.
 - La polaridad sale bien en todos: oscura con la cinta negra y clara con la blanca.
@@ -386,6 +387,5 @@ sombra real del nivel 3.
 - Explicar el error residual de las distancias (−2 a −4 %): no es la altura (con 1.66 m sale igual). Puede que la cámara se incline algo más que el pitch de la IMU (~1.3 veces en estos datos): verificarlo con más recorridos con dos marcas.
 - Probar si vy ≈ −0.03 m/s corrige el avance en diagonal (6.3.4): `escalon_vyaw.py` aún no hace vy.
 - Elegir el botón de parada por software con `lectores.sh mando-vivo`.
-- Percepción: medir el tiempo por fotograma en el PC2; probarla en la sombra real (nivel 3), en curvas
-  (niveles 2 y 3) y en la esquina (nivel 4) cuando estén las pistas.
-- **Copiar `config/geometria.yaml` (1.66 m) al robot**: la WiFi se cayó al copiarlo.
+- Percepción: probarla en la sombra real (nivel 3), en curvas (niveles 2 y 3) y en la esquina (nivel 4)
+  cuando estén las pistas.

@@ -103,7 +103,7 @@ método. Las filas marcadas **(revisado)** ya cambiaron con los datos; el detall
 | 6.2.2 Umbral **(medido)** | Detector de cresta de 5 cm sobre la vista desde arriba, en valor absoluto y con umbral adaptativo por franja | Cinta clara sobre oscuro; sombra en el nivel 3 | Adaptativo: 99 % frente a 98 % y sigue la línea en sombra sintética hasta 9 niveles; el fijo la pierde por debajo de 15. Falta la sombra real |
 | 6.2.3 Región **(revisado)** | Tres franjas: 0.3–0.8, 0.8–1.5 y 1.5–2.5 m | Horizonte medido | Cuatro: 0.2–0.8, 0.8–1.5, 1.5–2.5 y 2.5–3.0 m (la última, para ver antes el final y la barra) |
 | 6.2.4 Distractores **(revisado)** | Ancho de 4–7 cm, continuidad entre franjas; la barra es un segmento transversal ≥ 40 cm | X, pórtico y reflejos vistos en la captura | Franja con contraste a los dos lados (fuera bordes de puertas), cadena continua desde lo cercano, barra en perpendicular a la línea y donde acaba |
-| 6.2.5 Confianza **(medido)** | Producto de contraste, ajuste al ancho, residuo de la recta y fracción de franjas con detección | — | Filas con línea × contraste × residuo; 4.0 ms por fotograma en la PC (falta el PC2) |
+| 6.2.5 Confianza **(medido)** | Producto de contraste, ajuste al ancho, residuo de la recta y fracción de franjas con detección | — | Filas con línea × contraste × residuo; 3.3 ms por fotograma en el PC2 (4.0 en la PC) |
 | 6.3.1–2 Retardo **(revisado)** | Retardo efectivo ~0.5 s más cámara y proceso (a medir) | 49 giros de `cuadrado.py` | Medido con `escalon_vyaw.py`: 0.3–0.45 s andando a 0.2 m/s, sin zona muerta a 0.15 rad/s |
 | 6.3.3 Ley de control | Persecución de un punto adelantado (*pure pursuit*), L = 0.8–1.2 m, vyaw = 2·vx·sin(α)/L | A 0.2 m/s, 0.6 s de retardo son 12 cm; L cabe en el horizonte | Simulacro y error lateral por tirada |
 | 6.3.4 vy, vyaw o ambos **(revisado)** | vyaw primero; vy = 0 salvo que una prueba muestre que reduce el error lateral | Andando solo con vx, el robot avanza ~7.5° a la izquierda del eje de la cámara (~3 cm/s) | Probar vy ≈ −0.03 m/s; si no, apuntar la dirección de avance y no el eje de la cámara |
@@ -325,7 +325,8 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 - [x] `percepcion.py`: vista desde arriba, franja con contraste a los dos lados, las dos polaridades, franjas, confianza, barra y esquina
 - [x] `evaluar_percepcion.py`: % de detección, ms por fotograma, vídeo superpuesto, umbral fijo frente a adaptativo
 - [x] Pruebas automáticas: 13 sintéticas y una de regresión sobre el dataset
-- [ ] Tiempo por fotograma en el PC2; sombra real, curvas y esquina cuando estén las pistas
+- [x] Tiempo por fotograma en el PC2: 3.3 ms de mediana
+- [ ] Sombra real, curvas y esquina cuando estén las pistas
 
 **Hito 3: control y supervisor en simulacro**
 

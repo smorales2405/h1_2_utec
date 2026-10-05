@@ -1,6 +1,7 @@
-"""Analisis de los registros: respuesta a un escalon de vyaw (pregunta 6.3.1 del PDF).
+"""Analisis de los registros: respuesta a un escalon de vyaw (pregunta 6.3.1 del PDF) y, sobre los
+datasets, la velocidad y la direccion reales de avance a partir de como se mueve la linea.
 
-Se mide sobre el yaw de la IMU y no sobre gz: la marcha mete en gz una oscilacion de
+El giro se mide sobre el yaw de la IMU y no sobre gz: la marcha mete en gz una oscilacion de
 ~0.27 rad/s de desviacion (datos_cuadrado), del orden de la propia orden.
 """
 
@@ -25,6 +26,68 @@ def media_centrada(t, x, ventana_s):
     sin retrasar la senal. Solo para analizar despues, no en vivo (necesita el futuro)."""
     n = max(1, int(round(ventana_s / np.median(np.diff(t)))))
     return np.convolve(np.asarray(x, dtype=float), np.ones(n) / n, mode="same")
+
+
+def andando(t, gz, ventana_s=1.0, umbral=0.08):
+    """True donde el robot da pasos: la desviacion de gz en una ventana centrada pasa de `umbral`
+    rad/s. De pie gz es casi plano (~0.01); andando, la marcha mete ~0.27 rad/s."""
+    gz = np.asarray(gz, dtype=float)
+    media = media_centrada(t, gz, ventana_s)
+    return np.sqrt(np.maximum(media_centrada(t, gz ** 2, ventana_s) - media ** 2, 0.0)) > umbral
+
+
+def rellenar(x):
+    """NaN -> interpolacion lineal entre los valores validos (para poder filtrar)."""
+    x = np.asarray(x, dtype=float).copy()
+    ok = np.isfinite(x)
+    if ok.sum() >= 2:
+        x[~ok] = np.interp(np.flatnonzero(~ok), np.flatnonzero(ok), x[ok])
+    return x
+
+
+def direccion_de_avance(t, a, theta, mascara, omega=None, ventana_s=1.0, paso_s=0.25, puntos=False):
+    """Velocidad y direccion reales de avance, sin odometria, con una linea recta fija en el suelo.
+
+    Vista desde la camara, la linea es y = a + tan(theta) x. Si la camara avanza a v en la direccion
+    phi (rad, en su propio marco) y el robot gira a omega alrededor de un punto que esta d por detras
+    de la camara, para angulos pequenos
+
+        da/dt = v (theta - phi) - d omega
+
+    y la regresion de da/dt frente a theta (y omega, si se da: el yaw de la IMU derivado) da v, phi
+    y d. a, theta y omega se suavizan con una media centrada de `ventana_s` (quita el balanceo de
+    cada paso) y da/dt sale de una diferencia centrada de +-`paso_s`. Solo cuentan los fotogramas de
+    `mascara` (andando, linea bien vista) con toda la ventana dentro. El yaw de la camara respecto
+    del avance es -phi.
+    Devuelve dict(v, phi, d, n, residuo) (d = NaN sin omega) o None si hay menos de 30 puntos; con
+    puntos=True, ademas theta, omega y dadt de la regresion (para dibujarla)."""
+    t = np.asarray(t, dtype=float)
+    mascara = np.asarray(mascara, dtype=bool) & np.isfinite(a) & np.isfinite(theta)
+    a_s = media_centrada(t, rellenar(a), ventana_s)
+    th_s = media_centrada(t, rellenar(theta), ventana_s)
+    om_s = media_centrada(t, rellenar(omega), ventana_s) if omega is not None else np.zeros(len(t))
+    k = max(1, int(round(paso_s / np.median(np.diff(t)))))
+    n_ventana = max(k, int(round(ventana_s / 2 / np.median(np.diff(t)))))
+    entera = np.convolve(mascara.astype(float), np.ones(2 * n_ventana + 1), mode="same") >= 2 * n_ventana + 1
+    idx = np.flatnonzero(entera)
+    idx = idx[(idx >= k) & (idx < len(t) - k)]
+    if len(idx) < 30:
+        return None
+    dadt = (a_s[idx + k] - a_s[idx - k]) / (t[idx + k] - t[idx - k])
+    x, w = th_s[idx], om_s[idx]
+    cols = [x, w, np.ones(len(x))] if omega is not None else [x, np.ones(len(x))]
+    buenos = np.ones(len(x), dtype=bool)
+    for _ in range(2):   # la segunda vez, sin los saltos de la deteccion (> 3 desviaciones)
+        coef, *_ = np.linalg.lstsq(np.stack(cols, axis=1)[buenos], dadt[buenos], rcond=None)
+        res = dadt - np.stack(cols, axis=1) @ coef
+        buenos = np.abs(res) < 3 * np.std(res[buenos])
+    v, corte = coef[0], coef[-1]
+    out = {"v": float(v), "phi": float(-corte / v) if abs(v) > 1e-6 else math.nan,
+           "d": float(-coef[1]) if omega is not None else math.nan,
+           "n": int(buenos.sum()), "residuo": float(np.std(res[buenos]))}
+    if puntos:
+        out.update(theta=x[buenos], omega=w[buenos], dadt=dadt[buenos])
+    return out
 
 
 def tiempo_hasta(t, x, t0, desde, hacia, fraccion):

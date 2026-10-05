@@ -90,6 +90,44 @@ class TestEscalon(unittest.TestCase):
         self.assertLess(r["giro"], 0.0)
 
 
+class TestAvance(unittest.TestCase):
+    def test_recupera_velocidad_y_yaw_de_la_camara(self):
+        """Robot que avanza a 0.18 m/s con el rumbo oscilando +-8 grados y la camara girada +3 grados
+        respecto de la direccion de avance; la linea del suelo es y = 0 en el mundo."""
+        from seguidor.analisis import direccion_de_avance
+        v, psi = 0.18, math.radians(3.0)
+        t = np.arange(0.0, 30.0, 1 / 30)
+        h = math.radians(8.0) * np.sin(2 * math.pi * t / 12.0)           # direccion de avance
+        y_mundo = np.concatenate([[0.0], np.cumsum(v * np.sin(h[:-1]) / 30)]) - 0.10
+        c = h + psi                                                       # eje de la camara
+        rng = np.random.default_rng(3)
+        a = -y_mundo / np.cos(c) + rng.normal(0, 0.003, len(t))
+        theta = -c + math.radians(1.0) * np.sin(2 * math.pi * 1.4 * t)   # + guinada de cada paso
+        r = direccion_de_avance(t, a, theta, np.ones(len(t), bool))
+        self.assertAlmostEqual(r["v"], v, delta=0.01)
+        self.assertAlmostEqual(math.degrees(-r["phi"]), 3.0, delta=0.3)
+
+    def test_con_giro_alrededor_de_un_punto_por_detras(self):
+        """Zigzag: el robot gira hasta 0.3 rad/s alrededor de un punto 0.15 m por detras de la camara.
+        Sin omega en la regresion, phi sale sesgado; con omega se recuperan v, phi y d."""
+        from seguidor.analisis import direccion_de_avance
+        v, psi, d = 0.24, math.radians(-6.0), 0.15
+        t = np.arange(0.0, 40.0, 1 / 30)
+        h = math.radians(15.0) * np.sin(2 * math.pi * t / 6.0) + math.radians(1.4) * t   # zigzag + deriva
+        omega = np.gradient(h, t)
+        y_centro = np.concatenate([[0.0], np.cumsum(v * np.sin(h[:-1]) / 30)])
+        y_cam = y_centro + d * np.sin(h) - 0.30
+        c = h + psi
+        rng = np.random.default_rng(4)
+        a = -y_cam / np.cos(c) + rng.normal(0, 0.003, len(t))
+        theta = -c + math.radians(1.0) * np.sin(2 * math.pi * 1.4 * t)
+        r = direccion_de_avance(t, a, theta, np.abs(c) < math.radians(25), omega=omega)
+        self.assertAlmostEqual(r["v"], v, delta=0.015)
+        self.assertAlmostEqual(math.degrees(-r["phi"]), -6.0, delta=0.5)
+        # d sale algo sesgado (suavizado de 1 s y angulos de +-15 grados); lo que importa es phi
+        self.assertAlmostEqual(r["d"], d, delta=0.06)
+
+
 class TestCsv(unittest.TestCase):
     def test_instantes_con_precision_de_ms(self):
         from seguidor.registro import CsvSimple

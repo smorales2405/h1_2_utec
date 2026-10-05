@@ -1,20 +1,22 @@
 # Escrito por herramientas/calibrar_camara.py: pisa la seccion `geometria` de seguidor.yaml
 calibrada: true
-fecha: '2026-10-03 05:46:17'
+fecha: '2026-10-06 04:26:34'
 camara: IR izquierda
 emisor_en_calibracion: true
-altura_m: 1.65
-altura_fuente: cinta
-inclinacion_deg: 50.659
+altura_m: 1.66
+altura_fuente: cinta (2026-10-05, remedida)
+inclinacion_deg: 54.102
 inclinacion_fuente: marcas
-inclinacion_plano_deg: 49.9
-roll_deg: -0.952
-yaw_deg: -1.006
+inclinacion_plano_deg: 53.076
+roll_deg: -0.67
+yaw_deg: 3.08
 yaw_medido: true
-imu_roll_ref_deg: 1.495
-imu_pitch_ref_deg: -1.083
-x_puntera_m: 0.009
+imu_roll_ref_deg: 1.512
+imu_pitch_ref_deg: 1.81
+x_puntera_m: -0.019
 alcance_ir_m:
-- 0.193
-- 4.863
+- 0.093
+- 4.071
 capturas: 30
+recalculada: '2026-10-05: altura 1.66 m con cinta; inclinacion por las mismas marcas
+  de la calibracion'

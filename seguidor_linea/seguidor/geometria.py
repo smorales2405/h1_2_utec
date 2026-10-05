@@ -10,10 +10,12 @@ puede sacar del suelo, se mide aparte con una linea alineada con los pies.
 
 Correccion por la IMU (imu_roll / imu_pitch): gira la camara alrededor de su centro con el roll y
 el pitch del torso respecto de los de la calibracion, R_GC(ahora) = Rimu(ahora) Rimu(cal)^T R_GC(cal).
-NO USARLA ANDANDO: medido en los datasets del 2026-10-03, triplica la oscilacion lateral de la
-linea (~1 cm -> ~3 cm) con cualquier signo o eje. El torso oscila como un pendulo sobre los
-tobillos: la camara gira y a la vez se desplaza (1.65 m x 1.5 grados ~ 4 cm) y las dos cosas casi
-se cancelan; visto desde el cuerpo el suelo apenas se mueve, que es lo que quiere el control.
+Pasarle solo la PARTE LENTA del roll y el pitch (la postura del torso, filtrada por debajo de la
+cadencia): de pie el pitch cambia hasta 3 grados entre sesiones y 1-2 grados en minutos, y la
+camara con el (2026-10-05: 3.3 grados de inclinacion por 2.9 de pitch). NO el balanceo de cada paso:
+medido en los datasets del 2026-10-03, triplica la oscilacion lateral de la linea (~1 cm -> ~3 cm)
+con cualquier signo o eje. El torso oscila como un pendulo sobre los tobillos: la camara gira y a
+la vez se desplaza (1.65 m x 1.5 grados ~ 4 cm) y las dos cosas casi se cancelan.
 Lo que si oscila es el yaw del torso (~1 grado por paso): eso se compensa fuera, sumando el yaw
 de la IMU (tomado ~10 ms antes de que llegue el fotograma) al angulo de la linea.
 """

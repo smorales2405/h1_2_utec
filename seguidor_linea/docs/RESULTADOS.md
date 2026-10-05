@@ -5,52 +5,69 @@ PDF) y para decidir sobre el [plan](PLAN.md). Cada apartado dice de dónde salen
 crudos están en `seguidor_linea/datos/` de la PC y `~/utec/seguidor_linea/datos/` del robot, fuera de
 git; las figuras clave están copiadas en [`img/`](img/).
 
-Estado al 2026-10-03: Hito 1 (geometría) cerrado; dataset del nivel 1 grabado; respuesta al giro medida
-andando con 0.3 y 0.15 rad/s; el balanceo de la marcha ya está caracterizado. Lo siguiente es la percepción (Hito 2).
+Estado al 2026-10-05: **la cinta se cambió por una negra** (más oscura que el suelo); el Hito 1 se repitió
+con ella y se grabaron cuatro recorridos nuevos. De ellos sale la velocidad real y que **el robot avanza
+en diagonal, ~7.5° a la izquierda del eje de la cámara y un 14 % más rápido de lo mandado** (apartado 3). La respuesta al giro y el balanceo no
+dependen de la cinta y siguen valiendo. Lo siguiente es la percepción (Hito 2).
 
 ## 1. Geometría de la cámara (Hito 1)
 
-Calibración del 2026-10-03 con `herramientas/calibrar_camara.py`, robot de pie en FSM 201, quieto y
-alineado con la línea, emisor encendido y luces apagadas. Resultado en `config/geometria.yaml`; datos en
-`datos/calibracion_20261003_054617/`.
+Calibración del 2026-10-05 con `herramientas/calibrar_camara.py` sobre la **cinta negra**: robot de pie en
+FSM 201, quieto, con los pies paralelos a la línea, y emisor encendido. Tramos transversales de 60 cm
+con el borde cercano a 1.00 m y a 4.00 m de la puntera. Resultado en `config/geometria.yaml`; datos en
+`datos/calibracion_20261006_042634/` (la carpeta lleva la fecha del reloj del robot, en hora de China).
 
-| Medida | Valor | Método |
-| --- | --- | --- |
-| Altura de la cámara | **1.65 m** | Cinta métrica, del suelo al centro del cristal. La profundidad da 1.677 m (+1.6 %) |
-| Inclinación | **50.66°** bajo la horizontal | Dos tramos de cinta medidos desde la puntera: marca a 1.00 m y barra de fin a 3.58 m. Es la inclinación que los separa 2.58 m en el suelo |
-| Inclinación del plano de profundidad | 49.90° (desviación 0.29° entre 30 capturas) | RANSAC sobre la mediana de 30 capturas, puntos hasta 3 m. Se queda 0.76° corto |
-| Roll | −0.95° (desviación 0.21°) | Plano de profundidad |
-| Yaw respecto del cuerpo | **−1.0°** (−0.94° a −1.07° en 4 pasadas válidas) | Línea vista con los pies paralelos a la cinta |
-| IMU del torso en la calibración | roll +1.50°, pitch −1.08° | Media durante las capturas |
-| Puntera de los pies | +0.01 m de la vertical de la cámara | Marca a 1.00 m de la puntera |
-| Suelo visible en IR | de 0.19 a 4.86 m de la vertical de la cámara (desde 0.18 m por delante de los pies) | Geometría calibrada |
-| FOV IR / color | IR: H 80.4°, V 64.7°. Color: H 55.8°, V 43.4° | Intrínsecos de la D435i |
+| Medida | 2026-10-05 (cinta negra) | 2026-10-03 (cinta blanca) | Método |
+| --- | --- | --- | --- |
+| Altura de la cámara | **1.66 m** | 1.65 m | Cinta métrica, del suelo al centro del cristal (remedida el 2026-10-05; la calibración se hizo con 1.65 m y se recalculó); la profundidad da 1.672 m y 1.677 m |
+| Inclinación | **54.10°** | 50.66° | La que separa en el suelo los dos tramos lo mismo que la cinta (3.00 m y 2.58 m); con 1.65 m salía 53.99° |
+| Inclinación del plano de profundidad | 53.08° (desv. 0.15°) | 49.90° (desv. 0.29°) | RANSAC sobre la mediana de 30 capturas, hasta 3 m: se queda 0.9° y 0.8° corto |
+| Pitch del torso (IMU) | **+1.81°** | −1.08° | Media durante las capturas |
+| Inclinación − pitch del torso | **52.29°** | 51.74° | La de la cámara respecto del torso: difiere 0.55° |
+| Roll | −0.67° | −0.95° | Plano de profundidad (roll del torso +1.51° y +1.50°) |
+| Yaw respecto de los pies | +3.08° | −1.0° | Línea vista con los pies "paralelos" a la cinta: ver abajo |
+| Puntera de los pies | −0.02 m | +0.01 m | Respecto de la vertical de la cámara, por la marca de 1 m |
+| Suelo visible en IR | de 0.10 a **4.07 m** | de 0.19 a 4.86 m | Desde la vertical de la cámara; la barra de 4 m queda en el borde de la imagen |
+| Largo aparente de marca y barra | 0.61 y 0.57 m | 0.60 y 0.59 m | Miden 0.60 m: comprobación de la escala |
+| FOV IR / color | IR: H 80.4°, V 64.7°. Color: H 55.8°, V 43.4° | | Intrínsecos de la D435i |
 
 ![IR con las distancias del suelo calibradas](img/calibracion_ir_distancias.png)
 
-*Distancias del suelo (amarillo), eje del robot y ±30 cm (verde), marca y barra detectadas (magenta) y
-puntos de la línea (azul).*
+*Calibración del 2026-10-05: distancias del suelo (amarillo), eje de la cámara y ±30 cm (verde), marca y
+barra detectadas (magenta) y puntos de la línea (azul).*
 
-**Comprobaciones independientes.** Con 50.66°, la marca y la barra aparecen con 0.60 y 0.59 m de largo
-(miden 0.60). Además, la puntera queda justo fuera de la imagen, como se ve en el IR; con la inclinación
-del plano (49.9°) y la altura de la profundidad, la puntera habría salido a 0.26 m y se tendría que ver.
+**La postura del torso mueve la cámara.** Entre sesiones el pitch del torso de pie pasó de −1.08° a
++1.81°, y en una misma sesión varió de +1.1° a −0.2° y a +1.8° en pocos minutos. La cámara va rígida al
+torso: la inclinación cambió 3.3° (plano: 3.2°) para 2.9° de pitch. Lo que se conserva es la inclinación
+**respecto del torso** (52.2° frente a 51.7°). A 3.5 m, 1° de inclinación son ~20 cm de distancia, lo que
+importa para parar en la barra. Por eso la geometría se usa con el pitch y el roll de la IMU **filtrados
+lentos** respecto de los de la calibración (`ModeloSuelo` con `imu_pitch_ref`), que no es lo mismo que
+corregir el balanceo de cada paso (apartado 4).
+
+**El yaw estático no es fiable.** La cintura (junta 12) estaba a 0.0° en las dos calibraciones, así que
+el torso no estaba girado respecto de las piernas: la diferencia de 4° viene de que los pies no estaban
+igual de paralelos a la cinta, alineados a ojo. Hay que medirlo mejor: con cinta, la distancia de la
+línea al borde interior de un pie en el talón y en la puntera, o andando, con la dirección real de avance.
 
 **Respuestas para el informe:**
 
-- **6.1.1:** el IR ve más suelo (FOV V 64.7° frente a 43.4°): de 0.19 a 4.86 m, frente a ~0.5–2.9 m del color.
-- **6.1.2:** altura 1.65 m e inclinación 50.66°. El plano de profundidad solo, sin cinta, da 1.677 m y 49.9°.
-- **6.1.3:** el suelo se ve desde 0.18 m por delante de los pies: casi no hay zona ciega en IR. Con el color, unos 0.5 m.
+- **6.1.1:** el IR ve más suelo (FOV V 64.7° frente a 43.4° del color): con la inclinación de hoy, de 0.10 a 4.07 m.
+- **6.1.2:** altura 1.65 m e inclinación 52.2° respecto del torso (53.99° con el torso a +1.81°). El plano de
+  profundidad solo, sin cinta, da 1.672 m y 0.9° menos.
+- **6.1.3:** con el IR casi no hay zona ciega: el suelo se ve desde la vertical de los pies (0.12 m por
+  delante de la puntera hoy, 0.18 m el 2026-10-03). El alcance útil depende de la postura: 4.07 a 4.86 m.
 
 **Lo aprendido al calibrar:**
 
 - **Calibrar con el emisor encendido.** Sin él, la profundidad de este suelo dispersa 3–15 cm entre
   0.5 y 3 m y tiene −18 cm de sesgo más allá de 4 m; la inclinación salía entre 50.1° y 53.4° según los
   puntos usados.
-- **El plano solo no basta:** se queda ~0.8° corto, y la profundidad sobrestima la altura un 1.6 %.
-  Con la altura medida con cinta y dos marcas, la geometría queda fijada.
+- **El plano solo no basta:** se queda 0.8–0.9° corto y la profundidad sobrestima la altura un 1.4–1.6 %,
+  las dos veces igual. Con la altura medida con cinta y dos marcas, la geometría queda fijada.
 - Con las luces encendidas aparecen reflejos de los focos en el suelo; al apagarlas desaparecen y la
-  cinta sigue igual de visible (130 frente a 89 de suelo, con emisor). Para calibrar ayuda apagarlas;
-  para grabar y andar, no: hay que hacerlo con la luz real del reto.
+  cinta blanca seguía igual de visible (130 frente a 89 de suelo, con emisor). La cinta negra se ve
+  oscura sobre el suelo, que en el IR sale más claro. Para calibrar ayuda apagar las luces; para grabar
+  y andar, no: hay que hacerlo con la luz real del reto.
 - Con poca luz, los puntos del emisor dominan el IR: los detectores llevan una mediana 3×3 antes del
   top-hat. Detalle en `seguidor/calibracion.py`.
 
@@ -103,10 +120,117 @@ retardo son 8 cm de avance: un punto adelantado de 0.8–1.2 m deja margen.
 ~10 ms (apartado 4); RPC de `Move` 0.5 ms; respuesta de la marcha 0.3–0.45 s de retardo efectivo. La
 marcha domina; falta medir el tiempo de la percepción por fotograma (Hito 2).
 
-## 3. Conjunto de datos del nivel 1
+## 3. Conjuntos de datos del nivel 1 y avance real
 
-Grabado el 2026-10-03 con `herramientas/grabar_dataset.py` y `wasd.sh`, en la recta de 4 m con barra de
-fin. IR sin emisor a 30 fps, luces encendidas, ningún fotograma perdido, IMU a 100 Hz con el mismo reloj.
+### Cinta negra (2026-10-05)
+
+Grabados con `herramientas/grabar_dataset.py` mientras un operador llevaba el robot con `wasd.sh`, en la
+recta de 4 m con la barra de fin a 4.00 m de la puntera. IR sin emisor a 30 fps, ningún fotograma
+perdido, IMU a 100 Hz con el mismo reloj, nadie delante. Analizados con `herramientas/analizar_dataset.py`
+(deja `analisis.json` y `analisis.png` en cada carpeta).
+
+| Dataset | Recorrido | Duración (andando) | Giro total | Línea vista andando* | Velocidad real | Yaw cámara–avance |
+| --- | --- | --- | --- | --- | --- | --- |
+| `dataset_20261006_051142_nivel1_negra_a` | Alineado, solo W | 31.4 s (20.5 s) | +31.8° | 35 % | 0.211 m/s | −8.4° |
+| `dataset_20261006_051344_nivel1_negra_a` | Girado a la derecha, solo W | 32.7 s (22.2 s) | +36.5° | 59 % | 0.233 m/s | −6.1° |
+| `dataset_20261006_051545_nivel1_negra_a` | Girado a la izquierda, solo W | 26.3 s (15.8 s) | +20.9° | 25 % | no fiable | no fiable |
+| `dataset_20261006_054236_nivel1_negra_b` | Girado a la izquierda, solo W (repetición) | 24.0 s (14.8 s) | +29.3° | 33 % | no fiable | no fiable |
+| `dataset_20261006_054959_nivel1_negra_emisor` | Alineado, solo W, **con emisor** | 33.0 s (22.5 s) | +39.3° | 47 % | 0.243 m/s | −7.9° |
+| `dataset_20261006_051715_nivel1_negra_a` | Zigzag con Q/E | 43.9 s (30.8 s) | −42.6° | 49 % | 0.228 m/s | −8.7° |
+| `dataset_20261006_045509_nivel1_negra_a`† | Girado a la derecha, solo W | 36.0 s (23.3 s) | +38.9° | 54 % | 0.224 m/s | −7.5° |
+| `dataset_20261006_045707_nivel1_negra_a`† | Girado a la izquierda, solo W | 30.2 s (16.6 s) | +29.8° | 30 % | no fiable | no fiable |
+| `dataset_20261006_045836_nivel1_negra_a`† | Zigzag | 45.5 s (27.6 s) | −13.2° | 58 % | 0.165 m/s | −12.4° |
+
+\*Incluye el tramo andando después de pasar la barra, fuera de la pista. Con la línea a la vista, el
+detector mínimo la encuentra con ~160 puntos por fotograma. **Arrancar girado a la izquierda es el peor
+caso:** los dos sesgos del robot (avance en diagonal y rumbo, ambos a la izquierda) lo alejan de la línea,
+que sale de la imagen por la derecha en ~4 s (a ~11 cm/s). Las tres veces el ángulo de la línea recorrió
+menos de 4°, así que la regresión del avance no separa v de φ (`analizar_dataset.py` la marca como no
+fiable con < 100 puntos o < 5° de recorrido). Sirven como datos de percepción, no para el avance. †Grabados antes, con la marca transversal de 1 m todavía en el suelo:
+sirven para comprobar distancias (marca y barra a 3.00 m entre sí). En el resto, la marca ya no estaba.
+Todos con `wasd.sh --vx 0.2 --vyaw 0.3`.
+
+Distractores: el pórtico, la barra y, fuera de la pista, puertas, muebles y el brillo de las ventanas.
+
+### Avance real: velocidad y dirección, sin odometría
+
+Vista desde la cámara, la línea es y = a + tan(θ)·x. Si la cámara avanza a `v` en la dirección `φ` (de
+su propio marco) y el robot gira a `ω` alrededor de un punto `d` por detrás de la cámara:
+
+```latex
+\frac{da}{dt} = v\,(\theta - \varphi) - d\,\omega
+```
+
+La regresión de da/dt frente a θ y a ω (el yaw de la IMU derivado) da `v`, `φ` y `d`, con a, θ y ω
+suavizados con una media centrada de 1 s (quita el balanceo) y sin el primer segundo y medio de cada
+arranque (`seguidor/analisis.py: direccion_de_avance`, probado con datos sintéticos en `tests/`).
+
+![Avance con el robot girado a la derecha](img/avance_desalineado_der.png)
+
+*Girado a la derecha: el desplazamiento de la línea deja de cambiar cuando la línea se ve a +6–7° en la
+imagen, no a 0°.*
+
+Con los cuatro recorridos de solo W con regresión fiable (`051142`, `051344`, `045509` y `054959`; los
+zigzags tienen 5–10 veces más residuo):
+
+- **Velocidad real: 0.228 m/s de media (0.211–0.243) para vx = 0.2: el robot anda un 14 % más rápido de
+  lo mandado** (factor 1.05–1.21). Es el `--factor` de `cuadrado.py`, medido sin cinta.
+- **El robot avanza en diagonal hacia su izquierda: 7.5 ± 1.0° respecto del eje de la cámara** (6.1–8.4°),
+  unos 3 cm/s de deriva lateral, además de que su rumbo gira ~1.5°/s a la izquierda. Se ve sin
+  regresión en el recorrido alineado: con la línea a 0° en la imagen, al arrancar se desplaza a la
+  derecha 4–5 cm/s.
+- El centro de giro queda 8–18 cm por detrás de la vertical de la cámara (la puntera).
+- El yaw "estático" de la calibración (+3.1°, −1.0°, con los pies alineados a ojo) no lo predice: el robot
+  no avanza hacia donde apuntan los pies.
+- **Postura andando:** el pitch del torso baja 0.5–1.0° respecto de estar de pie (de +0.25…+0.84° a
+  −0.26…−0.01°) y el roll pasa de +1.3…+1.65° a +0.64…+0.77°. Respecto de la calibración (pitch +1.81°),
+  andando la cámara mira ~2° menos hacia abajo: a 3.5 m son ~40 cm. Confirma que hace falta la
+  corrección lenta de la postura (apartado 1).
+
+**Corrección lenta de la postura, comprobada.** En los recorridos con la marca, la marca y la barra se
+ven a la vez: su separación tiene que ser 3.00 m. Con roll y pitch de la IMU suavizados 1.5 s respecto de
+los de la calibración (`ModeloSuelo` con `imu_pitch_ref`):
+
+| Recorrido | Pitch del torso (calibración +1.81°) | Separación, geometría fija | Separación, con postura lenta |
+| --- | --- | --- | --- |
+| `045509` de pie (269 fotogramas) | −0.99° | 2.505 m (−16 %) | 2.872 m (−4 %) |
+| `045509` andando (119) | −0.12° | 2.663 m (−11 %) | 2.881 m (−4 %) |
+| `045707` andando (16) | +0.44° | 2.747 m (−8 %) | 2.934 m (−2 %) |
+| `045836` andando (110) | +0.28° | 2.765 m (−8 %) | 2.942 m (−2 %) |
+
+La corrección divide el error entre 3 y 4. Lo que queda (−2 a −4 %) no es la altura: con la remedida
+(1.66 m) y la inclinación recalculada con las mismas marcas sale igual (−4.2, −2.2 y −1.8 %).
+
+**Para el control (6.3.3 y 6.3.4):** la ley de control tiene que llevar la *dirección de avance* (≈ 7.5° a
+la izquierda del eje de la cámara) hacia la línea, no el eje de la cámara, o cerrarse con acción integral.
+Una alternativa es compensar la diagonal con vy ≈ −0.03 m/s (a la derecha), que hay que probar.
+
+![Avance con el robot alineado, solo W](img/avance_alineado_soloW.png)
+
+### Emisor encendido o apagado (6.2.1)
+
+Mismo recorrido (alineado, solo W) sin emisor (`051142`) y con emisor (`054959`), comparados con el robot
+de pie antes de arrancar (~250 fotogramas cada uno):
+
+| | Sin emisor | Con emisor |
+| --- | --- | --- |
+| Contraste de la cinta negra (suelo − cinta) | 62.6 niveles | 62.0 niveles |
+| Ruido del suelo (desviación en un parche liso) | 6.7 | 7.1 |
+| Respuesta del filtro de línea en la cinta / 1 % más alto del suelo | **21.2** | **5.6** |
+| Puntos de línea por fotograma | 160 | 161 |
+| Variación del detector entre fotogramas (desplazamiento, ángulo) | 0.01 cm, 0.002° | 0.01 cm, 0.005° |
+
+![Sin emisor y con emisor](img/emisor_comparacion.png)
+
+La cinta se ve igual: absorbe también los puntos del emisor. Lo que cambia es el margen frente a falsos
+positivos: los puntos del emisor son estructuras pequeñas, como la cinta, para el filtro que busca la línea,
+y el margen cae casi 4 veces. Con la cinta negra todavía sobra, pero en la sombra del nivel 3 bajará el
+contraste. Al apagarlo se pierde la calidad de la profundidad (3–15 cm de dispersión sin emisor, apartado
+1), que solo se usa para calibrar. **Decisión: emisor apagado para andar y encendido solo para calibrar.**
+
+### Cinta blanca (2026-10-03)
+
+Sirven para probar que la percepción no depende de la polaridad. IR sin emisor a 30 fps, luces encendidas.
 
 | Dataset | Recorrido | Duración | Fotogramas | Giro total | Línea vista* |
 | --- | --- | --- | --- | --- | --- |
@@ -114,11 +238,8 @@ fin. IR sin emisor a 30 fps, luces encendidas, ningún fotograma perdido, IMU a 
 | `dataset_20261003_060638_nivel1_a` | Sale girado a la derecha, W hasta pasar la barra | 36.1 s | 1083 | +13.2° | 99 % |
 | `dataset_20261003_061005_nivel1_a` | Sale paralelo, W y desvíos con Q/E (hasta −23°) | 38.6 s | 1159 | −6.9° | 92 % |
 
-\*Con el detector mínimo de la calibración (≥ 20 puntos). Los fallos están al final: fuera de la pista
-o al cruzar la barra, donde se engancha a otras cosas. La percepción tiene que dar ahí confianza baja.
-
-Distractores presentes: 4–6 reflejos de focos, piernas y zapatillas de personas, la X del suelo, la
-barra y, fuera de la pista, puertas y muebles. En las próximas grabaciones no habrá nadie delante.
+\*Con el detector mínimo de la calibración (≥ 20 puntos). Distractores: 4–6 reflejos de focos, piernas
+y zapatillas de personas, la X del suelo y la barra.
 
 ## 4. Balanceo de la marcha (6.1.4 y 6.4.1)
 
@@ -157,9 +278,14 @@ fotograma, que es el desfase cámara–IMU:
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Oscilación del ángulo + yaw (`060638`) | 0.48° | 0.37° | 0.25° | 0.11° | **0.04°** | 0.16° | 0.30° |
 
+Con la cinta negra (2026-10-05, `analizar_dataset.py`) se repite: el ángulo oscila 0.86–1.05° y, con el
+yaw de la IMU, 0.10–0.13° (0.28° en el zigzag); el desplazamiento lateral, 0.84–0.98 cm; cadencia
+1.41–1.46 Hz.
+
 **Decisión (cambia el plan en 6.1.5 y 6.4.1):**
 
-- Proyectar con la pose calibrada fija, sin roll/pitch.
+- Proyectar sin corregir el balanceo de cada paso con el roll/pitch de la IMU; sí con su parte lenta
+  (la postura del torso, apartado 1), filtrada por debajo de la cadencia.
 - Expresar la dirección de la línea en un marco fijo con el yaw de la IMU, tomado 10 ms antes de la llegada del fotograma.
 - Que un lazo de rumbo sobre la IMU la siga, como `cuadrado.py`. Ese mismo rumbo sirve para cruzar la interrupción de 40 cm (6.4.2).
 
@@ -167,7 +293,8 @@ fotograma, que es el desfase cámara–IMU:
 
 - **El DDS no arranca con sudo** (`fs.protected_regular=2`, `/tmp/cdds.LOG` es de `unitree`): la cámara,
   que exige sudo, va en un proceso aparte (`camara_servidor.py`) y pasa los fotogramas por ZMQ.
-- En el PC2, `sudo` pide contraseña: el servidor de cámara lo arranca una persona con `ssh -t`.
+- En el PC2, `sudo` pide contraseña: el servidor de cámara se arranca con `ssh -t` o, sin terminal,
+  con `SUDO_STDIN=1` y la contraseña por la entrada estándar (`camara_servidor.sh`).
 - La cámara solo la abre un proceso: hay que parar `~/robotics40/camara.py` antes.
 - El portátil va por WiFi (ping 10–130 ms): todo el lazo corre en el PC2.
 - Corregido: `ordenes.csv` redondeaba los instantes a 10 ms (6 cifras con `time.monotonic()` en ~6600 s).
@@ -175,8 +302,8 @@ fotograma, que es el desfase cámara–IMU:
 
 ## 6. Pendiente
 
-- Si hace falta afinar el segundo escalón: repetir con `--vuelta 3` (el robot tarda ~1.5 s en dejar de girar).
-- Un recorrido con sombra (nivel 3) y otro con el emisor encendido, para 6.2.1 y 6.2.2.
-- La respuesta a un escalón de vy (6.3.4): `escalon_vyaw.py` aún no lo hace.
+- Grabar un recorrido con sombra (6.2.2), cuando esté.
+- Explicar el error residual de las distancias (−2 a −4 %): no es la altura (con 1.66 m sale igual). Puede que la cámara se incline algo más que el pitch de la IMU (~1.3 veces en estos datos): verificarlo con más recorridos con dos marcas.
+- Probar si vy ≈ −0.03 m/s corrige el avance en diagonal (6.3.4): `escalon_vyaw.py` aún no hace vy.
 - Elegir el botón de parada por software con `lectores.sh mando-vivo`.
 - Hito 2: `percepcion.py` y `evaluar_percepcion.py` sobre estos datasets.

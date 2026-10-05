@@ -5,6 +5,9 @@ Se avanza según este plan, pero puede cambiar con los resultados; lo medido y l
 [RESULTADOS.md](RESULTADOS.md). Las casillas de [Orden de implementación](#orden-de-implementación)
 marcan el avance real.
 
+**2026-10-05: la cinta blanca se cambió por una negra** y el Hito 1 se repitió con ella (ver
+[RESULTADOS.md](RESULTADOS.md)); la tabla del punto de partida es de la cinta blanca.
+
 El seguidor corre entero en el PC2, en dos procesos: la cámara como root y el resto como `unitree`,
 porque el DDS no arranca con sudo. Se construye en los cinco bloques del PDF sobre `LocoClient.Move` y
 se valida por hitos: medir, grabar, percepción sin robot, simulacro y tiradas a media velocidad.
@@ -96,14 +99,14 @@ método. Las filas marcadas **(revisado)** ya cambiaron con los datos; el detall
 | 6.1.3 Zona ciega y alcance | Horizonte útil inicial 0.3–2.5 m, sin los extremos ruidosos | IR 0.17–4.78 m | % de detección por distancia en el dataset |
 | 6.1.4 Oscilación al andar | Medir roll y pitch de la IMU y el plano por fotograma mientras anda | Cadencia 1.43 Hz | Dataset caminando |
 | 6.1.5 Píxel → suelo **(revisado)** | Proyección inversa sobre el plano, corregida en cada fotograma con roll y pitch de la IMU | Cámara rígida al torso; la IMU está en el torso | Medido: la corrección por roll/pitch empeora la medida; se proyecta con la pose fija |
-| 6.2.1 Color, IR o profundidad | IR con el emisor apagado (alternado si hiciera falta profundidad) | Con emisor se ven puntos sobre la cinta | % de detección con y sin emisor |
+| 6.2.1 Color, IR o profundidad **(medido)** | IR con el emisor apagado (alternado si hiciera falta profundidad) | Con emisor se ven puntos sobre la cinta | Confirmado: mismo contraste, pero con emisor el margen frente a falsos positivos cae 4 veces |
 | 6.2.2 Umbral | Detector de cresta de 5 cm sobre la vista desde arriba, en valor absoluto y con umbral adaptativo por franja | Cinta clara sobre oscuro; sombra en el nivel 3 | Umbral fijo frente a adaptativo en el dataset |
 | 6.2.3 Región | Tres franjas: 0.3–0.8, 0.8–1.5 y 1.5–2.5 m | Horizonte medido | % de detección por franja |
 | 6.2.4 Distractores | Ancho de 4–7 cm, continuidad entre franjas; la barra es un segmento transversal ≥ 40 cm | X, pórtico y reflejos vistos en la captura | Fotogramas con distractores etiquetados |
 | 6.2.5 Confianza | Producto de contraste, ajuste al ancho, residuo de la recta y fracción de franjas con detección | — | ms por fotograma medidos en el PC2 |
 | 6.3.1–2 Retardo **(revisado)** | Retardo efectivo ~0.5 s más cámara y proceso (a medir) | 49 giros de `cuadrado.py` | Medido con `escalon_vyaw.py`: 0.3–0.45 s andando a 0.2 m/s, sin zona muerta a 0.15 rad/s |
 | 6.3.3 Ley de control | Persecución de un punto adelantado (*pure pursuit*), L = 0.8–1.2 m, vyaw = 2·vx·sin(α)/L | A 0.2 m/s, 0.6 s de retardo son 12 cm; L cabe en el horizonte | Simulacro y error lateral por tirada |
-| 6.3.4 vy, vyaw o ambos | vyaw primero; vy = 0 salvo que una prueba muestre que reduce el error lateral | — | Dos tiradas, con y sin vy |
+| 6.3.4 vy, vyaw o ambos **(revisado)** | vyaw primero; vy = 0 salvo que una prueba muestre que reduce el error lateral | Andando solo con vx, el robot avanza ~7.5° a la izquierda del eje de la cámara (~3 cm/s) | Probar vy ≈ −0.03 m/s; si no, apuntar la dirección de avance y no el eje de la cámara |
 | 6.3.5 Bajada de vx | vx = vx_max · g(κ) · h(confianza), y 0 por debajo de una confianza mínima | — | Suavidad de las órdenes en el registro |
 | 6.3.6 Frecuencia de `Move` | 20 Hz, como `cuadrado.py`; el control usa la última estimación y no cuenta dos veces un fotograma | `Move` dura 1 s | Edad del fotograma en el registro |
 | 6.4.1 Balanceo **(revisado)** | Compensar con roll y pitch de la IMU por fotograma, más un filtro corto (~0.35 s, media zancada) | Cadencia 1.43 Hz | Medido: no se compensa roll/pitch; se suma el yaw de la IMU al ángulo de la línea |
@@ -174,6 +177,7 @@ Los lanzadores siguen el patrón de `comun.sh`: se reenvían solos por SSH si no
 | `herramientas/grabar_dataset.py` | Dataset | Fotogramas e IMU con hora común mientras `wasd.sh` lleva el robot | Robot | Dataset | hecho |
 | `herramientas/escalon_vyaw.py` | 6.3 | Escalones de vyaw en lazo abierto, registro a 100 Hz, palabra ESCALON | Robot | Dataset | hecho |
 | `herramientas/analizar_escalon.py` | 6.3 | Retardo, t63/t90 de arranque y parada, ganancia y figura | PC | Dataset | hecho |
+| `herramientas/analizar_dataset.py` | 6.1.4, 6.3, 6.4.1 | Calidad, postura, balanceo, velocidad real y dirección de avance de un dataset | PC | Dataset | hecho |
 | `herramientas/evaluar_percepcion.py` | 6.2 | % de detección, confianza, ms por fotograma, vídeo con la línea superpuesta, umbral fijo frente a adaptativo | PC | 2 | |
 | `herramientas/reproducir.py` | Simulacro sin robot | Pasa un dataset por estimación, control y supervisor, y compara las órdenes con lo que hizo el operador | PC | 3 | |
 | `herramientas/metricas.py` | Sección 9 | Error lateral, % de confianza, tiempo, roll y pitch máximos por tirada | PC | Cierre | |
@@ -307,8 +311,11 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 
 **Dataset**
 
-- [x] `grabar_dataset.py`: tres recorridos del nivel 1 (`dataset_20261003_060224`, `060638`, `061005`)
-- [ ] Un recorrido con sombra y otro con el emisor encendido (6.2.1, 6.2.2)
+- [x] `grabar_dataset.py`: tres recorridos con la cinta blanca (2026-10-03) y cuatro con la negra (2026-10-05)
+- [x] `analizar_dataset.py`: calidad, postura, balanceo, velocidad real y dirección de avance
+- [x] Repetir "girado a la izquierda" con la cinta negra (pierde la línea en ~4 s: peor caso)
+- [x] Uno con el emisor encendido (6.2.1): emisor apagado para andar
+- [ ] Uno con sombra (6.2.2)
 - [x] `escalon_vyaw.py` y `analizar_escalon.py`: vx = 0 y vx = 0.2 con A = 0.3 rad/s
 - [x] Escalones de 3 s andando, con 0.3 y 0.15 rad/s: ver [RESULTADOS.md](RESULTADOS.md#2-respuesta-al-giro-631-y-632)
 

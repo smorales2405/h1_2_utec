@@ -15,7 +15,7 @@ L2 + B es la parada de emergencia; ninguna orden de marcha autónoma antes del H
 |---|---|---|
 | 0 | Servidor de cámara, lectura del robot, registro, fuentes de fotogramas, geometría, pruebas | no |
 | Hito 1 | `herramientas/calibrar_camara.py`, `herramientas/comprobar.py`; calibrado el 2026-10-03 (`config/geometria.yaml`) | no |
-| Dataset | `herramientas/grabar_dataset.py` (3 recorridos del nivel 1), `herramientas/escalon_vyaw.py` y `analizar_escalon.py` | solo `escalon_vyaw.py` |
+| Dataset | `herramientas/grabar_dataset.py` (cinta blanca y negra), `escalon_vyaw.py`, `analizar_escalon.py` y `analizar_dataset.py` | solo `escalon_vyaw.py` |
 | Hitos 2 y 3, niveles | por hacer: percepción, estimación, control, supervisor (`seguidor/vigilante.py` ya está) | — |
 
 ## Dos procesos en el PC2
@@ -75,7 +75,7 @@ python3 -m pytest tests/
 | `seguidor/calibracion.py` | Detectores mínimos de la cinta (línea, barra, marcas) y la inclinación por marcas |
 | `seguidor/vigilante.py` | Paradas de la sección 10 que no dependen de la línea |
 | `seguidor/analisis.py` | Respuesta a escalones, cadencia y filtros para analizar registros |
-| `herramientas/` | Comprobación previa, calibración, grabación del dataset, escalones de vyaw y su análisis |
+| `herramientas/` | Comprobación previa, calibración, grabación del dataset, escalones de vyaw y análisis de escalones y datasets |
 | `docs/` | Plan, resultados y figuras clave (`docs/img/`) |
 | `tests/` | Pruebas sin robot |
 | `datos/` | Registros de cada tirada (fuera de git) |

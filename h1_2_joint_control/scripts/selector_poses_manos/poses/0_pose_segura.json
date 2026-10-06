@@ -4,7 +4,7 @@
   "robot": "unitree_h1_2",
   "modelo": "h1_2_27dof_manos_rh56dftp",
   "requiere_robot_quieto": true,
-  "descripcion": "Pose segura neutral del H1-2 (la de code_cap/selector_poses_real/poses/0_pose_segura.json) con las manos abiertas. El selector la usa al salir.",
+  "descripcion": "Pose segura neutral del H1-2 con las manos abiertas: el brazo izquierdo de code_cap/selector_poses_real/poses/0_pose_segura.json y el derecho, su espejo (2026-10-06). Es la postura por defecto: el selector va a ella al empezar, al final de cada rutina y al salir.",
   "numero_pasos": 1,
   "pasos": [
     {
@@ -18,10 +18,10 @@
         "17": 0.0,
         "18": 0.0,
         "19": 0.0,
-        "20": -0.042555,
-        "21": -0.2168,
-        "22": 0.15708,
-        "23": 1.073175,
+        "20": -0.04299,
+        "21": -0.14,
+        "22": -0.05236,
+        "23": 1.05747,
         "24": 0.0,
         "25": 0.0,
         "26": 0.0

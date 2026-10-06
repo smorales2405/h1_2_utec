@@ -65,18 +65,26 @@ class MedidaLinea:
     barra_fin: Optional[float] = None       # m hasta la barra, si se ve
     esquina: Optional[Tuple[float, int]] = None  # (m hasta la esquina, sentido +1 izq / -1 der)
     ms: float = 0.0             # tiempo de proceso del fotograma
+    alcance: Tuple[float, float] = (float("nan"), float("nan"))  # x (m) del primer y el ultimo punto de linea
 
 
 @dataclass
 class EstadoLinea:
+    """La linea estimada, en el marco de la camara en el instante `t` (no en el del fotograma)."""
     t: float
-    y: float
-    theta: float
+    y: float                    # m, distancia con signo de la vertical de la camara a la linea
+    theta: float                # rad, angulo de la linea en su punto mas cercano
     kappa: float
-    confianza: float
+    confianza: float            # la de la ultima medida buena
     edad_s: float               # desde la ultima medida buena
     rumbo_ref: float            # rad, yaw de la IMU que sigue la linea
-    dist_fin: Optional[float] = None  # m restantes hasta la barra, estimados
+    dist_fin: Optional[float] = None  # m de la puntera al borde cercano de la barra (confirmada), estimados
+    objetivo: Tuple[float, float] = (float("nan"), float("nan"))  # punto adelantado (m), sobre la linea
+    extrapolado: bool = False   # el objetivo esta mas alla de lo medido (linea prolongada en recta)
+    esquina: Optional[Tuple[float, int]] = None  # (m de la puntera a la esquina, sentido), confirmada
+    v: float = 0.0              # m/s, velocidad real estimada
+    racha: int = 0              # medidas buenas seguidas
+    hay_linea: bool = False     # False hasta la primera medida buena (o tras reiniciar)
 
 
 @dataclass
@@ -101,5 +109,6 @@ class Salud:
 class Decision:
     estado: str
     motivo: str
-    orden_enviada: Orden
+    orden_enviada: Orden        # en simulacro, la que se habria enviado
     simulacro: bool
+    detalle: dict = field(default_factory=dict)   # lo que explica la orden, para el registro

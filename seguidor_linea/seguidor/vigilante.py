@@ -10,9 +10,11 @@ import math
 
 
 class Vigilante:
-    def __init__(self, robot, cfg):
+    def __init__(self, robot, cfg, joystick_para=True):
+        """joystick_para=False solo en el simulacro, donde el operador lleva el robot con el joystick."""
         sup = cfg["supervisor"]
         self.robot = robot
+        self.joystick_para = joystick_para
         self.inclinacion_max = math.radians(sup["inclinacion_max_deg"])
         self.lowstate_max_s = sup["lowstate_max_s"]
         self.fotograma_max_s = sup["fotograma_max_s"]
@@ -30,7 +32,7 @@ class Vigilante:
         if abs(imu.roll) > self.inclinacion_max or abs(imu.pitch) > self.inclinacion_max:
             return f"inclinacion: roll {math.degrees(imu.roll):+.1f}, pitch {math.degrees(imu.pitch):+.1f} grados"
         m = r.mando()
-        if m.ejes_activos():
+        if self.joystick_para and m.ejes_activos():
             return "joystick del mando fuera de cero: intervencion del operador"
         if self.boton and m.pulsado(self.boton):
             return f"boton de parada {self.boton}"

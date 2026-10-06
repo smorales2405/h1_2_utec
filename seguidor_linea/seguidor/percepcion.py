@@ -119,8 +119,12 @@ class Percepcion:
         bev, valido = self.vista_superior(f.ir, imu_roll, imu_pitch)
         img = bev.astype(np.float32)
         clara, oscura, ruido = _franja(img, self.ancho_px, horizontal=True)
-        # los bordes de la zona valida dan respuestas falsas: fuera; y suavizado a lo largo de x
-        borde = cv2.erode(valido.astype(np.uint8), np.ones((3, 3 * self.ancho_px), np.uint8)) > 0
+        # los bordes de la zona valida dan respuestas falsas: fuera; y suavizado a lo largo de x. Los
+        # bordes de la propia vista tambien (borderValue 0): _franja desplaza con np.roll, que da la vuelta,
+        # y comparaba la columna de un lado con la del otro (lineas falsas a +-1 m con la camara tapada,
+        # 2026-10-06)
+        borde = cv2.erode(valido.astype(np.uint8), np.ones((3, 3 * self.ancho_px), np.uint8),
+                          borderType=cv2.BORDER_CONSTANT, borderValue=0) > 0
         resp = {+1: np.where(borde, cv2.blur(clara, (1, 3)), 0.0), -1: np.where(borde, cv2.blur(oscura, (1, 3)), 0.0)}
         filas_ok = borde.any(axis=1)
 
@@ -153,9 +157,10 @@ class Percepcion:
         detalle = Detalle(bev=bev, xs=r["xs"], ys=r["ys"], dentro=r["dentro"], coef=(a, b, c), polaridad=signo,
                           sigma=sigmas, x_fin=r["x_fin"])
         barra, esquina = self._barra(img, valido, signo, (a, b, c), detalle)
-        if barra is not None:
-            # con barra de fin la linea solo puede llegar hasta ella: no penalizar la que no queda
-            r = self._medir_signo(signo, resp, umbral_fila, filas_ok, x_hasta=barra + 0.05, previo=r)
+        fin_linea = barra if barra is not None else (esquina[0] if esquina is not None else None)
+        if fin_linea is not None:
+            # con barra de fin (o esquina) la linea solo puede llegar hasta ella: no penalizar la que no queda
+            r = self._medir_signo(signo, resp, umbral_fila, filas_ok, x_hasta=fin_linea + 0.05, previo=r)
         conf, n_franjas = r["conf"], r["n_franjas"]
         self.detalle = detalle
 
@@ -166,9 +171,12 @@ class Percepcion:
             theta = math.atan(b)
         else:
             objetivo, kappa, theta = (math.nan, math.nan), math.nan, math.nan
+        dentro = r["dentro"]
+        alcance = (float(r["xs"][dentro].min()), float(detalle.x_fin)) if np.any(dentro) else (math.nan, math.nan)
         ms = 1000 * (time.perf_counter() - t0)
         return MedidaLinea(t=f.t_rx, y=float(a), theta=float(theta), kappa=float(kappa), objetivo=objetivo,
-                           confianza=float(conf), n_franjas=n_franjas, barra_fin=barra, esquina=esquina, ms=ms)
+                           confianza=float(conf), n_franjas=n_franjas, barra_fin=barra, esquina=esquina, ms=ms,
+                           alcance=alcance)
 
     def _medir_signo(self, signo, resp, umbral_fila, filas_ok, x_hasta=None, previo=None):
         """Candidatos, ajuste y confianza para una polaridad. Con `previo` reutiliza su ajuste y solo
@@ -190,6 +198,11 @@ class Percepcion:
             a, b, c = previo["coef"]
         x_fin = float(xs[dentro].max()) if (np.isfinite(a) and dentro.sum() >= 8) else math.nan
         x_lim = min(2.5, self.x_max) if x_hasta is None else min(2.5, self.x_max, x_hasta)
+        # una curva que sale por un lado de la vista no pierde las filas de mas alla, pero solo si la
+        # linea viene de debajo del robot: un tramo corto lejano (cantos de muebles junto al borde de la
+        # vista, 2026-10-05) se quedaria sin filas que perder y con confianza alta
+        if np.isfinite(a) and dentro.sum() >= 8 and xs[dentro].min() <= self.x_min + 0.4:
+            x_lim = min(x_lim, self._x_salida(a, b, c))
         rango = (self.x_filas <= x_lim) & filas_ok
         n_filas = max(1, int(rango.sum()))
         conf, n_franjas = 0.0, 0
@@ -208,36 +221,76 @@ class Percepcion:
         return {"xs": xs, "ys": ys, "pesos": pesos, "dentro": dentro, "coef": (a, b, c), "x_fin": x_fin,
                 "conf": conf, "n_franjas": n_franjas}
 
+    def _x_salida(self, a, b, c):
+        """x donde la linea ajustada sale de la vista por un lado o se tuerce mas de 65 grados (la
+        percepcion barre filas): la confianza no cuenta como perdidas las filas de mas alla."""
+        xg = self.x_filas[::-1]
+        y = a + b * xg + c * xg ** 2
+        fuera = (np.abs(y) > self.y_max - 2 * self.p["ancho_cinta_m"]) | (np.abs(b + 2 * c * xg) > math.tan(math.radians(65)))
+        i = np.flatnonzero(fuera & (xg > self.x_min + 0.2))
+        return float(xg[i[0]]) if len(i) else math.inf
+
     def _ajustar(self, xs, ys):
-        """Recta y luego parabola si hay recorrido, empezando por la mediana y cerrando la tolerancia."""
+        """Recta robusta (empezando por la mediana y cerrando la tolerancia) y, si la linea curva,
+        parabola que crece desde los puntos de la recta: en una curva de 1.2 m de radio la recta solo
+        recoge el tramo cercano (2026-10-05, nivel 3) y la parabola lo prolonga por la curva."""
+        tol_fin = self.p["tolerancia_ajuste_m"]
         a, b, c = float(np.median(ys)), 0.0, 0.0
         dentro = np.ones(len(xs), dtype=bool)
-        for tol in (0.30, 0.10, self.p["tolerancia_ajuste_m"]):
+        for tol in (0.30, 0.10, tol_fin):
             dentro = np.abs(ys - (a + b * xs + c * xs ** 2)) < tol
             if dentro.sum() < 8:
                 return math.nan, math.nan, math.nan, dentro
             b, a = np.polyfit(xs[dentro], ys[dentro], 1)
             c = 0.0
-        if np.ptp(xs[dentro]) >= 1.0 and dentro.sum() >= 30:
-            c2, b2, a2 = np.polyfit(xs[dentro], ys[dentro], 2)
-            dentro2 = np.abs(ys - (a2 + b2 * xs + c2 * xs ** 2)) < self.p["tolerancia_ajuste_m"]
-            if dentro2.sum() >= dentro.sum():
-                a, b, c, dentro = a2, b2, c2, dentro2
-        # continuidad: la linea es la cadena desde el punto mas cercano hasta el primer hueco de mas de
-        # `hueco_max_m` (la interrupcion del nivel 3 es de 0.4 m); lo de mas alla (bordes de puertas y
-        # muebles del fondo, 2026-10-05) no es la linea
+        dentro = np.abs(ys - (a + b * xs)) < tol_fin
+        mejor = (a, b, c, dentro)
+        d2 = dentro
+        for _ in range(4):
+            if d2.sum() < 15 or np.ptp(xs[d2]) < 0.2:
+                break
+            c2, b2, a2 = np.polyfit(xs[d2], ys[d2], 2)
+            nuevo = np.abs(ys - (a2 + b2 * xs + c2 * xs ** 2)) < tol_fin
+            if nuevo.sum() <= mejor[3].sum() + 2:       # la parabola tiene que recoger mas linea
+                if nuevo.sum() < mejor[3].sum() - 2 or np.array_equal(nuevo, d2):
+                    break
+            else:
+                mejor = (a2, b2, c2, nuevo)
+            if np.array_equal(nuevo, d2):
+                break
+            d2 = nuevo
+        a, b, c, dentro = mejor
+        # continuidad: la linea es la cadena desde el punto mas cercano. Un hueco de mas de `hueco_max_m`
+        # (la interrupcion del nivel 3 es de 0.4 m) solo se salta si lo de mas alla sigue la prolongacion
+        # de lo de mas aca: los reflejos de los focos en el suelo borran la cinta 50-60 cm (2026-10-06);
+        # los bordes de puertas y muebles del fondo (2026-10-05) no la siguen y se cortan
         xin = np.sort(xs[dentro])
-        saltos = np.flatnonzero(np.diff(xin) > self.p["hueco_max_m"])
-        if len(saltos):
-            corte = xin[saltos[0]]
+        corte = None
+        for k in np.flatnonzero(np.diff(xin) > self.p["hueco_max_m"]):
+            cerca = dentro & (xs <= xin[k] + 1e-9)
+            lejos = dentro & (xs > xin[k] + 1e-9)
+            if not self._misma_linea(xs, ys, cerca, lejos, xin[k], xin[k + 1] - xin[k]):
+                corte = xin[k]
+                break
+        if corte is not None:
             dentro = dentro & (xs <= corte + 1e-9)
             if dentro.sum() < 8:
                 return math.nan, math.nan, math.nan, dentro
-            grado = 2 if (np.ptp(xs[dentro]) >= 1.0 and dentro.sum() >= 30) else 1
+            grado = 2 if (c != 0.0 and np.ptp(xs[dentro]) >= 0.2 and dentro.sum() >= 15) else 1
             coefs = np.polyfit(xs[dentro], ys[dentro], grado)
             c = float(coefs[0]) if grado == 2 else 0.0
             b, a = float(coefs[-2]), float(coefs[-1])
         return float(a), float(b), float(c), dentro
+
+    def _misma_linea(self, xs, ys, cerca, lejos, x_corte, hueco):
+        """Lo de mas alla de un hueco es la misma linea si sigue la prolongacion (recta, o parabola si lo
+        cercano tiene recorrido) de lo de mas aca, con una tolerancia que crece con la distancia."""
+        if hueco > self.p.get("hueco_salto_max_m", 1.0) or cerca.sum() < 15 or lejos.sum() < 10:
+            return False
+        grado = 2 if (np.ptp(xs[cerca]) >= 1.0 and cerca.sum() >= 30) else 1
+        pred = np.polyval(np.polyfit(xs[cerca], ys[cerca], grado), xs[lejos])
+        margen = self.p["tolerancia_ajuste_m"] + 0.05 * (xs[lejos] - x_corte)
+        return bool(np.mean(np.abs(ys[lejos] - pred) < margen) >= 0.8)
 
     def _barra(self, img, valido, signo, coef, detalle):
         """Barra de fin o esquina: filas con cinta transversal alrededor de la linea, cerca de su final."""
@@ -247,8 +300,10 @@ class Percepcion:
         p = self.p
         clara_v, oscura_v, ruido_v = _franja(img, self.ancho_px, horizontal=False)
         sv = clara_v if signo > 0 else oscura_v
-        sv = np.where(cv2.erode(valido.astype(np.uint8), np.ones((3 * self.ancho_px, 3), np.uint8)) > 0, sv, 0.0)
-        sig = _robusta(ruido_v[valido])
+        dentro_v = cv2.erode(valido.astype(np.uint8), np.ones((3 * self.ancho_px, 3), np.uint8),
+                             borderType=cv2.BORDER_CONSTANT, borderValue=0) > 0
+        sv = np.where(dentro_v, sv, 0.0)
+        sig = _robusta(ruido_v[dentro_v])
         if not np.isfinite(sig):
             return None, None
         umbral = max(p["barra_sigmas"] * sig, p["umbral_minimo"])

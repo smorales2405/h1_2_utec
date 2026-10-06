@@ -83,6 +83,19 @@ class TestCurva(unittest.TestCase):
         self.assertGreater(m.confianza, 0.7)
 
 
+    def test_curva_cerrada_del_nivel_3(self):
+        # radio 1.2 m, tangente al eje en la camara (2026-10-05: con el ajuste anterior salia una recta
+        # de 0.3-0.9 m con confianza 0.2, y se daba la linea por perdida en plena curva)
+        R = 1.2
+        cinta = (np.abs(np.hypot(X, Y - R) - R) < 0.025) & (X > 0) & (Y < R)
+        m, per = medir(imagen(cinta))
+        self.assertGreater(m.confianza, 0.5)
+        self.assertGreater(per.detalle.x_fin, 0.9)
+        a, b, c = per.detalle.coef
+        for x in (0.4, 0.8):
+            self.assertAlmostEqual(a + b * x + c * x * x, R - math.sqrt(R * R - x * x), delta=0.02)
+
+
 class TestBarraYEsquina(unittest.TestCase):
     def test_barra_de_fin(self):
         img = imagen(linea(lambda x: 0.02 + 0 * x, x1=1.62) | tramo(1.60, y0=0.02))

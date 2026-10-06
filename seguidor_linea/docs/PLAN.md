@@ -105,15 +105,15 @@ método. Las filas marcadas **(revisado)** ya cambiaron con los datos; el detall
 | 6.2.4 Distractores **(revisado)** | Ancho de 4–7 cm, continuidad entre franjas; la barra es un segmento transversal ≥ 40 cm | X, pórtico y reflejos vistos en la captura | Franja con contraste a los dos lados (fuera bordes de puertas), cadena continua desde lo cercano, barra en perpendicular a la línea y donde acaba |
 | 6.2.5 Confianza **(medido)** | Producto de contraste, ajuste al ancho, residuo de la recta y fracción de franjas con detección | — | Filas con línea × contraste × residuo; 3.3 ms por fotograma en el PC2 (4.0 en la PC) |
 | 6.3.1–2 Retardo **(revisado)** | Retardo efectivo ~0.5 s más cámara y proceso (a medir) | 49 giros de `cuadrado.py` | Medido con `escalon_vyaw.py`: 0.3–0.45 s andando a 0.2 m/s, sin zona muerta a 0.15 rad/s |
-| 6.3.3 Ley de control | Persecución de un punto adelantado (*pure pursuit*), L = 0.8–1.2 m, vyaw = 2·vx·sin(α)/L | A 0.2 m/s, 0.6 s de retardo son 12 cm; L cabe en el horizonte | Simulacro y error lateral por tirada |
+| 6.3.3 Ley de control **(simulado)** | Persecución de un punto adelantado (*pure pursuit*), L = 0.8–1.2 m, vyaw = 2·vx·sin(α)/L | A 0.2 m/s, 0.6 s de retardo son 12 cm; L cabe en el horizonte | Desde el centro de giro y sobre la dirección real de avance, L = 0.6 m y sesgo −0.026 rad/s: 14/14 tiradas simuladas, error máximo 6 cm (20 cm con la peor marcha). Falta en el robot |
 | 6.3.4 vy, vyaw o ambos **(revisado)** | vyaw primero; vy = 0 salvo que una prueba muestre que reduce el error lateral | Andando solo con vx, el robot avanza ~7.5° a la izquierda del eje de la cámara (~3 cm/s) | Probar vy ≈ −0.03 m/s; si no, apuntar la dirección de avance y no el eje de la cámara |
-| 6.3.5 Bajada de vx | vx = vx_max · g(κ) · h(confianza), y 0 por debajo de una confianza mínima | — | Suavidad de las órdenes en el registro |
-| 6.3.6 Frecuencia de `Move` | 20 Hz, como `cuadrado.py`; el control usa la última estimación y no cuenta dos veces un fotograma | `Move` dura 1 s | Edad del fotograma en el registro |
+| 6.3.5 Bajada de vx **(revisado)** | vx = vx_max · g(κ) · h(confianza), y 0 por debajo de una confianza mínima | — | g con la curvatura que se va a pedir, no la del ajuste (en curvas cerradas la sobreestima y frenaba a 0.06 m/s); × cos α; × 0.6 cerca de la barra |
+| 6.3.6 Frecuencia de `Move` **(hecho)** | 20 Hz, como `cuadrado.py`; el control usa la última estimación y no cuenta dos veces un fotograma | `Move` dura 1 s | La percepción va a 30 Hz y cada ciclo lleva la última línea al instante actual; `edad_fotograma` en `ordenes.csv` |
 | 6.4.1 Balanceo **(revisado)** | Compensar con roll y pitch de la IMU por fotograma, más un filtro corto (~0.35 s, media zancada) | Cadencia 1.43 Hz | Medido: no se compensa roll/pitch; se suma el yaw de la IMU al ángulo de la línea |
-| 6.4.2 Interrupción de 40 cm | Mantener `rumbo_ref` con el yaw de la IMU, como `cuadrado.py` | Deriva de ~2°/s sin corrección | Nivel 3 |
-| 6.4.3 Tiempo sin línea | T = (0.4 m + zona ciega + margen) / vx, unos 3 s a 0.2 m/s; después `StopMove` | — | Tapar la cámara en el simulacro |
-| 6.4.4 Parada en la barra | Medir la distancia a la barra mientras se ve (hasta ~0.2 m), descontar vx·factor·t y parar restando la distancia de frenado | Odometría nula; `--factor` de `cuadrado.py` | Distancia de parada con cinta, < 30 cm |
-| 6.4.5 Esquina | La franja lejana pierde la línea y aparece un tramo a ±90°; avanzar hasta la esquina, `StopMove`, girar 90° con la IMU y readquirir | Giros de `cuadrado.py` con error final < 3° | Nivel 4 |
+| 6.4.2 Interrupción de 40 cm **(medido)** | Mantener `rumbo_ref` con el yaw de la IMU, como `cuadrado.py` | Deriva de ~2°/s sin corrección | La línea en un marco fijo con el yaw de la IMU y la estima de avance: tras 2 s a ciegas en datos reales, 1.5–5.7 cm y < 0.3°. Además la percepción salta huecos de hasta 0.5 m |
+| 6.4.3 Tiempo sin línea **(probado)** | T = (0.4 m + zona ciega + margen) / vx, unos 3 s a 0.2 m/s; después `StopMove` | — | LÍNEA PERDIDA a los 0.3 s (a 0.6 × vx) y PARADA a los 3 s: probado en el simulador y en el simulacro del robot tapando la cámara con una caja |
+| 6.4.4 Parada en la barra **(revisado)** | Medir la distancia a la barra mientras se ve (hasta ~0.2 m), descontar vx·factor·t y parar restando la distancia de frenado | Odometría nula; `--factor` de `cuadrado.py` | Se descuenta con la velocidad real medida al acercarse a la barra, no con vx·factor. El PDF admite pasarse 30 cm: se apunta a 10 cm más allá. Simulado +7…+18 cm; frenado de 0.5 s supuesto, a medir con cinta |
+| 6.4.5 Esquina **(simulado)** | La franja lejana pierde la línea y aparece un tramo a ±90°; avanzar hasta la esquina, `StopMove`, girar 90° con la IMU y readquirir | Giros de `cuadrado.py` con error final < 3° | Tramo a un solo lado donde acaba la línea, confirmado 5 veces; para con el centro de giro sobre ella. Solo en `--nivel 4` |
 
 ## Supervisor
 
@@ -164,14 +164,15 @@ Los lanzadores siguen el patrón de `comun.sh`: se reenvían solos por SSH si no
 | `seguidor/geometria.py` | Percepción | Píxel ↔ suelo, plano del suelo y vista desde arriba | Ambos | 1 | hecho |
 | `seguidor/calibracion.py` | Percepción | Detectores mínimos de la cinta (línea, barra, marcas) e inclinación por marcas | Ambos | 1 | hecho |
 | `seguidor/percepcion.py` | Percepción | `Fotograma` → `MedidaLinea` | Ambos | 2 | hecho |
-| `seguidor/estimacion.py` | Estimación | `MedidaLinea` + `Imu` → `EstadoLinea` | Ambos | 3 | |
-| `seguidor/control.py` | Control | `EstadoLinea` → `Orden` saturada | Ambos | 3 | |
-| `seguidor/supervisor.py` | Supervisor | Máquina de estados; único módulo que llama a `Move` y `StopMove` | Ambos | 3 | |
+| `seguidor/estimacion.py` | Estimación | `MedidaLinea` + `Imu` → `EstadoLinea` | Ambos | 3 | hecho |
+| `seguidor/control.py` | Control | `EstadoLinea` → `Orden` saturada | Ambos | 3 | hecho |
+| `seguidor/supervisor.py` | Supervisor | Máquina de estados; único módulo que llama a `Move` y `StopMove` | Ambos | 3 | hecho |
+| `seguidor/simulador.py` | Pruebas | Marcha medida y cámara simulada (con el ajuste de la percepción) para el lazo cerrado sin robot | PC | 3 | hecho |
 | `seguidor/vigilante.py` | Supervisor | Paradas de la sección 10 que no dependen de la línea | Ambos | 3 | hecho |
 | `seguidor/robot.py` | E/S del robot | LocoClient con `SetTimeout(10)`, `rt/lowstate`, FSM con `lee_fsm`, mando; recorta siempre a 0.4 / 0.2 / 0.5 | Robot | 1 | hecho |
 | `seguidor/registro.py` | Registro | CSV de IMU, motores y mando a 100 Hz, CSV genéricos y resumen JSON | Robot | 1 | hecho |
 | `seguidor/analisis.py` | Registro | Respuesta a escalones, cadencia, filtros para analizar | PC | Dataset | hecho |
-| `seguidor_linea.py` + `.sh` | Principal | `--simulacro`, `--nivel`, `--escala`, `--config`; pide escribir SEGUIR antes de andar | Robot, usuario `unitree` | 3 | |
+| `seguidor_linea.py` + `.sh` | Principal | `--simulacro`, `--nivel`, `--escala`; pide escribir SEGUIR antes de andar; registra una tirada con formato de dataset | Robot, usuario `unitree` | 3 | hecho; simulacro probado en el robot |
 | `herramientas/comprobar.py` | — | Comprobación previa, solo lectura: robot y cámara | Robot | 1 | hecho |
 | `herramientas/calibrar_camara.py` | 6.1 | Plano, marcas medidas con cinta y altura → geometría; yaw de la cámara; escribe el YAML | Robot | 1 | hecho |
 | `herramientas/grabar_dataset.py` | Dataset | Fotogramas e IMU con hora común mientras `wasd.sh` lleva el robot | Robot | Dataset | hecho |
@@ -179,7 +180,8 @@ Los lanzadores siguen el patrón de `comun.sh`: se reenvían solos por SSH si no
 | `herramientas/analizar_escalon.py` | 6.3 | Retardo, t63/t90 de arranque y parada, ganancia y figura | PC | Dataset | hecho |
 | `herramientas/analizar_dataset.py` | 6.1.4, 6.3, 6.4.1 | Calidad, postura, balanceo, velocidad real y dirección de avance de un dataset | PC | Dataset | hecho |
 | `herramientas/evaluar_percepcion.py` | 6.2 | % de detección, confianza, ms por fotograma, vídeo con la línea superpuesta, umbral fijo frente a adaptativo | PC | 2 | hecho |
-| `herramientas/reproducir.py` | Simulacro sin robot | Pasa un dataset por estimación, control y supervisor, y compara las órdenes con lo que hizo el operador | PC | 3 | |
+| `herramientas/reproducir.py` | Simulacro sin robot | Pasa un dataset por todo el lazo; signos, estados y error tras tapar la cámara | PC | 3 | hecho |
+| `herramientas/simular.py` | Simulacro sin robot | Tiradas simuladas de los cuatro niveles, con cambios del modelo de marcha | PC | 3 | hecho |
 | `herramientas/metricas.py` | Sección 9 | Error lateral, % de confianza, tiempo, roll y pitch máximos por tirada | PC | Cierre | |
 | `tests/` | Pruebas | Sintéticas (geometría, marcas, signos), del transporte y del vigilante; luego, sobre el dataset y del supervisor | PC con pytest; robot con unittest | 1–3 | en curso |
 
@@ -213,6 +215,7 @@ python3 -m pytest tests/
 python3 herramientas/analizar_escalon.py datos/escalon_<fecha>_<...> --figura
 python3 herramientas/evaluar_percepcion.py datos/dataset_<fecha>_<nombre> --video   # Hito 2
 python3 herramientas/reproducir.py datos/dataset_<fecha>_<nombre>                   # Hito 3
+python3 herramientas/simular.py --nivel 1 2 3 4 --figura                            # Hito 3
 python3 herramientas/metricas.py datos/tirada_<fecha>                               # cierre
 ```
 
@@ -330,9 +333,12 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 
 **Hito 3: control y supervisor en simulacro**
 
-- [ ] `estimacion.py`, `control.py` y `supervisor.py`, con los límites leídos del YAML (`vigilante.py` ya está)
-- [ ] `reproducir.py` sobre el dataset, y pruebas de signos y de transiciones
-- [ ] `seguidor_linea.sh --simulacro` con el robot llevado por el mando; tapar la cámara debe llevar a parada
+- [x] `estimacion.py`, `control.py` y `supervisor.py`, con los límites leídos del YAML (`vigilante.py` ya está)
+- [x] `simulador.py` y `simular.py`: lazo cerrado de los cuatro niveles sin robot (de ahí L = 0.6 m y el pure pursuit desde el centro de giro)
+- [x] `reproducir.py` sobre los 12 datasets, y pruebas de signos y de transiciones (78 en total)
+- [x] `seguidor_linea.py` + `.sh`
+- [x] `seguidor_linea.sh --nivel 1 --simulacro` en el robot llevado por el mando: signos, tapar la cámara (PARADA a 3 s), sin línea, cámara caída y recorrido hasta la barra (2026-10-06)
+- [ ] Visto bueno del instructor al Hito 3
 
 **Niveles y cierre**
 

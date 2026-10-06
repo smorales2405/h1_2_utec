@@ -41,10 +41,43 @@ percepcion:             # seguidor/percepcion.py (Hito 2)
   franja_vista: 0.3     # fraccion de filas con linea para dar la franja por vista
   tolerancia_ajuste_m: 0.04
   hueco_max_m: 0.5     # la linea se corta en el primer hueco mayor (la interrupcion del nivel 3 es de 0.4 m)
+  hueco_salto_max_m: 1.0  # ...salvo que lo de mas alla siga la prolongacion (reflejos de focos: 50-60 cm)
   distancia_objetivo_m: 1.0   # punto adelantado del pure pursuit
   barra_cobertura: 0.55       # fraccion de +-35 cm alrededor de la linea cubierta por cinta transversal
   barra_grosor_max_m: 0.12
   barra_sigmas: 4.0
+
+estimacion:             # seguidor/estimacion.py (Hito 3); valores medidos en RESULTADOS.md
+  desfase_imu_s: 0.010  # la IMU, 10 ms antes de que llegue el fotograma (apartado 4)
+  postura_s: 1.5        # media de roll y pitch del torso: la postura, no el balanceo del paso
+  factor_velocidad: 1.14     # v real / vx mandado (0.228 m/s con vx 0.2, apartado 3)
+  direccion_avance_deg: 7.5  # el robot avanza 7.5 grados a la izquierda del eje de la camara
+  centro_giro_m: 0.14   # gira alrededor de un punto ~14 cm por detras de la camara (8-18 cm)
+  tau_velocidad_s: 0.5  # la marcha tarda ~0.5 s en llegar a la vx mandada (como el giro: supuesto)
+  conf_usar: 0.35       # medidas con menos confianza no mueven la linea estimada
+  paso_linea_m: 0.05
+  confirmar: 5          # avistamientos seguidos para dar por buena la barra o la esquina
+  tolerancia_m: 0.25    # un avistamiento nuevo a mas de esto del anterior empieza de cero
+  puerta_m: 0.25        # una medida a mas de esto de la linea predicha (a 0.5 m)...
+  puerta_deg: 25.0      # ...o mas girada que esto no se usa (falsos: cantos de muebles, 2026-10-05)...
+  puerta_edad_s: 1.0    # ...mientras la estimacion tenga menos de esto (despues se readquiere)
+  readquirir: 3         # una linea distinta de la estimada se adopta con 3 medidas seguidas coherentes
+
+control:                # seguidor/control.py (Hito 3): pure pursuit sobre la direccion real de avance
+  vx: 0.40              # m/s en recta; --escala 0.5 (primeras tiradas) la deja en 0.2
+  vy: 0.0
+  distancia_objetivo_m: 0.6  # punto adelantado, desde el centro de giro (simulador: 1.0 recorta 16 cm en el nivel 3, 0.6 menos de 6)
+  ganancia_pp: 1.0      # vyaw = ganancia * 2 v sin(alfa) / L
+  vyaw_sesgo: -0.026    # rad/s andando: compensa la deriva a la izquierda (~1.5 grados/s)
+  ki: 0.0               # integral del angulo al objetivo (rad/s por rad s)
+  k_curvatura: 0.5      # vx / (1 + k |curvatura pedida|)
+  conf_minima: 0.3      # por debajo, vx = 0
+  conf_plena: 0.5       # por encima, vx completa (con reflejos o sombras de patas la cinta da 0.5-0.6, 2026-10-06)
+  frenar_alfa: true     # vx * cos(alfa): mas despacio cuanto mas torcido
+  dvx_max: 0.5          # m/s^2: rampa de vx (la de frenado es el doble)
+  dvyaw_max: 1.0        # rad/s^2: cambio maximo del giro mandado
+  cerca_barra_m: 1.0    # a menos de esto de la barra...
+  vx_cerca_barra: 0.6   # ...la vx se multiplica por esto
 
 limites:                # seccion 10 del PDF; robot.py ademas aplica estos topes por su cuenta
   vx_max: 0.4
@@ -59,6 +92,23 @@ supervisor:
   fotograma_max_s: 0.5  # sin fotogramas mas tiempo que esto -> parada (a ajustar)
   palabra: SEGUIR
   boton_parada: null    # elegir con lectores.sh mando-vivo: uno sin funcion en FSM 201 (R1, L1...)
+  conf_seguir: 0.45     # ESPERA -> SEGUIMIENTO con `n_seguir` medidas seguidas por encima
+  n_seguir: 5
+  t_inicio_max_s: 5.0   # sin linea en este tiempo tras SEGUIR -> parada
+  t_aviso_s: 0.3        # sin medida buena mas que esto -> LINEA_PERDIDA
+  t_perdida_s: 3.0      # y mas que esto -> parada: (0.4 m de hueco + 0.2 de zona ciega + margen) / ~0.2 m/s
+  vx_perdida: 0.6       # factor de vx en LINEA_PERDIDA (se sigue la linea estimada, rumbo por la IMU)
+  final_ciego_m: 0.6    # con la barra (o la esquina) a menos de esto, no ver la linea es lo normal (zona ciega)
+  t_final_max_s: 6.0    # ...pero ese tramo a ciegas no dura mas de esto (a 0.14 m/s son ~2.5 s)
+  fin_objetivo_m: 0.10  # la puntera debe acabar esto mas alla del borde cercano de la barra (el PDF admite 0-30 cm)
+  t_frenado_s: 0.5      # tras StopMove el robot anda ~v x esto: MEDIR en las primeras tiradas
+  giro_esquina_kp: 1.2  # nivel 4: giro de 90 grados en el sitio sobre la IMU, como cuadrado.py
+  giro_esquina_min: 0.15   # en el sitio, por debajo de ~0.15 rad/s apenas gira
+  giro_esquina_tol_deg: 3.0
+  giro_esquina_estable_s: 0.6
+  t_parado_s: 1.0       # espera tras StopMove antes de girar en el sitio
+  duracion_max_s: 120.0
+  fsm_cada_s: 2.0       # lee la FSM en segundo plano; distinta de 201/204 -> parada
 
 registro:
   carpeta: datos

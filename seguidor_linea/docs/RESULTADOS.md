@@ -7,9 +7,10 @@ git; las figuras clave están copiadas en [`img/`](img/).
 
 Estado al 2026-10-05: **la cinta se cambió por una negra** (más oscura que el suelo); el Hito 1 se repitió
 con ella, se grabaron los recorridos nuevos y **la percepción (Hito 2) está hecha y probada sobre ellos**
-(apartado 5). De ellos sale la velocidad real y que **el robot avanza
+(apartado 5). **La estimación, el control y el supervisor (Hito 3) están escritos y probados sin robot**
+(apartado 6), y el simulacro en el robot salió bien tras corregir tres fallos que destapó. De ellos sale la velocidad real y que **el robot avanza
 en diagonal, ~7.5° a la izquierda del eje de la cámara y un 14 % más rápido de lo mandado** (apartado 3). La respuesta al giro y el balanceo no
-dependen de la cinta y siguen valiendo. Lo siguiente es el control y el supervisor en simulacro (Hito 3).
+dependen de la cinta y siguen valiendo. Lo siguiente es el visto bueno del Hito 3 y las tiradas del nivel 1.
 
 ## 1. Geometría de la cámara (Hito 1)
 
@@ -352,6 +353,8 @@ sombra, interrupción de 40 cm) y una de regresión sobre el recorrido alineado 
 | Canto de una puerta detectado como línea (confianza 0.6) | Filtro de franja con contraste a los dos lados |
 | Polaridad invertida tras salir de la pista | Las dos polaridades en cada fotograma |
 | Esquina falsa con un lado fuera de la vista | Sin decidir hasta ver los dos lados |
+| En una curva de 1.2 m de radio salía una recta de 0.3–0.9 m con confianza 0.14–0.26: la línea se daría por perdida en plena curva (lo destapó el simulador del apartado 6) | Parábola que crece desde el tramo cercano, y la confianza no cuenta las filas por donde la curva ya salió de la vista si la línea viene de debajo del robot. Ahora 0.56–0.82, y el punto adelantado a 1–2 cm del real |
+| Tramos cortos junto al borde de la vista (cantos de muebles) con confianza 0.6–0.7 tras salir de la pista | La estimación descarta medidas a más de 25 cm o 25° de la línea predicha (apartado 6) |
 
 **Umbral fijo o adaptativo (6.2.2).** En los datasets (sin sombra) el fijo (15 niveles) detecta algo
 menos donde se ve la línea (98 % de media, con mínimos de 86–95 %) y admite más falsos en el suelo más
@@ -370,7 +373,150 @@ El adaptativo sigue la línea dentro de la sombra y baja la confianza con el con
 por debajo de su umbral y, además, da más confianza justo cuando ve menos. Hay que confirmarlo en la zona de
 sombra real del nivel 3.
 
-## 6. Hallazgos del entorno
+Con el ajuste de las curvas, sobre los 12 datasets: sigue el 99 % donde la referencia ve la línea, el
+ángulo coincide mejor con ella (0.01–0.15° frente a 0.05–0.53°) y aparecen más detecciones donde la
+referencia no llega; revisadas en los vídeos, casi todas son la línea de verdad lejos a un lado.
+
+## 6. Estimación, control y supervisor (Hito 3)
+
+`seguidor/estimacion.py`, `seguidor/control.py` y `seguidor/supervisor.py`, con el programa principal
+`seguidor_linea.py` (`seguidor_linea.sh`). Se probaron sin robot de dos formas:
+
+- **Lazo cerrado simulado** (`seguidor/simulador.py`, `herramientas/simular.py`): el mismo código sobre un
+  modelo de la marcha con lo medido (retardo efectivo ~0.45 s, deriva 0.026 rad/s, avance a 1.14 × vx y
+  7.5° a la izquierda, centro de giro 14 cm detrás, balanceo de yaw) y las pistas de los cuatro niveles
+  del PDF. La cámara simulada usa el mismo ajuste que la percepción.
+- **Datasets reales** (`herramientas/reproducir.py`): percepción → estimación → control → supervisor en
+  simulacro con la IMU grabada.
+
+Pruebas automáticas: 78 (32 nuevas: estimación, control, supervisor con un robot que anota cada `Move` y
+lazo simulado de los cuatro niveles).
+
+**Estimación (6.4.1–6.4.4).** La línea medida se guarda en un marco fijo al suelo, girada con el yaw de la
+IMU de 10 ms antes del fotograma, y en cada ciclo se vuelve a poner en el marco actual de la cámara. Sin
+medida se desplaza con la estima de avance: rumbo por la IMU y avance a 1.14 × vx (con una constante de
+0.5 s), 7.5° a la izquierda. La barra y la esquina se dan por buenas tras 5 avistamientos coherentes y se
+siguen contando a ciegas. Una medida a más de 25 cm o 25° de la línea predicha no se usa mientras esta
+sea reciente y la respalden 3 medidas.
+
+A ciegas sobre los datos reales (`reproducir.py`, tapando la cámara 2 s cada 4 s mientras se anda en los
+12 datasets), la línea predicha queda a **1.5–5.7 cm** de mediana de la que se mide al volver (máximo
+6.5 cm) y a **menos de 0.3°**. Para la interrupción de 40 cm, ni hace falta: la cadena de la percepción
+salta huecos de hasta 0.5 m.
+
+**Control (6.3.3–6.3.6).** Pure pursuit desde el **centro de giro** y sobre la **dirección real de
+avance**:
+
+    alfa = ángulo entre la dirección de avance (7.5° a la izquierda del eje) y el punto adelantado
+    vyaw = 2 · v · sin(alfa) / L − 0.026 rad/s          v = 1.14 · vx,  L = 0.6 m
+    vx   = 0.4 · escala · 1/(1 + 0.5·|curvatura|) · h(confianza) · cos(alfa)   (× 0.6 a menos de 1 m de la barra)
+
+con rampas (0.5 m/s², 1 rad/s²) y la escala sobre vx y vyaw_max. `Move` a 20 Hz; la percepción procesa
+todos los fotogramas (30 Hz) y cada ciclo usa la última estimación llevada al instante actual, así que
+no cuenta dos veces un fotograma (6.3.6). vy = 0 (6.3.4).
+
+Dos decisiones salieron del simulador:
+
+- **El centro de giro, no la cámara.** En las curvas la cámara, 14 cm por delante, se desplaza además
+  ω·d hacia dentro (~6° en la S); con la ley aplicada en la cámara el robot recortaba ~20 cm la S.
+- **L = 0.6 m.** Con L más largo el pure pursuit recorta la entrada de las curvas cerradas:
+
+| L | Error máximo de los pies, nivel 3 (escala 0.5) | Con la peor marcha a la vez | 
+| --- | --- | --- |
+| 1.0 m | 15.7 cm | — |
+| 0.8 m | 9.6 cm | 10/14 tiradas con éxito (nivel 3 a 21–29 cm) |
+| **0.6 m** | **5.6 cm** | **14/14** (máximo 20 cm) |
+
+Robustez con L = 0.6 m frente a errores del modelo de la marcha (14 tiradas por fila: cuatro niveles,
+curvas a los dos lados, saliendo girado ±10°):
+
+| Marcha simulada | Escala 0.5: éxito, error máx., pasa la barra | Escala 1: éxito, error máx., pasa la barra |
+| --- | --- | --- |
+| La medida | 14/14, 5.6 cm, +10…+13 cm | 14/14, 6.2 cm, +9…+13 cm |
+| Retardo ×2 | 14/14, 6.3 cm, +11…+14 cm | 14/14, 12.2 cm, +14…+17 cm |
+| Deriva ×2 | 14/14, 9.6 cm, +9…+13 cm | 14/14, 7.8 cm, +10…+13 cm |
+| Ganancia de giro 0.8 | 14/14, 9.1 cm, +9…+12 cm | 14/14, 8.5 cm, +11…+13 cm |
+| Avanza a 1.0 × vx (no 1.14) | 14/14, 5.0 cm, +4…+7 cm | 14/14, 5.1 cm, +5…+7 cm |
+| Avanza a 1.3 × vx | 14/14, 8.4 cm, +15…+18 cm | 14/14, 11.8 cm, +16…+19 cm |
+| Avanza a 4° o a 11° (no 7.5°) | 14/14, 8.5 y 10.7 cm | 14/14, 6.7 y 12.6 cm |
+| Balanceo ×2 | 14/14, 5.6 cm | 14/14, 5.7 cm |
+| Todo lo peor junto | 14/14, 20.0 cm, +10…+14 cm | 14/14, 19.2 cm, +13…+18 cm |
+
+El éxito es el del PDF: llegar a la barra pasándola 0–30 cm, y el centro de los pies a menos de 20 cm de la
+línea (los pies están a ±10 cm: el pie no sale de 30 cm).
+
+**Supervisor.** ESPERA → SEGUIMIENTO con 5 medidas buenas seguidas; LÍNEA PERDIDA si no hay medida buena en
+0.3 s (sigue la línea estimada a 0.6 × vx) y PARADA a los 3 s; con la barra a menos de 0.6 m no ver la
+línea es lo normal (zona ciega). **Fin (6.4.4):** se manda `StopMove` cuando, sumando lo que anda al frenar
+(v × 0.5 s), la puntera quedaría 10 cm más allá del borde cercano de la barra; el PDF admite pasarse hasta
+30 cm. **El tiempo de frenado de 0.5 s es supuesto: hay que medirlo con cinta en la primera tirada.**
+**Esquina (6.4.5, nivel 4):** cuando el centro de giro llega a ella (contando el frenado), `StopMove`, 1 s
+quieto, giro de 90° en el sitio sobre la IMU como `cuadrado.py` y SEGUIMIENTO al ver la línea nueva.
+Causas de PARADA: las del vigilante, la FSM distinta de 201 (se lee cada 2 s en segundo plano), la línea
+perdida, la duración máxima, Ctrl+C y cualquier excepción.
+
+![Lazo cerrado simulado en los cuatro niveles](img/simulacion_niveles.png)
+
+| Nivel (simulado, salida ±10°) | Escala 0.5: tiempo, error medio / máximo, pasa la barra | Escala 1 |
+| --- | --- | --- |
+| 1: recta de 4 m | 22 s, 0.5–1.0 / 2.1–4.0 cm, +11 cm | 11 s, 0.5–0.8 / 2.1–3.0 cm, +12 cm |
+| 2: curva de radio 2 m | 40–42 s, 0.6–1.3 / 2.1–3.9 cm, +10…+12 cm | 20–21 s, 0.7–1.2 / 2.1–2.9 cm, +11…+15 cm |
+| 3: S de radio 1.2 m e interrupción | 38–39 s, 1.5–2.5 / 4.8–5.6 cm, +10…+13 cm | 19–20 s, 1.3–2.2 / 2.8–6.0 cm, +10…+14 cm |
+| 4: esquina | 31–32 s, 0.5–1.1 / 2.1–4.0 cm, +9…+11 cm | 17–18 s, 0.9–1.0 / 2.7–3.0 cm, +11…+13 cm |
+
+**Sobre los datasets reales** (`reproducir.py`, 12 recorridos): todo el lazo corre sin fallos, el giro que
+mandaría tiene el signo correcto el 97–100 % del tiempo (línea a la izquierda → vyaw a la izquierda), la
+suavidad de vyaw entre órdenes es de 0.007–0.013 rad/s y el supervisor pasa a FIN en los recorridos que
+llegan a la barra.
+
+**Límites de lo simulado:** la marcha es lineal y sin tropiezos, y la cámara simulada no tiene sombras ni
+falsos; lo de la percepción real está en el apartado 5. Las curvas, la interrupción y la esquina solo se
+han probado así: hay que grabarlas cuando estén las pistas.
+
+### Simulacro en el robot (2026-10-06)
+
+`./seguidor_linea.sh --nivel 1 --simulacro` en el PC2, con el robot llevado por el operador con el mando:
+todo el lazo en vivo, sin ningún `Move` (no se crea el LocoClient). Datos en
+`datos/tirada_20261006_<hora>_nivel1_simulacro/`. Primera ronda (08:14–09:10) y, tras corregir lo que
+salió, segunda ronda (09:32–09:44):
+
+| Prueba | Esperado | Resultado (segunda ronda) |
+| --- | --- | --- |
+| Signos con el robot quieto: alineado, girado ±25°, desplazado ±30 cm | vyaw −0.11, −0.20 / +0.09, −0.21 / +0.14 | −0.12…−0.16; −0.11…−0.21 / +0.01…+0.05 (con la línea además a −4/−7 cm); −0.16…−0.21 / **+0.12…+0.14** |
+| Tapar la cámara 1.5 s y luego 5 s (caja de cartón y caja oscura) | LÍNEA PERDIDA a 0.3 s; vuelve al destapar; PARADA a 3 s | Igual en los dos: **PARADA a 3.0 s** de la última medida buena, sin volver a SEGUIMIENTO con la caja delante |
+| Sin línea al empezar (girado 90°) | PARADA a 5 s | `ESPERA → PARADA: sin línea clara 5 s después de SEGUIR` |
+| Parar el servidor de cámara en SEGUIMIENTO | PARADA en ~0.5 s | `PARADA: cámara sin fotogramas desde hace 0.54 s` |
+| Recorrido hasta la barra (con y sin las luces del techo) | La distancia baja; FIN cerca de la barra | Barra vista de 2.88 a 0.31 m; FIN (ver abajo) |
+
+Percepción en vivo: 3.8–6.3 ms por fotograma de mediana; ESPERA → SEGUIMIENTO en 0.2 s.
+
+**Lo que destapó la primera ronda y se corrigió:**
+
+| Problema (primera ronda) | Causa | Corrección |
+| --- | --- | --- |
+| Con el robot 30 cm a la derecha de la línea, LÍNEA PERDIDA y PARADA | Los **reflejos de los focos del techo** en el suelo (IR) borran la cinta 50–60 cm; el corte por continuidad la dejaba en 0.21–0.80 m con confianza 0.2 | Un hueco se salta si lo de más allá sigue la prolongación de lo de más acá (hasta 1 m). En esos fotogramas: 0.76–0.92 y hasta 2.99 m |
+| Con la cámara tapada por una caja volvía a SEGUIMIENTO a ratos y **la PARADA llegó a los ~13 s, no a los 3 s** | Falsos en el borde lateral de la vista (y ≈ ±1 m): `np.roll` da la vuelta y comparaba la columna de un lado con la del otro. Pasado 1 s, la estimación aceptaba cualquier medida y eso refrescaba la edad | Bordes de la vista fuera del filtro (12 → 1 falso con la caja, y ese era la línea al tapar). Además, una línea distinta de la estimada solo se adopta con 3 medidas seguidas coherentes |
+| En el tramo final a ciegas la velocidad estimada caía a 0.04 m/s | La confianza de la última medida (poca línea antes de la barra) frenaba | Con la barra confirmada cerca no frena por confianza; tope de 6 s a ciegas |
+
+**Parada en la barra con la velocidad medida (6.4.4).** En simulacro la distancia a ciegas se contaba con la
+velocidad que se habría mandado (0.05–0.09 m/s), no con la del operador (0.18 y 0.39 m/s): FIN llegaba
+3 s tarde o no llegaba. Ahora, mientras la barra se ve, su distancia baja a la velocidad real del robot y
+esa velocidad (recta sobre el último 1.2 s de avistamientos) sigue el tramo final a ciegas y da la
+distancia de frenado. Reproduciendo los dos recorridos con el código nuevo:
+
+| Recorrido | Velocidad real | La puntera cruza la barra | FIN | Puntera al mandar FIN | Final previsto |
+| --- | --- | --- | --- | --- | --- |
+| Sin luces del techo (`094240`) | 0.17 m/s | ~16.8 s | 17.25 s | 2 cm pasada | ~+10 cm |
+| Con luces (`094410`) | 0.39 m/s | ~13.7 s | 13.6 s | 9 cm antes | ~+10 cm (frena ~19 cm) |
+
+En el simulador deja de depender del factor de velocidad (con 1.0 y 1.3 la parada queda en +7…+18 cm; antes
++4…+7 y +15…+18) y sigue 14/14 en todas las variantes de la marcha.
+
+**Luz:** con las luces del techo encendidas aparecen hasta 6 reflejos en el suelo, y con ellas apagadas,
+sombras en abanico; la línea se detecta entera en los dos casos, pero la confianza baja de ~0.9 a ~0.5.
+Por eso la velocidad plena se da desde 0.5 (antes 0.7) y SEGUIR pide 0.45 (antes 0.5).
+
+## 7. Hallazgos del entorno
 
 - **El DDS no arranca con sudo** (`fs.protected_regular=2`, `/tmp/cdds.LOG` es de `unitree`): la cámara,
   que exige sudo, va en un proceso aparte (`camara_servidor.py`) y pasa los fotogramas por ZMQ.
@@ -381,7 +527,11 @@ sombra real del nivel 3.
 - Corregido: `ordenes.csv` redondeaba los instantes a 10 ms (6 cifras con `time.monotonic()` en ~6600 s).
   Ya se escriben con 12 cifras; los resultados de esta página salen del `lowstate.csv`, que no estaba afectado.
 
-## 7. Pendiente
+## 8. Pendiente
+
+- Enseñar el simulacro al instructor (Hito 3) y, con su visto bueno, primera tirada real del nivel 1 a
+  media escala.
+- Medir en la primera tirada el tiempo de frenado tras `StopMove` (0.5 s supuesto) y la parada con cinta.
 
 - Grabar un recorrido con sombra (6.2.2), cuando esté.
 - Explicar el error residual de las distancias (−2 a −4 %): no es la altura (con 1.66 m sale igual). Puede que la cámara se incline algo más que el pitch de la IMU (~1.3 veces en estos datos): verificarlo con más recorridos con dos marcas.

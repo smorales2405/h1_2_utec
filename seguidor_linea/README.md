@@ -17,7 +17,8 @@ L2 + B es la parada de emergencia; ninguna orden de marcha autónoma antes del H
 | Hito 1 | `herramientas/calibrar_camara.py`, `herramientas/comprobar.py`; calibrado el 2026-10-03 (`config/geometria.yaml`) | no |
 | Dataset | `herramientas/grabar_dataset.py` (cinta blanca y negra), `escalon_vyaw.py`, `analizar_escalon.py` y `analizar_dataset.py` | solo `escalon_vyaw.py` |
 | Hito 2 | `seguidor/percepcion.py` y `herramientas/evaluar_percepcion.py` (99 % de detección donde se ve la línea, 4 ms por fotograma) | no |
-| Hito 3, niveles | por hacer: estimación, control, supervisor (`seguidor/vigilante.py` ya está) | — |
+| Hito 3 | `seguidor/estimacion.py`, `control.py`, `supervisor.py`, `simulador.py`; `seguidor_linea.py` + `.sh`; `herramientas/simular.py` y `reproducir.py`. Probado en simulación y sobre los datasets; falta el simulacro en el robot | solo con `--simulacro` |
+| Niveles | por hacer, tras el Hito 3 | — |
 
 ## Dos procesos en el PC2
 
@@ -54,6 +55,18 @@ cd seguidor_linea
 ./ejecutar.sh herramientas/calibrar_camara.py --puntera-barra 3.58 --puntera-marca 1.00 --altura 1.65 --yaw
 # escribe config/geometria.yaml; despues retirar la marca (el seguidor la tomaria por la barra)
 
+# Hito 3, sin robot: lazo cerrado simulado y datasets reales por todo el lazo
+python3 herramientas/simular.py --nivel 1 2 3 4 --figura
+python3 herramientas/reproducir.py datos/dataset_<fecha>_<nombre>
+
+# Hito 3, simulacro en el robot: no manda ningun Move; el operador lleva el robot con el joystick
+./camara_servidor.sh
+./seguidor_linea.sh --nivel 1 --simulacro            # Ctrl+C para acabar; tapar la camara -> PARADA a los 3 s
+
+# Niveles, solo despues del Hito 3: pide escribir SEGUIR; L2+B en la mano del operador
+./seguidor_linea.sh --nivel 1                        # primeras tiradas, a la mitad (--escala 0.5)
+./seguidor_linea.sh --nivel 1 --escala 1
+
 # pruebas: en la PC con pytest, en el robot con unittest
 python3 -m pytest tests/
 ./ejecutar.sh -m unittest discover -s tests
@@ -75,6 +88,11 @@ python3 -m pytest tests/
 | `seguidor/mando.py` | Botones y ejes del mando desde `wireless_remote` |
 | `seguidor/calibracion.py` | Detectores mínimos de la cinta (línea, barra, marcas) y la inclinación por marcas |
 | `seguidor/percepcion.py` | Percepción: fotograma → línea (desplazamiento, ángulo, curvatura, punto adelantado, confianza), barra de fin y esquina |
+| `seguidor/estimacion.py` | La línea en un marco fijo con el yaw de la IMU y la estima de avance; barra y esquina a ciegas; puerta contra falsos |
+| `seguidor/control.py` | Pure pursuit desde el centro de giro sobre la dirección real de avance; vx según curvatura, confianza y barra |
+| `seguidor/supervisor.py` | Estados del PDF; único que llama a `Move` y `StopMove` (nunca en simulacro) |
+| `seguidor/simulador.py` | Marcha medida y cámara simulada para probar el lazo cerrado sin robot |
+| `seguidor_linea.py` + `.sh` | Programa principal: `--nivel N [--escala 0.5] [--simulacro]` |
 | `seguidor/vigilante.py` | Paradas de la sección 10 que no dependen de la línea |
 | `seguidor/analisis.py` | Respuesta a escalones, cadencia y filtros para analizar registros |
 | `herramientas/` | Comprobación previa, calibración, grabación del dataset, escalones de vyaw y análisis de escalones y datasets |

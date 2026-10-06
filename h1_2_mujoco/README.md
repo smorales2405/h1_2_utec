@@ -12,13 +12,14 @@ cd h1_2_mujoco
 ./editor_mujoco.sh                   # abre el visor y deja el menú en la terminal
 ./editor_mujoco.sh --margen 0.03     # avisar de lo que quede a menos de 3 cm (por defecto 5 mm; 0 = solo choques)
 ./editor_mujoco.sh --fisica          # ejecutar rutinas con gravedad, contactos y el robot colgado (ver abajo)
+./editor_gui.sh                      # lo mismo que el editor, en una ventana con botones, tabla y sliders (ver abajo)
 ```
 
 ## Cómo se usa
 
 1. Se abre el visor, con la escena del editor de `code_cap`, y el **H1-2 levantado** (pelvis fija a 1.4 m) en la
    **pose segura** con las **manos abiertas** (q = 0). No hay gravedad, contactos ni actuadores: **no se mueve
-   solo**. El Retroceso del visor también vuelve a la pose segura.
+   solo**. `segura` vuelve a ella (el Retroceso del visor reinicia a 0).
 2. **Barra espaciadora = pausa.** Con la pausa, el panel **«Joint»** (a la derecha) tiene un slider por junta:
    - torso y brazos (`torso_joint`, `left_shoulder_pitch_joint`…), limitados a lo que acepta el selector real;
    - dedos: las 6 juntas actuadas de cada mano (`*_little_1`, `*_ring_1`, `*_middle_1`, `*_index_1`,
@@ -101,6 +102,38 @@ El del selector de `code_cap`, con una clave `manos` por paso:
 - Los brazos siguen en el robot el mismo camino que en `p` (los dos interpolan en línea recta). La mano real
   no exactamente: su control interno va con retraso. En las manos, lo fiable son los pasos capturados.
 
+## Interfaz gráfica (`editor_gui.sh`)
+
+```bash
+./editor_gui.sh
+```
+
+El mismo editor (sin física) en **una sola ventana**: a la izquierda la vista 3D, debajo las colisiones de
+ahora y un registro; a la derecha los controles. Hace exactamente lo que el editor de terminal (mismo modelo,
+colisiones, gestos y formato de rutina) y empieza en la pose segura.
+
+- **Vista:** botón izquierdo gira, derecho desplaza (con Mayúsculas, en el otro plano), rueda acerca;
+  doble clic vuelve a la vista inicial. Lo que choca se ve en rojo.
+- **Rutina:** desplegable con las rutinas de `poses/` (sin `0_pose_segura.json`, que está protegida) y
+  «— Nueva rutina —». «Ejecutar» la previsualiza como el robot: desde la pose segura y de vuelta a ella; la
+  columna «Colisión» de la tabla dice lo peor de cada paso. «Detener» la corta.
+- **Tabla de pasos:** al seleccionar un paso, la vista y los sliders se colocan en él. El nombre y la duración
+  se editan en la propia tabla. «Animar paso» lo recorre desde el anterior (el primero, desde la pose segura).
+  «Sobrescribir paso» lo cambia por la postura actual; «Añadir paso» mete la postura actual detrás del
+  seleccionado; «Borrar paso», «Subir», «Bajar».
+- **Guardar:** sobrescribe el `.json` de la rutina abierta (pide confirmación). Una rutina nueva pide un
+  nombre y se guarda con el siguiente número libre. Después hay que volver a copiar la carpeta al robot
+  (`rsync`, ver el README de `selector_poses_manos`).
+- **Postura:** «Zero», «Pose segura», «Reset» (pose segura y descartar los cambios sin guardar: recarga la
+  rutina del archivo) y espejo izq → der o der → izq, con o sin manos.
+- **Gestos de mano:** elegir la mano (izquierda, derecha o ambas) y pulsar el gesto; se anima como en el robot.
+- **Sliders en grados:** Derecha e Izquierda, cada una con Brazo (7 juntas) y Mano (las 6 actuadas; las
+  falanges acopladas siguen solas). Sin piernas ni torso. Cada uno con su casilla y sus límites.
+- **Colisiones ahora:** una línea por pareja de partes; la ayuda emergente de cada línea dice los cuerpos.
+
+Necesita PyQt5 (`python3-pyqt5`, ya está en este PC). MuJoCo dibuja fuera de pantalla con `MUJOCO_GL=glfw`
+y Qt muestra la imagen (~60 fps a 960×720). No usar a la vez que el editor de terminal sobre la misma rutina.
+
 ## Modo física (`--fisica`)
 
 ```bash
@@ -162,6 +195,7 @@ que ya se tocan en la pose cero no colisionan.
 | Archivo | Qué es |
 |---|---|
 | `editor_mujoco.sh` | lanzador (busca un python con `mujoco`; `PY=/ruta/python` para otro) |
+| `editor_gui.sh` / `editor_gui.py` | la interfaz gráfica (Qt) |
 | `editor_poses_mujoco_h1_2_manos.py` | el editor |
 | `simulador_fisica.py` | el modo física (`--fisica`) |
 | `modelo_h1_2_manos.py` | carga el URDF en MuJoCo (sin modificarlo), juntas mimic, colisiones y el modelo con física |

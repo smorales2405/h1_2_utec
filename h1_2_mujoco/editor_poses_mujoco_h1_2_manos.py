@@ -22,8 +22,9 @@
 #   - c captura también los dedos; cero también los pone a 0; espejo ... manos
 #     también copia la mano.
 #   - La pose segura (poses/0_pose_segura.json) es la postura por defecto, como en
-#     el selector real: el visor empieza en ella (y vuelve a ella con Retroceso),
-#     'p' parte de ella y termina en ella aunque la rutina no la guarde.
+#     el selector real: el visor empieza en ella ('segura' vuelve a ella; el Retroceso
+#     del visor reinicia a 0), 'p' parte de ella y termina en ella aunque la rutina no
+#     la guarde.
 #   - Colisiones: una segunda copia del modelo, con contactos, comprueba la postura
 #     del visor y avisa en la terminal de los choques (brazo con brazo, brazo con
 #     cuerpo, mano con cualquier parte) y de lo que queda a menos del margen. Lo
@@ -174,6 +175,37 @@ def es_pose_segura(paso, segura) -> bool:
                for lado, q in segura["manos"].items())
 
 
+def siguiente_numero(poses_dir: Path) -> int:
+    """El número que tendrá la próxima rutina que se guarde en la carpeta."""
+    nums = []
+    for f in poses_dir.glob("*.json"):
+        mo = re.match(r"^\s*(\d+)", f.stem)
+        if mo:
+            nums.append(int(mo.group(1)))
+    return max(nums, default=-1) + 1
+
+
+def nombre_base(nombre: str) -> str:
+    """Nombre de rutina apto para archivo: letras, números, _ y -."""
+    return re.sub(r"[^a-zA-Z0-9_-]+", "_", nombre.strip()).strip("_") or "rutina"
+
+
+def datos_rutina_nueva(base: str, pasos, programa: str) -> dict:
+    """El JSON de una rutina nueva, con el formato que lee el selector real."""
+    return {
+        "nombre_rutina": base,
+        "fecha_creacion": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "robot": "unitree_h1_2",
+        "modelo": "h1_2_27dof_manos_rh56dftp",
+        "requiere_robot_quieto": True,
+        "descripcion": (f"Creada con {programa}. posiciones: juntas 12-26 en radianes; manos: las 6 juntas "
+                        "actuadas del URDF en radianes (0 = abierta), se pasan a ANGLE_SET con "
+                        "conversion_angle_set.py."),
+        "numero_pasos": len(pasos),
+        "pasos": pasos,
+    }
+
+
 def texto_pasos(pasos):
     """Una línea por paso: juntas que se apartan de 0 y el gesto de cada mano."""
     lineas = []
@@ -231,12 +263,14 @@ class Editor:
                 self.visuales_de.setdefault(mod.nombre_cuerpo(self.m, self.m.geom_bodyid[g]), []).append(g)
         self.segura = pose_segura(poses_dir)
         if self.segura:
+            # Solo qpos. NO tocar m.qpos0: en MuJoCo es la referencia de cada junta (se dibuja qpos - qpos0) y
+            # cambiarlo desplaza todo el modelo (el 2026-10-05 dejó la pose segura dibujada como cero).
             self.poner(self.segura["posiciones"], self.segura["manos"])
-            self.m.qpos0[:] = self.d.qpos       # el Retroceso del visor también vuelve a la pose segura
         mujoco.mj_forward(self.m, self.d)
         self.pasos = []
         self.guardado = True
         self.terminar = False
+        self.detener = False            # corta la animación en curso sin cerrar (la interfaz gráfica)
         self.animando = False           # la vigilancia no informa mientras 'p' o 'mano' animan
         self.ultimo_informe = None
 
@@ -324,7 +358,7 @@ class Editor:
             self.resaltar(hallazgos)
             for a, b, dist in hallazgos:
                 peor[(a, b)] = min(peor.get((a, b), dist), dist)
-            if t >= total or self.terminar:
+            if t >= total or self.terminar or self.detener:
                 break
             time.sleep(DT_ANIMACION)
         return peor
@@ -436,32 +470,16 @@ class Editor:
             self.ir(1)
 
     def siguiente_numero(self):
-        nums = []
-        for f in self.poses_dir.glob("*.json"):
-            mo = re.match(r"^\s*(\d+)", f.stem)
-            if mo:
-                nums.append(int(mo.group(1)))
-        return max(nums, default=-1) + 1
+        return siguiente_numero(self.poses_dir)
 
     def guardar(self, nombre):
         if not self.pasos:
             print("[AVISO] No hay pasos: usa 'c' primero.")
             return
-        base = re.sub(r"[^a-zA-Z0-9_-]+", "_", nombre.strip()).strip("_") or "rutina"
+        base = nombre_base(nombre)
         self.poses_dir.mkdir(parents=True, exist_ok=True)
         ruta = self.poses_dir / f"{self.siguiente_numero()}_{base}.json"
-        rutina = {
-            "nombre_rutina": base,
-            "fecha_creacion": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "robot": "unitree_h1_2",
-            "modelo": "h1_2_27dof_manos_rh56dftp",
-            "requiere_robot_quieto": True,
-            "descripcion": ("Creada con editor_poses_mujoco_h1_2_manos.py (sliders de MuJoCo). posiciones: "
-                            "juntas 12-26 en radianes; manos: las 6 juntas actuadas del URDF en radianes "
-                            "(0 = abierta), se pasan a ANGLE_SET con conversion_angle_set.py."),
-            "numero_pasos": len(self.pasos),
-            "pasos": self.pasos,
-        }
+        rutina = datos_rutina_nueva(base, self.pasos, "editor_poses_mujoco_h1_2_manos.py (sliders de MuJoCo)")
         ruta.write_text(json.dumps(rutina, indent=2, ensure_ascii=False), encoding="utf-8")
         self.guardado = True
         print(f"[OK] Guardada: {ruta}\n     En el selector sale con el número {ruta.name.split('_')[0]}.")

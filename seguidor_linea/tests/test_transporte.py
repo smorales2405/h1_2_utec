@@ -40,6 +40,51 @@ class TestZmq(unittest.TestCase):
         self.assertEqual(g.ir.shape, (480, 640))
 
 
+try:
+    import zmq  # noqa: F401  (solo en el robot, teleop_venv)
+    HAY_ZMQ = True
+except ImportError:
+    HAY_ZMQ = False
+
+
+@unittest.skipUnless(HAY_ZMQ, "sin zmq (solo en el robot)")
+class TestColaVieja(unittest.TestCase):
+    def test_fresco_descarta_los_viejos(self):
+        """Con la cola llena de fotogramas viejos (como tras escribir SEGUIR), fresco() devuelve uno reciente."""
+        import time
+        from seguidor.fuentes import FuenteZmq
+        ctx = zmq.Context.instance()
+        pub = ctx.socket(zmq.PUB)
+        pub.setsockopt(zmq.SNDHWM, 4)
+        pub.setsockopt(zmq.LINGER, 0)
+        puerto = pub.bind_to_random_port("tcp://127.0.0.1")
+        fuente = FuenteZmq(f"tcp://127.0.0.1:{puerto}", solo_ultimo=True)
+        time.sleep(0.3)                                  # que el suscriptor conecte
+        try:
+            ahora = time.monotonic()
+            for k in range(12):                          # viejos: de hace 3 s
+                f = fotograma(k, color=False, prof=False)
+                f.t_rx = ahora - 3.0
+                pub.send_multipart(fotograma_zmq.codificar(f))
+            time.sleep(0.2)
+
+            def publicar():
+                for k in range(12, 40):
+                    f = fotograma(k, color=False, prof=False)
+                    f.t_rx = time.monotonic()
+                    pub.send_multipart(fotograma_zmq.codificar(f))
+                    time.sleep(1 / 30)
+            import threading
+            threading.Thread(target=publicar, daemon=True).start()
+            f = fuente.fresco(edad_max_s=0.2, timeout_s=2.0)
+            self.assertIsNotNone(f)
+            self.assertGreaterEqual(f.n, 12)
+            self.assertLess(time.monotonic() - f.t_rx, 0.2)
+        finally:
+            fuente.cerrar()
+            pub.close()
+
+
 class TestDataset(unittest.TestCase):
     def test_ida_y_vuelta(self):
         with tempfile.TemporaryDirectory() as d:

@@ -11,9 +11,11 @@ cada Move dura 1 s: si este proceso muere, el robot para solo.
 
 Antes: ./camara_servidor.sh en otra terminal (emisor apagado), robot de pie en FSM 201 en el cuadro
 de inicio, L2+B en la mano del operador y nadie en la franja de 1.5 m. Sin --simulacro pide escribir
-SEGUIR (hace falta ssh -t). Paran el programa: el vigilante (inclinacion > 20 grados, motor en fallo,
-rt/lowstate o camara sin datos, joystick tocado, boton de parada), la FSM distinta de 201, la linea
-perdida mas de t_perdida_s, Ctrl+C y cualquier excepcion; todas mandan StopMove.
+SEGUIR (hace falta ssh -t). Paran el programa: la tecla ESPACIO en este terminal, el vigilante
+(inclinacion > 20 grados, motor en fallo, rt/lowstate o camara sin datos, joystick tocado, boton de
+parada), la FSM distinta de 201, la linea perdida mas de t_perdida_s, Ctrl+C y cualquier excepcion.
+Todas mandan velocidad 0 (StopMove) y la repiten 1.5 s: el robot deja de andar y de girar y se queda de
+pie, en FSM 201. L2+B del mando sigue siendo la parada de emergencia.
 
 En simulacro recorre los mismos estados y registra la orden que mandaria, pero no crea el LocoClient.
 El joystick no para (el operador lleva el robot con el) y la estima de avance usa la vx que se habria
@@ -44,6 +46,7 @@ from seguidor.geometria import Intrinsecos  # noqa: E402
 from seguidor.percepcion import Percepcion  # noqa: E402
 from seguidor.robot import FSM_MARCHA, Robot  # noqa: E402
 from seguidor.supervisor import Supervisor  # noqa: E402
+from seguidor.teclado import Teclado  # noqa: E402
 from seguidor.vigilante import Vigilante  # noqa: E402
 
 COLS_MEDIDAS = ["t", "t_proceso", "n", "ms", "confianza", "usada", "y", "theta_deg", "kappa", "obj_x", "obj_y",
@@ -149,6 +152,7 @@ def main():
         print("==================================================================")
         print("  ESTO MUEVE EL ROBOT: sigue la linea hasta la barra de fin.")
         print("  L2 + B en el mando es la parada de emergencia. Tenlo en la mano.")
+        print("  ESPACIO en este terminal: parada (velocidad 0, el robot se queda de pie).")
         print("  Nadie en la franja de 1.5 m de la pista. Joysticks a cero y sin tocar.")
         print("==================================================================")
         if not sys.stdin.isatty():
@@ -181,14 +185,26 @@ def main():
                     sup.aviso_externo = f"FSM {valor} (distinta de {FSM_MARCHA})"
     threading.Thread(target=vigilar_fsm, daemon=True).start()
 
+    # mientras se escribia SEGUIR no se leia la camara y las colas de ZMQ se quedaron con fotogramas viejos:
+    # fuera, y empezar con uno reciente (2026-10-07: si no, el vigilante paraba por "camara sin fotogramas")
+    f = fuente.fresco()
+    if f is None:
+        cerrar_registros()
+        sys.exit("No llegan fotogramas recientes de la camara: ./camara_servidor.sh estado (y log)")
+
     # --- lazo -------------------------------------------------------------------------------------------------
     periodo = 1.0 / sup_cfg["hz_ordenes"]
-    ultimo_foto = time.monotonic()
+    ultimo_foto = f.t_rx
     ms, n_fotos = [], 0
     t_pantalla = 0.0
     inicio = time.monotonic()
+    # ESPACIO: parada del operador. El supervisor la ve en la siguiente vuelta del lazo (< 50 ms). Se abre
+    # justo antes del try: el finally devuelve el terminal a su modo normal
+    teclado = Teclado(lambda: parar.__setitem__("motivo", "tecla ESPACIO (parada del operador)"))
+    print("  ESPACIO = parar" if teclado.activo else "  (sin terminal: la tecla ESPACIO no funciona; Ctrl+C si)")
     sup.empezar(inicio)
     t_tick = inicio
+    teclado.abrir()
     try:
         while not sup.terminado:
             if parar["motivo"]:
@@ -248,14 +264,18 @@ def main():
         fin_hilo.set()
         if not sup.terminado:
             sup.detener(time.monotonic(), parar["motivo"] or "fin del programa")
-        if robot.marcha_habilitada:
-            try:
-                robot.parar()      # otra vez, por si acaso
-            except Exception as e:
-                print(f"\nNo se pudo mandar StopMove: {e}")
         with cerrojo:
             ctx.update(estado=sup.estado, vx=0.0, vy=0.0, vyaw=0.0)
-        time.sleep(1.5)            # registrar como para
+        # mantener el robot quieto y de pie: velocidad 0 cada 0.1 s mientras se registra como para
+        t_fin = time.monotonic() + 1.5
+        while time.monotonic() < t_fin:
+            try:
+                sup.quieto()
+            except Exception as e:
+                print(f"\nNo se pudo mandar velocidad 0: {e}")
+                break
+            time.sleep(0.1)
+        teclado.cerrar()
         cerrar_registros()
         fuente.cerrar()
 
@@ -268,7 +288,7 @@ def main():
         "nivel": args.nivel, "escala": args.escala, "simulacro": args.simulacro, "nota": args.nota,
         "fsm_inicial": fsm, "estado_final": sup.estado, "motivo": sup.motivo, "duracion_s": round(duracion, 2),
         "transiciones": sup.transiciones, "tiempo_por_estado_s": {k: round(v, 2) for k, v in sup.tiempos.items()},
-        "moves_enviados": sup.ordenes_enviadas, "fotogramas": n_fotos, "guardados": escritor.escritos if escritor else 0,
+        "moves_enviados": sup.ordenes_enviadas, "parada_con_espacio": teclado.pulsada, "fotogramas": n_fotos, "guardados": escritor.escritos if escritor else 0,
         "percepcion_ms": {"mediana": float(np.nanmedian(ms)), "p95": float(np.nanpercentile(ms, 95)),
                           "max": float(np.nanmax(ms))},
         "meta_camara": meta_camara, "geometria": geo, "config": cfg,

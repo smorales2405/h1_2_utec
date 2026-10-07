@@ -58,6 +58,21 @@ class FuenteZmq:
         self.recibidos += 1
         return f
 
+    def fresco(self, edad_max_s=0.2, timeout_s=3.0):
+        """El primer fotograma reciente (t_rx a menos de `edad_max_s`), descartando los viejos. Mientras no
+        se lee (p. ej. al escribir SEGUIR) se llenan las colas de ZMQ (4 en el servidor, 4 aqui y lo que
+        quepa en el socket) y, llenas, ZMQ tira los NUEVOS: al volver a leer salen fotogramas de hace
+        segundos (2026-10-07: la tirada empezo con uno de hace 2.9 s y el vigilante paro por camara sin
+        fotogramas). None si no llega ninguno reciente en `timeout_s`."""
+        t0 = time.monotonic()
+        while True:
+            resto = timeout_s - (time.monotonic() - t0)
+            if resto <= 0:
+                return None
+            f = self.siguiente(timeout_s=resto)
+            if f is not None and time.monotonic() - f.t_rx < edad_max_s:
+                return f
+
     def cerrar(self):
         self._sub.close()
 

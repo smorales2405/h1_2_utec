@@ -85,6 +85,13 @@ class Supervisor:
         if not self.simulacro and getattr(self.robot, "marcha_habilitada", False):
             self.robot.parar()
 
+    def quieto(self):
+        """Velocidad 0 otra vez (StopMove es SetVelocity(0, 0, 0) con 1 s de duracion): tras FIN o PARADA,
+        para mantener el robot quieto y de pie aunque se pierda un mensaje. Nunca en simulacro."""
+        if not self.simulacro and getattr(self.robot, "marcha_habilitada", False):
+            return self.robot.parar()
+        return None
+
     def _mover(self, orden):
         self._parado = False
         if not self.simulacro:

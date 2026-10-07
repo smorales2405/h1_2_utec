@@ -64,6 +64,7 @@ python3 herramientas/reproducir.py datos/dataset_<fecha>_<nombre>
 ./seguidor_linea.sh --nivel 1 --simulacro            # Ctrl+C para acabar; tapar la camara -> PARADA a los 3 s
 
 # Niveles, solo despues del Hito 3: pide escribir SEGUIR; L2+B en la mano del operador
+# ESPACIO en el terminal del seguidor: parada (velocidad 0; el robot deja de andar y girar y queda de pie)
 ./seguidor_linea.sh --nivel 1                        # primeras tiradas, a la mitad (--escala 0.5)
 ./seguidor_linea.sh --nivel 1 --escala 1
 
@@ -92,7 +93,8 @@ python3 -m pytest tests/
 | `seguidor/control.py` | Pure pursuit desde el centro de giro sobre la dirección real de avance; vx según curvatura, confianza y barra |
 | `seguidor/supervisor.py` | Estados del PDF; único que llama a `Move` y `StopMove` (nunca en simulacro) |
 | `seguidor/simulador.py` | Marcha medida y cámara simulada para probar el lazo cerrado sin robot |
-| `seguidor_linea.py` + `.sh` | Programa principal: `--nivel N [--escala 0.5] [--simulacro]` |
+| `seguidor_linea.py` + `.sh` | Programa principal: `--nivel N [--escala 0.5] [--simulacro]`; ESPACIO para parar |
+| `seguidor/teclado.py` | Tecla ESPACIO de parada en el terminal (modo tecla a tecla, se restaura al salir) |
 | `seguidor/vigilante.py` | Paradas de la sección 10 que no dependen de la línea |
 | `seguidor/analisis.py` | Respuesta a escalones, cadencia y filtros para analizar registros |
 | `herramientas/` | Comprobación previa, calibración, grabación del dataset, escalones de vyaw y análisis de escalones y datasets |

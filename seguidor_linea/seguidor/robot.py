@@ -127,5 +127,8 @@ class Robot:
                         continous_move=False)
 
     def parar(self):
+        """Velocidad 0 durante 1 s: el robot deja de trasladarse y de girar y se queda de pie. Es lo
+        mismo que StopMove del SDK (SetVelocity(0, 0, 0)), pero devuelve el codigo del RPC."""
         if self._loco is not None:
-            self._loco.StopMove()
+            return self._loco.SetVelocity(0.0, 0.0, 0.0, 1.0)
+        return None

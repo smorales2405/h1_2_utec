@@ -452,7 +452,7 @@ línea es lo normal (zona ciega). **Fin (6.4.4):** se manda `StopMove` cuando, s
 30 cm. **El tiempo de frenado de 0.5 s es supuesto: hay que medirlo con cinta en la primera tirada.**
 **Esquina (6.4.5, nivel 4):** cuando el centro de giro llega a ella (contando el frenado), `StopMove`, 1 s
 quieto, giro de 90° en el sitio sobre la IMU como `cuadrado.py` y SEGUIMIENTO al ver la línea nueva.
-Causas de PARADA: las del vigilante, la FSM distinta de 201 (se lee cada 2 s en segundo plano), la línea
+Causas de PARADA: la tecla ESPACIO del terminal, las del vigilante, la FSM distinta de 201 (se lee cada 2 s en segundo plano), la línea
 perdida, la duración máxima, Ctrl+C y cualquier excepción.
 
 ![Lazo cerrado simulado en los cuatro niveles](img/simulacion_niveles.png)
@@ -523,6 +523,10 @@ Por eso la velocidad plena se da desde 0.5 (antes 0.7) y SEGUIR pide 0.45 (antes
 - En el PC2, `sudo` pide contraseña: el servidor de cámara se arranca con `ssh -t` o, sin terminal,
   con `SUDO_STDIN=1` y la contraseña por la entrada estándar (`camara_servidor.sh`).
 - La cámara solo la abre un proceso: hay que parar `~/robotics40/camara.py` antes.
+- Si el seguidor deja de leer la cámara unos segundos (al escribir SEGUIR), las colas de ZMQ se llenan y
+  ZMQ tira los fotogramas **nuevos**: el primero que se lee después tiene ~3 s y el vigilante paraba por
+  "cámara sin fotogramas" (2026-10-07). Ahora se descartan los viejos y se empieza con uno reciente
+  (`FuenteZmq.fresco`).
 - El portátil va por WiFi (ping 10–130 ms): todo el lazo corre en el PC2.
 - Corregido: `ordenes.csv` redondeaba los instantes a 10 ms (6 cifras con `time.monotonic()` en ~6600 s).
   Ya se escriben con 12 cifras; los resultados de esta página salen del `lowstate.csv`, que no estaba afectado.
@@ -536,6 +540,7 @@ Por eso la velocidad plena se da desde 0.5 (antes 0.7) y SEGUIR pide 0.45 (antes
 - Grabar un recorrido con sombra (6.2.2), cuando esté.
 - Explicar el error residual de las distancias (−2 a −4 %): no es la altura (con 1.66 m sale igual). Puede que la cámara se incline algo más que el pitch de la IMU (~1.3 veces en estos datos): verificarlo con más recorridos con dos marcas.
 - Probar si vy ≈ −0.03 m/s corrige el avance en diagonal (6.3.4): `escalon_vyaw.py` aún no hace vy.
-- Elegir el botón de parada por software con `lectores.sh mando-vivo`.
+- Parada por software: hecha con la tecla ESPACIO en el terminal del seguidor (velocidad 0 repetida
+  1.5 s; probada en simulacro en el robot). Falta, si se quiere, un botón del mando.
 - Percepción: probarla en la sombra real (nivel 3), en curvas (niveles 2 y 3) y en la esquina (nivel 4)
   cuando estén las pistas.

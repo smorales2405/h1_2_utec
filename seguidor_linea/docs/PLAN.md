@@ -267,7 +267,7 @@ prioridad sobre `Move`: tocarlo durante una tirada cuenta como intervención (y 
 | Calibración (Hito 1) | Robot de pie y quieto, alineado con la cinta | Nadie delante de la cámara |
 | Dataset | Solo vigila: el robot lo lleva `wasd.sh` | L2+B listo; nadie delante del robot |
 | Simulacro (Hito 3) | Lleva el robot con los joysticks por la línea, desviándose a ambos lados; otra persona tapa la cámara un momento | Se comprueban el signo de las órdenes y el vigilante |
-| Tiradas | Detrás del robot, solo con L2+B; botón de parada por software si se implementa | L2+B amortigua y el robot cae despacio: último recurso |
+| Tiradas | Detrás del robot, solo con L2+B; quien está en el terminal del seguidor para con ESPACIO (velocidad 0, el robot queda de pie) | L2+B amortigua y el robot cae despacio: último recurso |
 | Tras cada tirada | El programa ya mandó `StopMove`; recolocar el robot con los joysticks | Si hubo intervención, explicarla con el registro antes de repetir |
 | Fin de sesión | Enganchar al pórtico, L2+B y mantener a la vez los dos botones de batería | — |
 
@@ -310,7 +310,8 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 
 - [x] `calibrar_camara.py`: plano, marcas, altura con cinta, zona ciega y yaw de la cámara; escribe el YAML
 - [x] Marcas en el suelo para comprobar la proyección (se usaron una marca a 1.00 m y la barra a 3.58 m de la puntera)
-- [ ] Elegir el botón de parada con `lectores.sh mando-vivo`
+- [x] Parada por software: tecla ESPACIO en el terminal del seguidor (velocidad 0, el robot queda de pie), 2026-10-07
+- [ ] Opcional: además un botón del mando, con `lectores.sh mando-vivo`
 
 **Dataset**
 

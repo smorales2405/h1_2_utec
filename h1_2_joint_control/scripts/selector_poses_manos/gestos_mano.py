@@ -22,6 +22,10 @@ ellos):
     3. cerrar los cuatro dedos
     4. flexionar el pulgar (thumb_1 -> la del gesto)
 
+Ese orden solo hace falta si hay que girar el pulgar o cerrar los dedos. Si los dedos
+ya están cerrados y la rotación no cambia (de 'cerrada' a 'cerrada', por ejemplo, en
+pasos seguidos de una rutina), se va directo y el pulgar no se abre.
+
 Cualquier otra postura va de una vez, en línea recta en q: su orden lo decide
 quien diseña la rutina, y las colisiones se ven en el editor.
 """
@@ -88,7 +92,9 @@ def fases(q_ini: Mapping[str, float], q_fin: Mapping[str, float]) -> list[dict[s
     que sigue el orden de puno(). Las fases sin cambio se omiten; [] si no hay nada que mover."""
     actual = {k: float(q_ini[k]) for k in CLAVES}
     fin = {k: float(q_fin[k]) for k in CLAVES}
-    if nombre_gesto(fin) == "cerrada":
+    gira_pulgar = abs(actual["thumb_swing"] - fin["thumb_swing"]) > 1e-4
+    cierran_dedos = any(abs(actual[k] - fin[k]) > 1e-4 for k in DEDOS)
+    if nombre_gesto(fin) == "cerrada" and (gira_pulgar or cierran_dedos):
         objetivos = [
             {**actual, "thumb_1": 0.0},
             {**actual, "thumb_1": 0.0, "thumb_swing": fin["thumb_swing"]},

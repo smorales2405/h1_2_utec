@@ -1,0 +1,90 @@
+{
+  "nombre_rutina": "5_dab",
+  "fecha_creacion": "2026-07-08 15:00:48",
+  "robot": "unitree_h1_2",
+  "modelo": "h1_2_27dof_manos_rh56dftp",
+  "requiere_robot_quieto": true,
+  "descripcion": "Copiada de code_cap/selector_poses_real/poses/5_dab.json el 2026-10-07, sin sus pasos de la pose segura antigua de code_cap: el selector, el editor y el modo física empiezan y terminan en poses/0_pose_segura.json. Solo los pulgares cerrados (flexión y rotación, ANGLE_SET 0); los demás dedos abiertos.",
+  "numero_pasos": 2,
+  "pasos": [
+    {
+      "nombre": "dab",
+      "duracion": 3.5,
+      "posiciones": {
+        "12": 0.0016,
+        "13": -0.0295,
+        "14": 1.6568,
+        "15": 0.3142,
+        "16": 0.9161,
+        "17": -0.5916,
+        "18": 0.0,
+        "19": 0.0,
+        "20": -1.678,
+        "21": -0.4088,
+        "22": 0.8901,
+        "23": -0.4188,
+        "24": 0.0,
+        "25": 0.0,
+        "26": 0.0
+      },
+      "manos": {
+        "izq": {
+          "little_1": 0.0,
+          "ring_1": 0.0,
+          "middle_1": 0.0,
+          "index_1": 0.0,
+          "thumb_1": 0.66,
+          "thumb_swing": 0.0
+        },
+        "der": {
+          "little_1": 0.0,
+          "ring_1": 0.0,
+          "middle_1": 0.0,
+          "index_1": 0.0,
+          "thumb_1": 0.66,
+          "thumb_swing": 0.0
+        }
+      }
+    },
+    {
+      "nombre": "sostener dab",
+      "duracion": 2.0,
+      "posiciones": {
+        "12": 0.0016,
+        "13": -0.0295,
+        "14": 1.6568,
+        "15": 0.3142,
+        "16": 0.9161,
+        "17": -0.5916,
+        "18": 0.0,
+        "19": 0.0,
+        "20": -1.678,
+        "21": -0.4088,
+        "22": 0.8901,
+        "23": -0.4188,
+        "24": 0.0,
+        "25": 0.0,
+        "26": 0.0
+      },
+      "manos": {
+        "izq": {
+          "little_1": 0.0,
+          "ring_1": 0.0,
+          "middle_1": 0.0,
+          "index_1": 0.0,
+          "thumb_1": 0.66,
+          "thumb_swing": 0.0
+        },
+        "der": {
+          "little_1": 0.0,
+          "ring_1": 0.0,
+          "middle_1": 0.0,
+          "index_1": 0.0,
+          "thumb_1": 0.66,
+          "thumb_swing": 0.0
+        }
+      }
+    }
+  ],
+  "fecha_modificacion": "2026-10-07 12:04:59"
+}

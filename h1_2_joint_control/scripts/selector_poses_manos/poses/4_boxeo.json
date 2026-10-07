@@ -1,0 +1,245 @@
+{
+  "nombre_rutina": "4_boxeo",
+  "fecha_creacion": "2026-07-08 14:52:52",
+  "robot": "unitree_h1_2",
+  "modelo": "h1_2_27dof_manos_rh56dftp",
+  "requiere_robot_quieto": true,
+  "descripcion": "Copiada de code_cap/selector_poses_real/poses/4_boxeo.json el 2026-10-07, sin sus pasos de la pose segura antigua de code_cap: el selector, el editor y el modo física empiezan y terminan en poses/0_pose_segura.json. Las dos manos cerradas (gesto 'cerrada', en el orden de puno()).",
+  "numero_pasos": 6,
+  "pasos": [
+    {
+      "nombre": "guardia",
+      "posiciones": {
+        "12": 0.0,
+        "13": -0.2095,
+        "14": 0.2168,
+        "15": -0.10472,
+        "16": -0.9,
+        "17": -4.7e-05,
+        "18": 0.0,
+        "19": 0.0,
+        "20": -0.43986,
+        "21": -0.1208,
+        "22": 0.41888,
+        "23": -0.88995,
+        "24": 2.8e-05,
+        "25": 0.0,
+        "26": 0.0
+      },
+      "duracion": 1.5,
+      "manos": {
+        "izq": {
+          "little_1": 1.62,
+          "ring_1": 1.62,
+          "middle_1": 1.62,
+          "index_1": 1.62,
+          "thumb_1": 0.492,
+          "thumb_swing": 0.0
+        },
+        "der": {
+          "little_1": 1.62,
+          "ring_1": 1.62,
+          "middle_1": 1.62,
+          "index_1": 1.62,
+          "thumb_1": 0.492,
+          "thumb_swing": 0.0
+        }
+      }
+    },
+    {
+      "nombre": "puño izq con cadera",
+      "posiciones": {
+        "12": -0.36652,
+        "13": -1.044555,
+        "14": 0.4088,
+        "15": -0.47124,
+        "16": 0.790485,
+        "17": -4.7e-05,
+        "18": 0.0,
+        "19": 0.0,
+        "20": -0.180705,
+        "21": -0.3704,
+        "22": -0.02618,
+        "23": -0.685785,
+        "24": -0.11832,
+        "25": 0.0,
+        "26": 0.0
+      },
+      "duracion": 1.6,
+      "manos": {
+        "izq": {
+          "little_1": 1.62,
+          "ring_1": 1.62,
+          "middle_1": 1.62,
+          "index_1": 1.62,
+          "thumb_1": 0.492,
+          "thumb_swing": 0.0
+        },
+        "der": {
+          "little_1": 1.62,
+          "ring_1": 1.62,
+          "middle_1": 1.62,
+          "index_1": 1.62,
+          "thumb_1": 0.492,
+          "thumb_swing": 0.0
+        }
+      }
+    },
+    {
+      "nombre": "puño derecho con cadera",
+      "posiciones": {
+        "12": 0.36652,
+        "13": -0.72781,
+        "14": 0.2552,
+        "15": -0.18326,
+        "16": -0.842835,
+        "17": -0.65076,
+        "18": 0.0,
+        "19": 0.0,
+        "20": -1.159735,
+        "21": -0.236,
+        "22": 0.1309,
+        "23": 0.74337,
+        "24": -0.3944,
+        "25": 0.0,
+        "26": 0.0
+      },
+      "duracion": 1.9,
+      "manos": {
+        "izq": {
+          "little_1": 1.62,
+          "ring_1": 1.62,
+          "middle_1": 1.62,
+          "index_1": 1.62,
+          "thumb_1": 0.492,
+          "thumb_swing": 0.0
+        },
+        "der": {
+          "little_1": 1.62,
+          "ring_1": 1.62,
+          "middle_1": 1.62,
+          "index_1": 1.62,
+          "thumb_1": 0.492,
+          "thumb_swing": 0.0
+        }
+      }
+    },
+    {
+      "nombre": "puño izq con cadera",
+      "posiciones": {
+        "12": -0.36652,
+        "13": -1.044555,
+        "14": 0.4088,
+        "15": -0.47124,
+        "16": 0.790485,
+        "17": -4.7e-05,
+        "18": 0.0,
+        "19": 0.0,
+        "20": -0.180705,
+        "21": -0.3704,
+        "22": -0.02618,
+        "23": -0.685785,
+        "24": -0.11832,
+        "25": 0.0,
+        "26": 0.0
+      },
+      "duracion": 1.6,
+      "manos": {
+        "izq": {
+          "little_1": 1.62,
+          "ring_1": 1.62,
+          "middle_1": 1.62,
+          "index_1": 1.62,
+          "thumb_1": 0.492,
+          "thumb_swing": 0.0
+        },
+        "der": {
+          "little_1": 1.62,
+          "ring_1": 1.62,
+          "middle_1": 1.62,
+          "index_1": 1.62,
+          "thumb_1": 0.492,
+          "thumb_swing": 0.0
+        }
+      }
+    },
+    {
+      "nombre": "puño derecho con cadera",
+      "posiciones": {
+        "12": 0.36652,
+        "13": -0.72781,
+        "14": 0.2552,
+        "15": -0.18326,
+        "16": -0.842835,
+        "17": -0.65076,
+        "18": 0.0,
+        "19": 0.0,
+        "20": -1.159735,
+        "21": -0.236,
+        "22": 0.1309,
+        "23": 0.74337,
+        "24": -0.3944,
+        "25": 0.0,
+        "26": 0.0
+      },
+      "duracion": 1.9,
+      "manos": {
+        "izq": {
+          "little_1": 1.62,
+          "ring_1": 1.62,
+          "middle_1": 1.62,
+          "index_1": 1.62,
+          "thumb_1": 0.492,
+          "thumb_swing": 0.0
+        },
+        "der": {
+          "little_1": 1.62,
+          "ring_1": 1.62,
+          "middle_1": 1.62,
+          "index_1": 1.62,
+          "thumb_1": 0.492,
+          "thumb_swing": 0.0
+        }
+      }
+    },
+    {
+      "nombre": "guardia",
+      "posiciones": {
+        "12": 0.0,
+        "13": -0.2095,
+        "14": 0.2168,
+        "15": -0.10472,
+        "16": -0.9,
+        "17": -4.7e-05,
+        "18": 0.0,
+        "19": 0.0,
+        "20": -0.43986,
+        "21": -0.1208,
+        "22": 0.41888,
+        "23": -0.88995,
+        "24": 2.8e-05,
+        "25": 0.0,
+        "26": 0.0
+      },
+      "duracion": 1.9,
+      "manos": {
+        "izq": {
+          "little_1": 1.62,
+          "ring_1": 1.62,
+          "middle_1": 1.62,
+          "index_1": 1.62,
+          "thumb_1": 0.492,
+          "thumb_swing": 0.0
+        },
+        "der": {
+          "little_1": 1.62,
+          "ring_1": 1.62,
+          "middle_1": 1.62,
+          "index_1": 1.62,
+          "thumb_1": 0.492,
+          "thumb_swing": 0.0
+        }
+      }
+    }
+  ]
+}

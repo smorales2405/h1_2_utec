@@ -51,7 +51,7 @@ for env in "${ENVS[@]}"; do
 
     cat > "$PREFIX/etc/conda/activate.d/00_isolate_from_ros.sh" <<'EOF'
 # Aisla este entorno de ROS Humble / robotpkg mientras este activo.
-# Ver scripts/09_isolate_conda_env.sh del repo h1_2_utec.
+# Ver h1_2_teleoperation/scripts_sim/09_isolate_conda_env.sh del repo h1_2_utec.
 if [ -n "${PYTHONPATH:-}" ]; then
     export _H12_SAVED_PYTHONPATH="$PYTHONPATH"
     unset PYTHONPATH

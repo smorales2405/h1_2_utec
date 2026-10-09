@@ -10,7 +10,7 @@
 # Las IP del host se detectan solas; los argumentos añaden IPs adicionales.
 set -euo pipefail
 
-# ROOT = la carpeta h1_2_teleoperation (la que contiene scripts/). Se deduce de la
+# ROOT = la carpeta h1_2_teleoperation (la que contiene scripts_sim/). Se deduce de la
 # ubicacion de este script, asi que el repo se puede clonar donde sea.
 ROOT="${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 OUT="$ROOT/xr_teleoperate/teleop/televuer"

@@ -12,7 +12,7 @@
 source "$(dirname "${BASH_SOURCE[0]}")/_conda.sh"
 set -euo pipefail
 
-# ROOT = la carpeta h1_2_teleoperation (la que contiene scripts/). Se deduce de la
+# ROOT = la carpeta h1_2_teleoperation (la que contiene scripts_sim/). Se deduce de la
 # ubicacion de este script, asi que el repo se puede clonar donde sea.
 ROOT="${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 ENV_NAME="${ENV_NAME:-unitree_sim_env}"
@@ -89,7 +89,7 @@ fi
 # Aislar el entorno del PYTHONPATH global (ROS Humble / robotpkg, python3.10).
 # Sin esto `import pinocchio` de sim_main.py revienta en un entorno python3.11.
 echo "== Aislamiento de PYTHONPATH =="
-bash "$ROOT/scripts/09_isolate_conda_env.sh" "$ENV_NAME"
+bash "$ROOT/scripts_sim/09_isolate_conda_env.sh" "$ENV_NAME"
 
 # -------------------------------------------------------------- comprobacion
 echo
@@ -106,5 +106,5 @@ echo
 echo "=== INSTALL SIM OK ==="
 echo "Falta, si no se ha hecho ya:"
 echo "  - assets USD:   cd $ROOT/unitree_sim_isaaclab && bash fetch_assets.sh"
-echo "  - certificados: bash $ROOT/scripts/02_gen_certs.sh"
-echo "Diagnostico:      bash $ROOT/scripts/13_check_sim.sh"
+echo "  - certificados: bash $ROOT/scripts_sim/02_gen_certs.sh"
+echo "Diagnostico:      bash $ROOT/scripts_sim/13_check_sim.sh"

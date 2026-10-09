@@ -5,7 +5,8 @@ sobre [`xr_teleoperate`](https://github.com/unitreerobotics/xr_teleoperate) de U
 
 Este repositorio contiene **solo lo propio**: los scripts escritos para este
 despliegue y los parches al código de terceros. Los repositorios upstream no se
-vendorizan — se clonan siguiendo las instrucciones de abajo.
+vendorizan — se clonan siguiendo [`README_SIM.md`](h1_2_teleoperation/README_SIM.md) §5
+(el robot real no los necesita en este PC: corren en su PC2).
 
 ```
 docs/
@@ -21,34 +22,33 @@ h1_2_joint_control/           Control y sintonización articular (SIN teleoperac
 └── logs/                         CSV y gráficas de los ensayos
 
 h1_2_teleoperation/
-├── README_DEPLOY.md          Despliegue FÍSICO: topología, hallazgos, puesta en marcha
+├── README.md                 ROBOT REAL: cómo lanzar teleop_xr.sh desde este PC
 ├── README_SIM.md             Despliegue en SIMULACIÓN (Isaac Sim + unitree_sim_isaaclab)
-├── scripts/                  Lado HOST (laptop Ubuntu 22.04)
-│   ├── 00_check_host.sh          diagnóstico: entorno, versiones, imports, certificados, red
+├── scripts/                  Robot real: se reenvían por SSH al PC2, donde corre todo
+│   ├── teleop_xr.sh              teleoperación con las Quest 3 (brazos + manos); `parar` la detiene
+│   ├── comun.sh                  el reenvío por SSH al robot; lo cargan los demás
+│   ├── estado.sh                 estado del robot y CheckMode, ¿Debug de verdad? (solo lectura)
+│   └── robot.sh                  comprobar red y clave, URL de las gafas, terminal en el robot
+├── scripts_sim/              Simulación (lado laptop)
+│   ├── _conda.sh                 localiza conda y el entorno `tv`
+│   ├── 00_check_host.sh          diagnóstico del entorno `tv`: versiones, imports, certificados
 │   ├── 01_install_host.sh        instalación del entorno conda `tv` y sus dependencias
 │   ├── 02_gen_certs.sh           certificados TLS autofirmados para Vuer/WebXR (puerto 8012)
-│   ├── 03_launch_teleop.sh       lanzador con los parámetros del H1-2 + manos FTP
-│   ├── 04_test_inspire_dds_loopback.py   prueba de la cadena DDS de las manos SIN hardware
-│   ├── arm_joint_test.py         primer movimiento de brazos, una articulación, en 3 peldaños
 │   ├── 09_isolate_conda_env.sh   aísla los entornos conda del ROS/robotpkg del sistema
 │   ├── 10_install_sim.sh         instalación del entorno conda `unitree_sim_env` (simulador)
 │   ├── 11_launch_sim.sh          lanza unitree_sim_isaaclab con el H1-2 + manos Inspire
 │   ├── 12_launch_teleop_sim.sh   lanza xr_teleoperate en modo `--sim` contra el simulador
 │   ├── 13_check_sim.sh           diagnóstico del lado simulación
-│   ├── 14_test_inspire_ftp_bridge.py   prueba del puente FTP del simulador, sin Isaac Sim
-│   └── robot_pc2/            Lado ROBOT (PC2) — ejecución, no instalación
-│       ├── inspire_ftp_dual_driver.py   puente Modbus ⇄ DDS de las dos manos
-│       ├── videohub_image_bridge.py     sustituye a teleimager-server: videohub (DDS) → ZMQ
-│       ├── hand_test.py                 prueba de manos: read / wiggle / sweep / open / forceclb
-│       ├── probe_hands.py                sonda de solo lectura del estado de las manos
-│       └── wait_for_camera.py            vigila la RealSense por si se conecta al PC2
+│   └── 14_test_inspire_ftp_bridge.py   prueba del puente FTP del simulador, sin Isaac Sim
 └── patches/
     ├── inspire_sdkpy_uint16.patch              corrige un fallo de inspire_sdkpy (ver abajo)
     ├── unitree_sim_isaaclab_inspire_ftp.patch  añade las manos RH56DFTP (FTP) al simulador
     ├── xr_teleoperate_sim.patch                 control de flujo aiohttp + regulador de fps
-    │                                            (el nombre engaña: hace falta TAMBIÉN en el robot real)
     ├── televuer_image_format_knob.patch         formato de la imagen hacia el visor
-    └── teleimager_webrtc_warning.patch          quita un aviso falso a 90/s
+    ├── teleimager_webrtc_warning.patch          quita un aviso falso a 90/s
+    └── xr_teleoperate_h1_2_{dq_ref,tuning}.patch  velocidad de referencia y sintonización del
+                                                 H1-2 (resultado de h1_2_joint_control; el
+                                                 teleop actual del robot no los aplica)
 
 ros_h1_2_ws/                  Workspace ROS 2
 ├── setup_env.sh                  entorno del workspace
@@ -77,50 +77,33 @@ allí se borraron.
 
 - **`xr_teleoperate`, `unitree_sdk2_python`, `inspire_hand_ws`,
   `unitree_sim_isaaclab`, `cyclonedds`** — repositorios de terceros. Se clonan
-  (ver «Puesta en marcha»). Los cambios a código ajeno están aislados en
+  (ver `README_SIM.md` §5). Los cambios a código ajeno están aislados en
   `patches/`.
-- **Instalación del PC2** — el bundle offline (224 MB de ruedas), su instalador y
-  el script de despliegue por SSH quedan fuera: son de puesta a punto, no de
-  operación. `README_DEPLOY.md` §4 documenta el procedimiento por si hay que
-  repetirlo.
-- **Certificados y claves** — `cert.pem` / `key.pem` se generan localmente con
-  `02_gen_certs.sh`. La clave privada nunca debe subirse.
+- **El teleop del robot real** — vive y corre en el PC2 del robot
+  (`~/robotics40/meta`, ya instalado). Aquí solo están los lanzadores que lo
+  arrancan por SSH. El despliegue antiguo, con el teleop en la laptop, se retiró
+  el 2026-10-09 y sigue en el historial de git
+  (`git show 1df4e32:h1_2_teleoperation/README_DEPLOY.md`).
+- **Certificados y claves** — en simulación, `cert.pem` / `key.pem` se generan
+  localmente con `scripts_sim/02_gen_certs.sh`. La clave privada nunca debe
+  subirse.
 
-## Puesta en marcha
+## Puesta en marcha: teleoperación con el robot real
 
-Los scripts asumen la ruta `/home/utec/Documents/h1_2_teleoperation`. Si se
-clona en otro sitio, ajustar la variable `ROOT` al inicio de cada `.sh`.
+En este PC no hay nada que instalar: basta la WiFi `UTEC_H1_2` y entrar al robot
+por clave SSH. Con el robot **colgado** y en **Debug (L2 + R2)**:
 
 ```bash
-git clone https://github.com/smorales2405/h1_2_utec.git
-cd h1_2_utec/h1_2_teleoperation
-
-# repositorios upstream, junto a este directorio
-git clone https://github.com/unitreerobotics/xr_teleoperate.git
-cd xr_teleoperate && git submodule update --init --depth 1 && cd ..
-git clone https://github.com/unitreerobotics/unitree_sdk2_python.git
-git clone https://github.com/NaCl-1374/inspire_hand_ws.git     # de aquí sale inspire_sdkpy
-
-# parche al SDK de las manos
-cd inspire_hand_ws && git apply ../patches/inspire_sdkpy_uint16.patch && cd ..
-
-# entorno + certificados + comprobación
-# OJO con pinocchio: el README de xr_teleoperate fija 3.1.0, pero las tres
-# compilaciones de 3.1.0 que hay hoy en conda-forge para python 3.10 tienen el
-# binding de `buildReducedModel` roto — falla con CUALQUIER combinacion de
-# argumentos, incluida la que usa el propio `robot_wrapper.py` de pinocchio, y
-# sin ella `H1_2_ArmIK` no se puede construir. Comprobado en 2026-09-08 con las
-# builds py310hed69631_0/_1 y py310h4a8bb0c_2.
-#   3.2.0 y 3.3.1 funcionan. Se usa 3.2.0, la mas cercana a la fijada.
-#   Arrastra numpy 2.x; los imports funcionales pasan igual.
-conda create -y -n tv python=3.10 pinocchio=3.2.0 -c conda-forge
-bash scripts/01_install_host.sh
-bash scripts/02_gen_certs.sh
-bash scripts/00_check_host.sh
+cd h1_2_teleoperation/scripts
+./robot.sh comprobar      # red, clave SSH y estado del robot (solo lectura)
+./estado.sh               # CheckMode tiene que dar name ''
+./teleop_xr.sh            # r empieza, q sale (abre las manos y los brazos vuelven a casa)
+./teleop_xr.sh parar      # al terminar
 ```
 
-El detalle completo —incluidas cuatro incidencias del procedimiento oficial que
-no funcionan tal cual— está en [`README_DEPLOY.md`](h1_2_teleoperation/README_DEPLOY.md).
+En las Quest 3: `https://192.168.0.143:8012/?ws=wss://192.168.0.143:8012`.
+Requisitos, seguridad, qué pasa si se corta el SSH y problemas frecuentes, en
+[`h1_2_teleoperation/README.md`](h1_2_teleoperation/README.md).
 
 ## Control y sintonización articular
 
@@ -147,7 +130,7 @@ caminos escriben el mismo `kp`/`kd` en el mismo mensaje DDS.
 El mismo `xr_teleoperate` corre contra
 [`unitree_sim_isaaclab`](https://github.com/unitreerobotics/unitree_sim_isaaclab)
 (Isaac Sim 5.1 + Isaac Lab), con el H1-2 de 27 DoF y manos Inspire. El comando de
-teleoperación es idéntico al del robot real salvo por el flag `--sim`, porque
+teleoperación lleva los mismos argumentos que en el robot real salvo el flag `--sim`, porque
 este repo añade al simulador el protocolo **FTP** de las RH56DFTP —el simulador
 de Unitree solo hablaba el de las manos DFX del G1—.
 
@@ -155,8 +138,9 @@ La guía completa, con las once incidencias del procedimiento oficial, está en
 [`README_SIM.md`](h1_2_teleoperation/README_SIM.md).
 
 ```bash
-./scripts/11_launch_sim.sh          # terminal 1: simulador
-./scripts/12_launch_teleop_sim.sh   # terminal 2: teleoperación
+cd h1_2_teleoperation
+./scripts_sim/11_launch_sim.sh          # terminal 1: simulador
+./scripts_sim/12_launch_teleop_sim.sh   # terminal 2: teleoperación
 ```
 
 ## Hallazgos que condicionan el despliegue
@@ -172,10 +156,12 @@ las cuales la teleoperación no funciona, o funciona mal:
 2. **Las manos cuelgan del bridge `br0` (192.168.124.0/24)**, no de la red
    `192.168.123.x` de los ejemplos, y hablan Modbus TCP, no RS485.
 
-3. **La cámara de cabeza (RealSense D435i) está cableada a PC1**, al que no
-   tenemos acceso. Pero el robot la expone por DDS mediante su servicio
-   `videohub`, sin credenciales: `videohub_image_bridge.py` la convierte al
-   formato de `teleimager` y `xr_teleoperate` funciona sin modificar.
+3. **La cámara de cabeza (RealSense D435i) estaba cableada a PC1**, al que no
+   tenemos acceso, y el robot la exponía por DDS con su servicio `videohub`, sin
+   credenciales. El despliegue antiguo la llevaba a `teleimager` con un puente,
+   y en eso se basa `ros_h1_2_ws/src/h1_2_vision`. Hoy la D435i está en el USB
+   del PC2 (la ve `lsusb`, 2026-10-07), y el teleop del robot real la sirve
+   directamente con `teleimager`.
 
 4. **`inspire_sdkpy` revienta con valores negativos en `angle_set`** y se lleva
    por delante el hilo lector de DDS, dejando la mano sorda en silencio. Duele
@@ -183,9 +169,10 @@ las cuales la teleoperación no funciona, o funciona mal:
    `patches/inspire_sdkpy_uint16.patch`.
 
 5. **`H1_2_ArmController` arranca llevando los brazos a 0°** a 30 rad/s, antes de
-   pulsar `r`, y no se puede evitar desde fuera. `arm_joint_test.py` lo esquiva
-   con una subclase que fija el objetivo en la postura actual antes de que el
-   hilo publique nada.
+   pulsar `r`, y no se puede evitar desde fuera. El antiguo `arm_joint_test.py`
+   (en el historial de git) lo esquivaba con una subclase que fijaba el objetivo
+   en la postura actual antes de que el hilo publicara nada. En el teleop actual
+   sigue pasando: hay que lanzarlo sin nadie al alcance de los brazos.
 
 6. **`rt/lowcmd` ya tiene dueño.** El controlador de alto nivel del robot (`ai`)
    publica ahí **a 500 Hz sin parar**. Un script que publique en el mismo tópico
@@ -204,8 +191,8 @@ las cuales la teleoperación no funciona, o funciona mal:
 | Unitree **H1-2** (brazos 7 DoF) | robot controlado |
 | 2 × **Inspire RH56DFTP** (6 DoF, 17 zonas táctiles) | efectores finales |
 | **Meta Quest 3** | dispositivo XR |
-| Laptop Ubuntu 22.04 | host de teleoperación |
-| **PC2** del robot (x86_64) | driver de manos + puente de imagen |
+| PC Ubuntu 22.04 | lanza el teleop por SSH (robot real) · host de la simulación |
+| **PC2** del robot (x86_64) | corre el teleop real: `xr_teleoperate`, servidor de imagen (D435i) y driver de manos |
 
 ## Créditos
 

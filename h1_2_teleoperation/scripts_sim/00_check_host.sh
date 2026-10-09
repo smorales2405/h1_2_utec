@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Diagnostico del Host (esta laptop): entorno, dependencias, certificados y red.
-# ROOT = la carpeta h1_2_teleoperation (la que contiene scripts/). Se deduce de la
+# ROOT = la carpeta h1_2_teleoperation (la que contiene scripts_sim/). Se deduce de la
 # ubicacion de este script, asi que el repo se puede clonar donde sea.
 # Resolucion de conda: busca la instalacion en vez de cablearla.
 source "$(dirname "${BASH_SOURCE[0]}")/_conda.sh"
@@ -56,7 +56,7 @@ if printf '%s:%s' "${PYTHONPATH:-}" "${LD_LIBRARY_PATH:-}" | grep -q "/opt/ros\|
   if [ -f ${CONDA_ENV_TV}/etc/conda/activate.d/00_isolate_from_ros.sh ]; then
     ok "hook activate.d instalado (quita ROS Humble / robotpkg del entorno)"
   else
-    no "esta maquina exporta /opt/ros o /opt/openrobots y el entorno no esta aislado — corre scripts/09_isolate_conda_env.sh"
+    no "esta maquina exporta /opt/ros o /opt/openrobots y el entorno no esta aislado — corre scripts_sim/09_isolate_conda_env.sh"
   fi
 else
   ok "el entorno global no mete /opt/ros ni /opt/openrobots: no hace falta aislar"
@@ -96,7 +96,7 @@ EOF
 
 echo "== 5. Certificados TLS =="
 for f in "$HOME/.config/xr_teleoperate/cert.pem" "$ROOT/xr_teleoperate/teleop/televuer/cert.pem"; do
-  if [ -f "$f" ]; then ok "$f"; else no "FALTA $f  (corre scripts/02_gen_certs.sh)"; fi
+  if [ -f "$f" ]; then ok "$f"; else no "FALTA $f  (corre scripts_sim/02_gen_certs.sh)"; fi
 done
 [ -f "$HOME/.config/xr_teleoperate/cert.pem" ] && \
   openssl x509 -in "$HOME/.config/xr_teleoperate/cert.pem" -noout -dates -ext subjectAltName | sed 's/^/    /'

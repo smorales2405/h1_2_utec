@@ -5,7 +5,7 @@
 # aparecido `controller started, start main loop...` (y haber hecho un clic en
 # la ventana de Isaac Sim).
 #
-# Diferencias con 03_launch_teleop.sh (robot real):
+# Diferencias con el teleop del robot real (../scripts/teleop_xr.sh, que corre en el PC2):
 #   --sim                     dominio DDS 1 en vez de 0, y sin limite de
 #                             velocidad articular en el brazo
 #   --img-server-ip <IP LAN>  el servidor de imagen lo levanta el propio
@@ -22,7 +22,7 @@
 source "$(dirname "${BASH_SOURCE[0]}")/_conda.sh"
 set -euo pipefail
 
-# ROOT = la carpeta h1_2_teleoperation (la que contiene scripts/). Se deduce de la
+# ROOT = la carpeta h1_2_teleoperation (la que contiene scripts_sim/). Se deduce de la
 # ubicacion de este script, asi que el repo se puede clonar donde sea.
 ROOT="${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 CONDA_BASE="${CONDA_BASE}"

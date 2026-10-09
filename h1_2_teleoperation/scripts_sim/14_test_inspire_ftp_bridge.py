@@ -18,7 +18,7 @@ Se ejecuta en el entorno "tv" (tiene cyclonedds 0.10.2, unitree_sdk2py e
 inspire_sdkpy) o en "unitree_sim_env". No hace falta GPU ni el robot.
 
     conda activate tv
-    python scripts/14_test_inspire_ftp_bridge.py
+    python scripts_sim/14_test_inspire_ftp_bridge.py
 """
 import sys
 import time

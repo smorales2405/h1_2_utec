@@ -3,18 +3,19 @@
 Despliegue **en simulación** de
 [`xr_teleoperate`](https://github.com/unitreerobotics/xr_teleoperate) contra
 [`unitree_sim_isaaclab`](https://github.com/unitreerobotics/unitree_sim_isaaclab),
-con el **H1-2 de 27 DoF** y manos **Inspire**. Es el hermano del
-[`README_DEPLOY.md`](README_DEPLOY.md), que cubre el despliegue **físico**.
+con el **H1-2 de 27 DoF** y manos **Inspire**. La teleoperación con el **robot
+real** está en [`README.md`](README.md) (`scripts/teleop_xr.sh`).
 
-La gracia de tenerlo montado así es que **el mismo comando de teleoperación
-vale para los dos**: solo cambia el flag `--sim`.
+La gracia de tenerlo montado así es que **los argumentos de la teleoperación
+son los mismos en los dos**: solo cambia el flag `--sim`. En el robot real,
+`teleop_hand_and_arm.py` corre en el PC2 del robot; aquí, en esta laptop.
 
 | | robot real | simulación |
 |---|---|---|
-| Lanzador | `scripts/03_launch_teleop.sh` | `scripts/12_launch_teleop_sim.sh` |
-| Argumentos | `--arm H1_2 --ee inspire_ftp` | `--arm H1_2 --ee inspire_ftp --sim` |
+| Lanzador | `scripts/teleop_xr.sh` (se reenvía por SSH al PC2) | `scripts_sim/12_launch_teleop_sim.sh` |
+| Argumentos | `--arm=H1_2 --ee=inspire_ftp` | `--arm H1_2 --ee inspire_ftp --sim` |
 | Dominio DDS | 0 | 1 |
-| Servidor de imagen | PC2 del robot (`192.168.123.164`) | el propio simulador (IP LAN de esta laptop, §3.6) |
+| Servidor de imagen | teleimager con la D435i, en el PC2 | el propio simulador (IP LAN de esta laptop, §3.6) |
 | Manos | driver Modbus⇄DDS en el PC2 | `dds/inspire_ftp_dds.py` (parche de este repo) |
 
 ---
@@ -120,7 +121,7 @@ Con `h12` **no se crea ningún objeto DDS del robot**: el simulador arranca, la
 escena se ve, y el H1-2 simplemente no se mueve ni publica `rt/lowstate`. No da
 ningún error. Los ejemplos comentados al final de `sim_main.py` sí usan `h1_2`.
 
-`scripts/11_launch_sim.sh` fija `h1_2`.
+`scripts_sim/11_launch_sim.sh` fija `h1_2`.
 
 #### `--replay` no existe: es `--replay_data`
 
@@ -234,7 +235,7 @@ entorno de Isaac Sim, que además trae su propio stack gráfico.
 El IDL está copiado verbatim en `dds/inspire_ftp_idl.py`. Para DDS los dos son
 **el mismo tipo**: la compatibilidad va por el `typename`
 (`inspire.inspire_hand_ctrl`) y la estructura, no por la clase Python.
-`scripts/14_test_inspire_ftp_bridge.py` lo comprueba publicando con el IDL
+`scripts_sim/14_test_inspire_ftp_bridge.py` lo comprueba publicando con el IDL
 copiado y leyendo con el de `inspire_sdkpy`.
 
 ### 3.5 El `PYTHONPATH` global de ROS/robotpkg rompe pinocchio en los dos entornos
@@ -255,7 +256,7 @@ env activado. Rompe de tres maneras distintas:
 | `LD_LIBRARY_PATH` | aunque el módulo Python salga del entorno, el enlazador coge `libpinocchio`/`libboost` de `/opt/openrobots`. Mezclar binding de una versión con libs de otra da, al construir el modelo: `RuntimeError: class version St6vectorIS_ImSaImEESaIS1_EE` |
 | `PYTHONPATH`, otra vez | **pip también lo mira**. `pip freeze` en cualquier entorno de esta máquina lista 174 paquetes de ROS que no están en el entorno (`ament-*`, `rcl*`, `*-msgs`…), y `pip install` los da por *already satisfied* y no los instala. Replicar un entorno con `pip freeze` \| `pip install -r` sin aislar produce un entorno incompleto que aparenta estar bien |
 
-`scripts/09_isolate_conda_env.sh` lo arregla con hooks de `activate.d` /
+`scripts_sim/09_isolate_conda_env.sh` lo arregla con hooks de `activate.d` /
 `deactivate.d` **dentro de cada entorno**: se guardan y se limpian las dos
 variables al activar, y se devuelven al desactivar. No se toca `~/.bashrc`, así
 que ROS sigue funcionando fuera de estos entornos. Los instaladores
@@ -295,10 +296,11 @@ IMG_SERVER_IP="${IMG_SERVER_IP:-$(ip -4 route get 1.1.1.1 | sed -n 's/.* src \([
 El certificado generado por `02_gen_certs.sh` ya cubre todas las IP vivas de la
 máquina, así que el HTTPS del `:60001` valida igual que el del `:8012`.
 
-> En el despliegue físico este problema no aparece porque
-> `videohub_image_bridge.py` declara `enable_webrtc: False`: allí la imagen va
-> por ZMQ y la empuja el propio Python dentro de Vuer, así que la IP del
-> servidor solo la usa el proceso local. La otra salida en simulación sería
+> En el despliegue físico antiguo (con el puente `videohub_image_bridge.py`, ya
+> retirado) este problema no aparecía porque el puente declaraba
+> `enable_webrtc: False`: allí la imagen iba por ZMQ y la empujaba el propio
+> Python dentro de Vuer, así que la IP del servidor solo la usaba el proceso
+> local. La otra salida en simulación sería
 > poner `enable_webrtc: false` en `unitree_sim_isaaclab/teleimager/cam_config_server.yaml`
 > y volver al camino ZMQ, pero WebRTC da bastante menos latencia en el visor.
 
@@ -342,12 +344,15 @@ https://192.168.0.101:8012/?ws=wss://192.168.0.101:8012
 `12_launch_teleop_sim.sh` ya la imprime así en el banner. También se puede
 corregir a mano en el campo *Socket URI* de la página y pulsar *reconnect*.
 
-> Afecta igual al **despliegue físico**: mismo entorno `tv`, mismo Vuer, misma
-> necesidad de HTTPS para WebXR.
+> Afecta igual al **robot real**: también sirve Vuer por HTTPS, y por eso su URL
+> lleva el mismo `?ws=` (ver [`README.md`](README.md)).
 
 ### 3.9 La imagen se congela al entrar en VR: el enlace se satura
 
-Síntoma exacto, medido en el robot real el 2026-09-10: la imagen llega bien en
+Síntoma exacto, medido en el robot real el 2026-09-10 con el despliegue físico
+antiguo (teleop en la laptop y la cámara por el puente `videohub`, ya
+retirado). Se deja aquí porque el mecanismo es el mismo en simulación si el
+visor va por WiFi. La imagen llega bien en
 modo plano durante minutos; al pulsar *Virtual Reality* se congela a los ~25 s.
 En la terminal:
 
@@ -389,13 +394,15 @@ El `AssertionError: Websocket session is missing.` es **consecuencia**, no
 causa: al caerse el socket, el escritor de imagen sigue apuntando a una sesión
 que ya se ha borrado del `pool`.
 
-**El arreglo:** `XR_DISPLAY_FPS=15`, que es gratis —no se pierde ni un
-fotograma real— y baja el enlace a la mitad. `arranca_teleop.sh` ya lo pone por
-defecto; `FPS=10 ./scripts/arranca_teleop.sh` baja más si hiciera falta.
+**El arreglo:** `XR_DISPLAY_FPS=15`, que allí era gratis —no se perdía ni un
+fotograma real— y bajaba el enlace a la mitad. El regulador de fps lo añade
+[`patches/xr_teleoperate_sim.patch`](patches/xr_teleoperate_sim.patch), y
+`12_launch_teleop_sim.sh` lo pone a 15 por defecto;
+`DISPLAY_FPS=10 ./scripts_sim/12_launch_teleop_sim.sh` baja más si hiciera falta.
 
-Segunda palanca si aún no basta: bajar la resolución en el puente, que se
-publica a 1280×720. `--width 960 --height 540 --quality 75` deja el fotograma
-en unos 40 kB.
+Segunda palanca, en aquel montaje: bajar la resolución en el puente, que
+publicaba a 1280×720. Con 960×540 y calidad 75 el fotograma quedaba en unos
+40 kB.
 
 ---
 
@@ -444,8 +451,9 @@ esperes que arregle una sesión que no se ve.
 > ```
 >
 > Es saturación del enlace, y la otra mitad del parche —el regulador de fps— es
-> la que la arregla. Ver §3.9. El parche sigue haciendo falta en el despliegue
-> físico, pero por su otra mitad.
+> la que la arregla. Ver §3.9. En el despliegue físico antiguo el parche hacía
+> falta por esa otra mitad. El teleop actual del robot (`scripts/teleop_xr.sh`,
+> que corre en el PC2) no lo lleva aplicado.
 
 **Cómo se acotó, por si sirve de método.** Midiendo cada eslabón en vez de
 suponer:
@@ -500,13 +508,37 @@ rm -f xr_teleoperate/teleop/*_model_cache.pkl
 
 `00_check_host.sh` da la pista cuando detecta ese error.
 
-### 3.11 El resto que ya estaba documentado
+### 3.11 Incidencias del entorno `tv`
 
-Las cuatro incidencias del lado laptop del despliegue físico
-([`README_DEPLOY.md` §4](README_DEPLOY.md)) siguen aplicando, porque el entorno
-`tv` es el mismo: `params-proto==2.13.2` para que no reviente `vuer`,
-`dex-retargeting` con `--no-deps`, `inspire_sdkpy` fuera de PyPI, y el parche
-`patches/inspire_sdkpy_uint16.patch`.
+Vienen del despliegue físico antiguo, que usaba este mismo entorno `tv` en la
+laptop, y siguen aplicando aquí. `01_install_host.sh` ya las resuelve:
+
+1. **`vuer` 0.0.60 se rompe con `params-proto` ≥ 3.** `vuer/server.py` importa
+   `Flag`, que desapareció en la 3.x. pip resuelve a 3.3.0 y `vuer/__init__.py`
+   se traga el `ImportError` en un `try/except`, así que en vez de un error claro
+   sale un mensaje engañoso pidiendo `pip install 'vuer[all]'` (que ya estaba
+   instalado). Se fija `params-proto==2.13.2`.
+2. **`dex-retargeting` declara `pin` (pinocchio de PyPI).** Instalarla machacaría
+   el `pinocchio` de conda. Se instala con `--no-deps`.
+3. **`--ee inspire_ftp` necesita `inspire_sdkpy`, que no está en PyPI** ni lo
+   menciona el README de `xr_teleoperate`. Viene de
+   [`NaCl-1374/inspire_hand_ws`](https://github.com/NaCl-1374/inspire_hand_ws).
+   El `DFX_inspire_service` al que manda el README de Unitree es para las manos
+   **DFX** (`rt/inspire/cmd|state`) y no sirve para las RH56DFTP.
+4. **`inspire_sdkpy` revienta con cualquier valor negativo en `angle_set`**
+   (`struct.error: argument out of range` al empaquetar con `">H"`), y la
+   excepción mata el hilo lector de DDS: la mano se queda sorda en silencio
+   hasta reiniciar. Duele porque `-1` es el **no-op** del protocolo RH56. Lo
+   arregla [`patches/inspire_sdkpy_uint16.patch`](patches/inspire_sdkpy_uint16.patch):
+   enmascara a 16 bits conservando el complemento a dos y protege el hilo con
+   un `try/except`.
+
+> **pinocchio en `tv`** (nota del 2026-09-08, que estaba en el README raíz): las
+> tres compilaciones de pinocchio 3.1.0 para Python 3.10 que había entonces en
+> conda-forge (`py310hed69631_0/_1`, `py310h4a8bb0c_2`) traían roto el binding
+> de `buildReducedModel`, y sin él `H1_2_ArmIK` no se puede construir. Con 3.2.0
+> y 3.3.1 funcionaba; se usó 3.2.0, que arrastra numpy 2.x. Si `H1_2_ArmIK`
+> falla al construirse, mirar esto primero.
 
 Además, `unitree_sdk2py` fija `cyclonedds==0.10.2`, que no publica rueda: pip la
 compila y necesita `CYCLONEDDS_HOME`. Los dos instaladores compilan CycloneDDS
@@ -545,8 +577,9 @@ Orden de los 12 DOF, heredado del simulador
 y dentro de cada mano, el orden de la RH56:
 `[meñique, anular, medio, índice, pulgar-flexión, pulgar-rotación]`.
 
-> La inversión de lateralidad del robot físico ([`README_DEPLOY.md` §2](README_DEPLOY.md))
-> **no aplica aquí**: era un cruce de cables/IP en el robot, y lo corrige el
+> La inversión de lateralidad del robot físico (la mano izquierda es la
+> `192.168.124.211` y la derecha la `.210`, al revés que en la documentación de
+> Unitree) **no aplica aquí**: es un cruce de IP en el robot, y lo corrige el
 > driver del PC2. A nivel de tópicos DDS, `/l` siempre es la izquierda.
 
 ---
@@ -602,18 +635,18 @@ for pkg in isaaclab isaaclab_assets isaaclab_contrib isaaclab_mimic isaaclab_rl 
     $PIPDST install -e "/home/utec/IsaacLab/source/$pkg" --no-deps
 done
 
-bash scripts/10_install_sim.sh
+bash scripts_sim/10_install_sim.sh
 
 # --- entorno del cliente de teleoperación ---
 conda create -y -n tv python=3.10 pinocchio=3.1.0 numpy=1.26.4 -c conda-forge
-bash scripts/01_install_host.sh
+bash scripts_sim/01_install_host.sh
 
 # --- certificados TLS para WebXR y WebRTC ---
-bash scripts/02_gen_certs.sh
+bash scripts_sim/02_gen_certs.sh
 
 # --- diagnóstico ---
-bash scripts/13_check_sim.sh
-bash scripts/00_check_host.sh     # su §6 (red) solo aplica al robot físico
+bash scripts_sim/13_check_sim.sh
+bash scripts_sim/00_check_host.sh     # su §6 (red del robot) era del despliegue físico antiguo: ignorarlo
 ```
 
 Si no existiera ningún entorno con Isaac Sim, sirve el `auto_setup_env.sh` de
@@ -628,13 +661,13 @@ Unitree (`bash auto_setup_env.sh 5.1 unitree_sim_env`) o los pasos manuales de
 **Terminal 1 — simulador**
 
 ```bash
-./scripts/11_launch_sim.sh
+./scripts_sim/11_launch_sim.sh
 ```
 
 ```bash
-TASK=Isaac-Stack-RgyBlock-H12-27dof-Inspire-Joint  ./scripts/11_launch_sim.sh
-HAND_DDS=--enable_inspire_dds                      ./scripts/11_launch_sim.sh   # camino DFX
-EXTRA=--no_render                                  ./scripts/11_launch_sim.sh   # WebRTC en vez de ventana
+TASK=Isaac-Stack-RgyBlock-H12-27dof-Inspire-Joint  ./scripts_sim/11_launch_sim.sh
+HAND_DDS=--enable_inspire_dds                      ./scripts_sim/11_launch_sim.sh   # camino DFX
+EXTRA=--no_render                                  ./scripts_sim/11_launch_sim.sh   # WebRTC en vez de ventana
 ```
 
 Tareas disponibles para el H1-2:
@@ -658,13 +691,13 @@ rara: `PerspectiveCamera → Cameras → PerspectiveCamera`.
 **Terminal 2 — teleoperación**
 
 ```bash
-./scripts/12_launch_teleop_sim.sh
+./scripts_sim/12_launch_teleop_sim.sh
 ```
 
 ```bash
-EXTRA=--record        ./scripts/12_launch_teleop_sim.sh   # grabar episodios
-EE=inspire_dfx        ./scripts/12_launch_teleop_sim.sh   # si el sim va en DFX
-INPUT_MODE=controller ./scripts/12_launch_teleop_sim.sh   # mandos en vez de manos
+EXTRA=--record        ./scripts_sim/12_launch_teleop_sim.sh   # grabar episodios
+EE=inspire_dfx        ./scripts_sim/12_launch_teleop_sim.sh   # si el sim va en DFX
+INPUT_MODE=controller ./scripts_sim/12_launch_teleop_sim.sh   # mandos en vez de manos
 ```
 
 **En el Quest 3**
@@ -689,7 +722,7 @@ iniciar/guardar grabación (con `--record`), `q` para salir.
 **Reproducir un dataset grabado** (mismo formato que la teleoperación real):
 
 ```bash
-EXTRA="--replay_data --file_path $PWD/xr_teleoperate/teleop/utils/data" ./scripts/11_launch_sim.sh
+EXTRA="--replay_data --file_path $PWD/xr_teleoperate/teleop/utils/data" ./scripts_sim/11_launch_sim.sh
 ```
 
 ---
@@ -703,9 +736,9 @@ tarea `Isaac-PickPlace-Cylinder-H12-27dof-Inspire-Joint` y el puente FTP.
 
 | Prueba | Resultado |
 |---|---|
-| `scripts/13_check_sim.sh` | ✔ los 10 apartados en verde |
-| `scripts/00_check_host.sh` | ✔ 17 paquetes y los 6 imports del entorno `tv` (§6 es del robot físico) |
-| `scripts/14_test_inspire_ftp_bridge.py` | ✔ 12/12: escala 0..1000, lateralidad, no-op `-1`, y el IDL copiado leído por `inspire_sdkpy` |
+| `scripts_sim/13_check_sim.sh` | ✔ los 10 apartados en verde |
+| `scripts_sim/00_check_host.sh` | ✔ 17 paquetes y los 6 imports del entorno `tv` (§6, la red del robot, era del despliegue físico antiguo) |
+| `scripts_sim/14_test_inspire_ftp_bridge.py` | ✔ 12/12: escala 0..1000, lateralidad, no-op `-1`, y el IDL copiado leído por `inspire_sdkpy` |
 
 ### Con el simulador arrancado
 
@@ -764,11 +797,15 @@ si se teleopera por WiFi.
 
 ## 8. Scripts
 
-Los del despliegue físico están en [`README_DEPLOY.md` §6](README_DEPLOY.md).
-Los de simulación:
+Los de simulación están en `scripts_sim/`. Los del robot real, en `scripts/`
+(ver [`README.md`](README.md)).
 
 | Script | Qué hace |
 |---|---|
+| `_conda.sh` | localiza conda y el entorno `tv`; lo cargan los demás |
+| `00_check_host.sh` | diagnóstico del entorno `tv`: versiones, imports, certificados |
+| `01_install_host.sh` | instala el entorno `tv` (cliente de teleoperación) y sus dependencias |
+| `02_gen_certs.sh` | certificados TLS autofirmados para Vuer/WebXR (:8012) y WebRTC (:60001) |
 | `09_isolate_conda_env.sh` | aísla los entornos conda del ROS/robotpkg global (§3.5) |
 | `10_install_sim.sh` | instala las dependencias del simulador en `unitree_sim_env` |
 | `11_launch_sim.sh` | lanza `unitree_sim_isaaclab` con el H1-2 + manos Inspire |

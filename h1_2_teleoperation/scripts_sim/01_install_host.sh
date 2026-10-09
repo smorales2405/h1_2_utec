@@ -3,7 +3,7 @@
 # Resolucion de conda: busca la instalacion en vez de cablearla.
 source "$(dirname "${BASH_SOURCE[0]}")/_conda.sh"
 set -x
-# ROOT = la carpeta h1_2_teleoperation (la que contiene scripts/). Se deduce de la
+# ROOT = la carpeta h1_2_teleoperation (la que contiene scripts_sim/). Se deduce de la
 # ubicacion de este script, asi que el repo se puede clonar donde sea.
 ROOT="${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 # `env -u PYTHONPATH`: llamar a pip por su ruta absoluta NO dispara los hooks de
@@ -82,7 +82,7 @@ cd "$ROOT/xr_teleoperate" && $PIP install -r requirements.txt
 # 5) Aislar el entorno del PYTHONPATH global (ROS Humble / robotpkg). Sin esto,
 #    `import pinocchio` carga la 4.1.0 de /opt/openrobots en vez de la 3.1.0 de
 #    conda que fija el README de xr_teleoperate.
-bash "$ROOT/scripts/09_isolate_conda_env.sh" tv
+bash "$ROOT/scripts_sim/09_isolate_conda_env.sh" tv
 
 echo "=== INSTALL HOST OK ==="
 

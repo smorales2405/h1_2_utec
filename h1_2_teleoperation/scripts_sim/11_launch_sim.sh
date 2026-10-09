@@ -6,7 +6,7 @@
 #     controller started, start main loop...
 #
 # hay que PULSAR UNA VEZ dentro de la ventana de Isaac Sim para activarla, y
-# entonces ya se puede lanzar la teleoperacion (scripts/12_launch_teleop_sim.sh).
+# entonces ya se puede lanzar la teleoperacion (scripts_sim/12_launch_teleop_sim.sh).
 #
 # La primera arrancada tarda: Isaac Sim compila shaders y carga los USD.
 # Si la vista sale rara: PerspectiveCamera -> Cameras -> PerspectiveCamera.
@@ -20,7 +20,7 @@
 source "$(dirname "${BASH_SOURCE[0]}")/_conda.sh"
 set -euo pipefail
 
-# ROOT = la carpeta h1_2_teleoperation (la que contiene scripts/). Se deduce de la
+# ROOT = la carpeta h1_2_teleoperation (la que contiene scripts_sim/). Se deduce de la
 # ubicacion de este script, asi que el repo se puede clonar donde sea.
 ROOT="${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 ENV_NAME="${ENV_NAME:-unitree_sim_env}"

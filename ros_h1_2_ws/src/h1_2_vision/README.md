@@ -14,8 +14,9 @@ Ningún driver de RealSense puede abrir una cámara que no está en la máquina.
 Lo que sí existe es el servicio **`videohub`** del propio robot, que publica en
 el dominio DDS 0 y responde a cualquiera **sin credenciales**. Este paquete lo
 envuelve. El análisis completo —las cinco comprobaciones y qué haría falta para
-mover la cámara al PC2— está en
-[`h1_2_teleoperation/README_DEPLOY.md` §7](../../../h1_2_teleoperation/README_DEPLOY.md).
+mover la cámara al PC2— estaba en `h1_2_teleoperation/README_DEPLOY.md` §7, que
+se retiró el 2026-10-09 con el despliegue físico antiguo. Sigue en el historial:
+`git show 1df4e32:h1_2_teleoperation/README_DEPLOY.md`.
 
 Lo que eso implica, y no se puede evitar desde aquí:
 
@@ -84,8 +85,8 @@ la cámara conectada.
 física:
 
 1. **Mover el cable USB de la D435i de PC1 a PC2** (o a la laptop). Es la única
-   que da profundidad **real**, y por eso es la de referencia. `README_DEPLOY.md`
-   §7: el hub Terminus de 7 puertos solo usa 2, PC2 ya tiene `librealsense`
+   que da profundidad **real**, y por eso es la de referencia. El antiguo
+   `README_DEPLOY.md` §7: el hub Terminus de 7 puertos solo usa 2, PC2 ya tiene `librealsense`
    compilada, las reglas udev puestas y `pyrealsense2` instalado, y
    `wait_for_camera.py` la detecta en cuanto enumere. Da **30 fps y profundidad
    alineada al color**, a cambio de quitársela a PC1. Si esto NO es una opción

@@ -2,7 +2,7 @@
 # Diagnostico del lado SIMULACION: entorno, GPU, assets, parche FTP y certificados.
 #
 # Variables sobreescribibles:  ROOT, ENV_NAME, CONDA_BASE
-# ROOT = la carpeta h1_2_teleoperation (la que contiene scripts/). Se deduce de la
+# ROOT = la carpeta h1_2_teleoperation (la que contiene scripts_sim/). Se deduce de la
 # ubicacion de este script, asi que el repo se puede clonar donde sea.
 # Resolucion de conda: busca la instalacion en vez de cablearla.
 source "$(dirname "${BASH_SOURCE[0]}")/_conda.sh"
@@ -90,7 +90,7 @@ if printf '%s:%s' "${PYTHONPATH:-}" "${LD_LIBRARY_PATH:-}" | grep -q "/opt/ros\|
   if [ -f "$CONDA_BASE/envs/$ENV_NAME/etc/conda/activate.d/00_isolate_from_ros.sh" ]; then
     ok "hook activate.d instalado (quita ROS Humble / robotpkg del entorno)"
   else
-    no "esta maquina exporta /opt/ros o /opt/openrobots: sim_main.py fallara en 'import pinocchio' — corre scripts/09_isolate_conda_env.sh"
+    no "esta maquina exporta /opt/ros o /opt/openrobots: sim_main.py fallara en 'import pinocchio' — corre scripts_sim/09_isolate_conda_env.sh"
   fi
 else
   ok "el entorno global no mete /opt/ros ni /opt/openrobots: no hace falta aislar"
@@ -116,9 +116,9 @@ EOF
 
 echo "== 9. Certificados TLS (televuer :8012 y WebRTC :60001) =="
 for f in "$HOME/.config/xr_teleoperate/cert.pem" "$HOME/.config/xr_teleoperate/key.pem"; do
-  [ -f "$f" ] && ok "$f" || no "FALTA $f  (corre scripts/02_gen_certs.sh)"
+  [ -f "$f" ] && ok "$f" || no "FALTA $f  (corre scripts_sim/02_gen_certs.sh)"
 done
 
 echo "== 10. Entorno 'tv' (cliente de teleoperacion) =="
 TVPY="$CONDA_BASE/envs/tv/bin/python"
-[ -x "$TVPY" ] && ok "$($TVPY --version 2>&1)" || no "falta el entorno tv — corre scripts/01_install_host.sh"
+[ -x "$TVPY" ] && ok "$($TVPY --version 2>&1)" || no "falta el entorno tv — corre scripts_sim/01_install_host.sh"

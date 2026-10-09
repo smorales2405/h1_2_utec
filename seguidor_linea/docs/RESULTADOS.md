@@ -10,7 +10,7 @@ con ella, se grabaron los recorridos nuevos y **la percepción (Hito 2) está he
 (apartado 5). **La estimación, el control y el supervisor (Hito 3) están escritos y probados sin robot**
 (apartado 6), y el simulacro en el robot salió bien tras corregir tres fallos que destapó. De ellos sale la velocidad real y que **el robot avanza
 en diagonal, ~7.5° a la izquierda del eje de la cámara y un 14 % más rápido de lo mandado** (apartado 3). La respuesta al giro y el balanceo no
-dependen de la cinta y siguen valiendo. Lo siguiente es el visto bueno del Hito 3 y las tiradas del nivel 1.
+dependen de la cinta y siguen valiendo. **El nivel 1 está superado**: cinco tiradas reales (media escala, ±10° y escala 1) acabaron en la barra sin intervención (apartado 6).
 
 ## 1. Geometría de la cámara (Hito 1)
 
@@ -516,6 +516,58 @@ En el simulador deja de depender del factor de velocidad (con 1.0 y 1.3 la parad
 sombras en abanico; la línea se detecta entera en los dos casos, pero la confianza baja de ~0.9 a ~0.5.
 Por eso la velocidad plena se da desde 0.5 (antes 0.7) y SEGUIR pide 0.45 (antes 0.5).
 
+### Primeras tiradas reales: nivel 1 a media escala (2026-10-08)
+
+Tras el visto bueno, `./seguidor_linea.sh --nivel 1` (escala 0.5: vx 0.2 m/s, vyaw 0.25 rad/s como
+máximo). Métricas con `herramientas/metricas.py` (sección 9 del PDF); datos en
+`datos/tirada_20261008_<hora>_nivel1_escala0.5/`:
+
+| Tirada | Salida (línea respecto del robot) | Tiempo | Error lateral pies: medio / máximo | Puntera: medio / máximo | Línea vista | Intervenciones | Roll / pitch máx. | \|vyaw\| máx. | Parada prevista |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `050411` | −1.7 cm, +5.2° | 18.6 s | 1.8 / 4.0 cm | 1.1 / 5.9 cm | 92 % | 0 | 2.4° / 1.5° | 0.09 rad/s | +9.6 cm pasada la barra |
+| `050643` | −4.6 cm, −1.0° | 17.2 s | 3.4 / 11.2 cm | 2.7 / 9.5 cm | 93 % | 0 | 2.3° / 2.1° | 0.16 rad/s | +9.1 cm pasada la barra |
+| `015424` (10-10), girado a la izquierda | −10.1 cm, −11.2° | 19.1 s | 5.8 / 16.7 cm | 4.4 / 16.2 cm | 91 % | 0 | 2.2° / 2.1° | 0.20 rad/s | +9.8 cm |
+| `015841` (10-10), girado a la derecha | +1.0 cm, +10.0° | 19.4 s | 2.3 / 4.3 cm | 0.8 / 2.7 cm | 93 % | 0 | 2.1° / 1.7° | 0.08 rad/s | +10.0 cm |
+| `020241` (10-10), **escala 1** | −7.0 cm, −2.7° | 11.9 s | 2.4 / 11.1 cm (tras 3 s: 0.8 / 2.3) | 2.6 / 10.2 cm | 92 % | 0 | 2.3° / 3.0° | 0.33 rad/s | +9.0 cm |
+
+- **Las dos acaban en FIN sin intervención**, siempre en SEGUIMIENTO: ninguna pérdida de línea. El 7–8 %
+  sin línea es el tramo final a ciegas (la barra sale de la vista a 0.31 m).
+- **El máximo de `050643` (11 cm) es del arranque:** en el primer segundo y medio el robot se va a la
+  izquierda (avanza 7.5° a la izquierda de la cámara y el giro tarda ~0.4 s en llegar); a los 5 s está
+  corregido. En régimen el ángulo de la línea se queda en +7–8°: la cámara mira 7.5° a la derecha para que
+  el robot ande sobre la línea, como dice el modelo de avance.
+- **Cerca de la barra el robot apenas frena:** con vx 0.19 anda a 0.21–0.25 m/s (×1.2, como en los
+  datasets), pero con vx 0.116 sigue a 0.17–0.20 m/s (×1.6). La parada no se ve afectada porque usa la
+  velocidad medida con la barra (0.19–0.21 m/s al final); el factor 1.14 solo vale cerca de vx 0.2.
+- **vyaw oscila ±0.02–0.03 rad/s a 1.43 Hz** (el balanceo de yaw de cada paso entra por el rumbo de la
+  cámara). La marcha lo filtra (t63 ~0.5 s); en la suavidad de las órdenes da 0.010 rad/s entre ciclos.
+- La marcha se queda quieta ~1 s después de `StopMove`.
+- **Dónde paró (visto por el operador, prevista ~+10 cm):** `050643`, el centro del pie izquierdo sobre el
+  centro de la barra (la puntera ~+12 cm) y el derecho, más atrás, solo la toca con la punta; `015424`, el
+  centro de los pies ~7 cm antes del centro de la barra y la puntera pasada (~+6 cm); `015841` y `020241`,
+  los pies sobre la barra (fotos). **El tiempo de frenado supuesto (0.5 s) acierta en ±4 cm**: no se toca.
+- **Acaba girado a la derecha, y es lo esperado:** para andar sobre la línea la cámara (y el cuerpo) mira
+  ~7.5° a la derecha de ella (el robot avanza 7.5° a la izquierda de su eje); al parar se queda así, con el
+  pie izquierdo por delante del derecho.
+- **Nivel 1 superado en las cinco** (dos casi alineadas, ±10° a media escala y una a escala 1), sin
+  intervención y con el pie a menos de 30 cm.
+- **El peor arranque es girado a la izquierda** (`015424`): el robot avanza 18.5° a la izquierda de la línea
+  (11° + 7.5°) hasta que el giro llega, y el centro de los pies se separa 16.7 cm a los ~3 s; con los pies a
+  ±10 cm, el exterior queda cerca de los 30 cm. En el simulador, girar primero en el sitio hasta |α| < 5°
+  baja el peor caso de 12.3 a 7.7 cm (+1–1.4 s); modelar que el robot no anda por debajo de ~0.18 m/s solo
+  lo baja ~1 cm. Las dos opciones están escritas y desactivadas (`girar_primero_deg`, `v_minima`).
+- **Velocidad real frente a vx:** 0.116 → 0.17–0.20 m/s; 0.19 → 0.20–0.25; 0.23 → 0.26; 0.37 → 0.39. Andando
+  no baja de ~0.18 m/s, y por encima el factor es 1.06–1.2.
+- **Escala 1** (vx 0.4): 11.9 s, error de los pies tras el arranque ≤ 2.3 cm, vyaw hasta 0.33 rad/s sin
+  saturar (tope 0.5) y suavidad de 0.021 rad/s entre órdenes (el doble que a media escala).
+
+| Parada en `015841` (media escala) | Parada en `020241` (escala 1) |
+| --- | --- |
+| ![Parada a media escala](img/parada_015841.jpg) | ![Parada a escala 1](img/parada_020241_escala1.jpg) |
+- Percepción 4.9–5.0 ms (p95 9–11 ms); los fotogramas llegan al control con 17 ms de mediana (máx. 34).
+
+![Tirada 050643: línea, órdenes y barra](img/tirada_nivel1_050643.png)
+
 ## 7. Hallazgos del entorno
 
 - **El DDS no arranca con sudo** (`fs.protected_regular=2`, `/tmp/cdds.LOG` es de `unitree`): la cámara,
@@ -533,8 +585,9 @@ Por eso la velocidad plena se da desde 0.5 (antes 0.7) y SEGUIR pide 0.45 (antes
 
 ## 8. Pendiente
 
-- Enseñar el simulacro al instructor (Hito 3) y, con su visto bueno, primera tirada real del nivel 1 a
-  media escala.
+- Decidir si se activa girar primero en el sitio en las salidas muy giradas (y probarlo en el robot).
+- 6.3.4: probar vy para que el cuerpo vaya alineado con la línea (y pare alineado).
+- Niveles 2–4 cuando estén las pistas.
 - Medir en la primera tirada el tiempo de frenado tras `StopMove` (0.5 s supuesto) y la parada con cinta.
 
 - Grabar un recorrido con sombra (6.2.2), cuando esté.

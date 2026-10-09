@@ -236,6 +236,30 @@ class TestControl(unittest.TestCase):
         self.assertLess(lejos.vx, lleno.vx / CFG["control"]["vx_cerca_barra"])
         self.assertAlmostEqual(cerca.vx, lleno.vx, places=6)
 
+    def test_girar_primero_en_el_sitio(self):
+        import copy
+        cfg = copy.deepcopy(CFG)
+        cfg["control"]["girar_primero_deg"] = 10.0
+        ctl = Control(cfg, 0.5)
+        orden, info = ctl.calcular(0.0, estado(self.objetivo(-25.0)))
+        self.assertEqual(orden.vx, 0.0)
+        self.assertLess(orden.vyaw, 0.0)
+        self.assertTrue(info.get("girando"))
+        orden, info = ctl.calcular(0.05, estado(self.objetivo(-3.0)))     # ya alineado: anda
+        self.assertFalse(info.get("girando", False))
+        orden, info = ctl.calcular(0.10, estado(self.objetivo(-25.0)))    # solo al empezar
+        self.assertFalse(info.get("girando", False))
+        self.assertGreater(orden.vx, 0.0)
+
+    def test_velocidad_minima(self):
+        import copy
+        cfg = copy.deepcopy(CFG)
+        cfg["estimacion"]["v_minima"] = 0.18
+        ctl = Control(cfg, 0.5)
+        self.assertAlmostEqual(ctl.v_real(0.05), 0.18)
+        self.assertAlmostEqual(ctl.v_real(0.3), 0.3 * cfg["estimacion"]["factor_velocidad"])
+        self.assertEqual(ctl.v_real(0.0), 0.0)
+
     def test_sin_linea_no_anda(self):
         ctl = Control(CFG, 1.0)
         e = EstadoLinea(t=0.0, y=math.nan, theta=math.nan, kappa=math.nan, confianza=0.0, edad_s=math.inf,

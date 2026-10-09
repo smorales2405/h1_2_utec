@@ -122,6 +122,7 @@ class Estimador:
         self.desfase = e["desfase_imu_s"]
         self.postura_s = e["postura_s"]
         self.factor = e["factor_velocidad"]
+        self.v_minima = e.get("v_minima", 0.0)
         self.phi = math.radians(e["direccion_avance_deg"])
         self.d_giro = e["centro_giro_m"]
         self.tau_v = e["tau_velocidad_s"]
@@ -173,7 +174,7 @@ class Estimador:
             dt = min(0.02, t - self._t)
             tm = self._t + dt / 2
             yaw = self.imu.en(tm)[2]
-            objetivo = self.factor * self._vx_cmd
+            objetivo = max(self.v_minima, self.factor * self._vx_cmd) if self._vx_cmd > 0 else 0.0
             self._v += (objetivo - self._v) * min(1.0, dt / self.tau_v)
             self._c = self._c + self._v * dt * np.array([math.cos(yaw + self.phi), math.sin(yaw + self.phi)])
             self._t += dt

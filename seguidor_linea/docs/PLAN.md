@@ -182,7 +182,7 @@ Los lanzadores siguen el patrón de `comun.sh`: se reenvían solos por SSH si no
 | `herramientas/evaluar_percepcion.py` | 6.2 | % de detección, confianza, ms por fotograma, vídeo con la línea superpuesta, umbral fijo frente a adaptativo | PC | 2 | hecho |
 | `herramientas/reproducir.py` | Simulacro sin robot | Pasa un dataset por todo el lazo; signos, estados y error tras tapar la cámara | PC | 3 | hecho |
 | `herramientas/simular.py` | Simulacro sin robot | Tiradas simuladas de los cuatro niveles, con cambios del modelo de marcha | PC | 3 | hecho |
-| `herramientas/metricas.py` | Sección 9 | Error lateral, % de confianza, tiempo, roll y pitch máximos por tirada | PC | Cierre | |
+| `herramientas/metricas.py` | Sección 9 | Error lateral, % de confianza, tiempo, roll y pitch máximos por tirada | PC | Cierre | hecho |
 | `tests/` | Pruebas | Sintéticas (geometría, marcas, signos), del transporte y del vigilante; luego, sobre el dataset y del supervisor | PC con pytest; robot con unittest | 1–3 | en curso |
 
 ## a) En la PC
@@ -343,9 +343,11 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 
 **Niveles y cierre**
 
-- [ ] Nivel 1 a media velocidad y después a 0.4 m/s, ajustando con los registros
+- [x] Nivel 1 a media escala, dos tiradas con éxito (2026-10-08; salida casi alineada)
+- [x] Nivel 1 con salida girada ±10° y a escala 1 (0.4 m/s), 2026-10-10: tres tiradas más con éxito
 - [ ] Niveles 2, 3 y 4, en ese orden
-- [ ] `metricas.py` y el informe con las respuestas a 6.1–6.4
+- [x] `metricas.py`: métricas de la sección 9 por tirada
+- [ ] El informe con las respuestas a 6.1–6.4
 
 ## Confirmaciones
 

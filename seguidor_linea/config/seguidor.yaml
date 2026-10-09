@@ -54,6 +54,7 @@ estimacion:             # seguidor/estimacion.py (Hito 3); valores medidos en RE
   direccion_avance_deg: 7.5  # el robot avanza 7.5 grados a la izquierda del eje de la camara
   centro_giro_m: 0.14   # gira alrededor de un punto ~14 cm por detras de la camara (8-18 cm)
   tau_velocidad_s: 0.5  # la marcha tarda ~0.5 s en llegar a la vx mandada (como el giro: supuesto)
+  v_minima: 0.0         # andando no baja de esto: en las tiradas ~0.18 m/s (vx 0.116 -> 0.17-0.20). 0 = no se modela
   conf_usar: 0.35       # medidas con menos confianza no mueven la linea estimada
   paso_linea_m: 0.05
   confirmar: 5          # avistamientos seguidos para dar por buena la barra o la esquina
@@ -74,6 +75,7 @@ control:                # seguidor/control.py (Hito 3): pure pursuit sobre la di
   conf_minima: 0.3      # por debajo, vx = 0
   conf_plena: 0.5       # por encima, vx completa (con reflejos o sombras de patas la cinta da 0.5-0.6, 2026-10-06)
   frenar_alfa: true     # vx * cos(alfa): mas despacio cuanto mas torcido
+  girar_primero_deg: 0.0   # al empezar, si |alfa| pasa de esto, girar en el sitio antes de andar (0 = no)
   dvx_max: 0.5          # m/s^2: rampa de vx (la de frenado es el doble)
   dvyaw_max: 1.0        # rad/s^2: cambio maximo del giro mandado
   cerca_barra_m: 1.0    # a menos de esto de la barra...

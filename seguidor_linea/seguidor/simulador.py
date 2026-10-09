@@ -109,6 +109,7 @@ MARCHA = {
     "factor": 1.14, "direccion_avance_deg": 7.5, "centro_giro_m": 0.14, "x_puntera_m": -0.019,
     "retardo_s": 0.15, "tau_giro_s": 0.30, "tau_v_s": 0.40, "ganancia_giro": 0.95,
     "deriva": 0.026, "balanceo_yaw_deg": 1.4, "zancada_hz": 0.7, "zona_muerta_sitio": 0.12,
+    "v_minima": 0.0,      # andando no baja de esto (en el robot ~0.18 m/s: con vx 0.116 va a 0.17-0.20)
 }
 
 
@@ -168,7 +169,7 @@ class RobotSimulado:
         t_o, vx, _vy, vyaw = self._orden
         if self.t - p["retardo_s"] - t_o > 1.0:        # Move dura 1 s
             vx, vyaw = 0.0, 0.0
-        v_obj = p["factor"] * vx
+        v_obj = max(p["v_minima"], p["factor"] * vx) if vx > 0 else 0.0
         anda = self.v > 0.03 or vx > 0
         w_obj = p["ganancia_giro"] * vyaw
         if not anda and abs(vyaw) < p["zona_muerta_sitio"]:

@@ -48,14 +48,17 @@ class Control:
         self.k_curv = c["k_curvatura"]
         self.conf_min, self.conf_plena = c["conf_minima"], c["conf_plena"]
         self.frenar_alfa = c.get("frenar_alfa", True)
+        self.girar_primero = math.radians(c.get("girar_primero_deg", 0.0))   # 0 = no
         self.dvx, self.dvyaw = c["dvx_max"], c["dvyaw_max"]
         self.cerca_barra, self.vx_cerca_barra = c["cerca_barra_m"], c["vx_cerca_barra"]
         self.phi = math.radians(e["direccion_avance_deg"])
         self.factor = e["factor_velocidad"]
+        self.v_minima = e.get("v_minima", 0.0)
         self.d_giro = e["centro_giro_m"]
         self.reiniciar()
 
     def reiniciar(self):
+        self._arranque = True        # hasta alinearse por primera vez (girar_primero)
         self._t = None
         self._vx = 0.0
         self._vyaw = 0.0
@@ -75,6 +78,15 @@ class Control:
             return self._rampa(dt, 0.0, 0.0), {"alfa": math.nan, "vx_deseada": 0.0}
         Ld = max(0.3, math.hypot(ox + self.d_giro, oy))
         alfa = self.alfa(est)
+        if self._arranque and self.girar_primero > 0:
+            if abs(alfa) > self.girar_primero / 2:
+                # salida muy girada: girar en el sitio antes de andar (andando se abre ~10 cm hasta que el giro
+                # llega, 2026-10-10)
+                vyaw = _recortar(1.2 * alfa, self.vyaw_max)
+                if abs(vyaw) < 0.15:
+                    vyaw = math.copysign(0.15, alfa)
+                return self._rampa(dt, 0.0, vyaw), {"alfa": alfa, "vx_deseada": 0.0, "girando": True}
+            self._arranque = False
 
         curv = self.ganancia * 2.0 * math.sin(alfa) / Ld
         h = min(1.0, max(0.0, (est.confianza - self.conf_min) / (self.conf_plena - self.conf_min)))
@@ -92,15 +104,19 @@ class Control:
             vx *= self.vx_cerca_barra
         sesgo = self.sesgo if vx > 0 else 0.0
         hueco = self.vyaw_max - abs(sesgo)
-        if abs(curv) * self.factor * vx > hueco:      # el giro no cabe: mas despacio, misma curvatura
+        if abs(curv) * self.v_real(vx) > hueco:      # el giro no cabe: mas despacio, misma curvatura
             vx = hueco / (abs(curv) * self.factor)
 
         vx_d = vx
         if self._vx > 0 and vx_d > 0:
             self._integral = _recortar(self._integral + alfa * dt, 0.5)
-        vyaw = curv * self.factor * vx_d + sesgo + self.ki * self._integral
+        vyaw = _recortar(curv * self.v_real(vx_d), hueco) + sesgo + self.ki * self._integral
         orden = self._rampa(dt, vx_d, vyaw)
         return orden, {"alfa": alfa, "vx_deseada": vx_d, "curvatura": curv, "h_conf": h, "g_curv": g}
+
+    def v_real(self, vx):
+        """Velocidad real del robot con vx mandada: factor x vx, pero andando no baja de v_minima."""
+        return max(self.v_minima, self.factor * vx) if vx > 0 else 0.0
 
     def _rampa(self, dt, vx, vyaw):
         dvx = vx - self._vx

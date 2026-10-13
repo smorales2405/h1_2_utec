@@ -1,0 +1,54 @@
+{
+ "ir": {
+  "fx": 378.8092041015625,
+  "fy": 378.8092041015625,
+  "cx": 321.52960205078125,
+  "cy": 235.98672485351562,
+  "ancho": 640,
+  "alto": 480,
+  "modelo": "distortion.brown_conrady",
+  "coefs": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ]
+ },
+ "escala_prof": 0.0010000000474974513,
+ "fps": 30,
+ "emisor": true,
+ "color": {
+  "fx": 604.1116943359375,
+  "fy": 603.5626831054688,
+  "cx": 321.32781982421875,
+  "cy": 236.3570098876953,
+  "ancho": 640,
+  "alto": 480,
+  "modelo": "distortion.inverse_brown_conrady",
+  "coefs": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ]
+ },
+ "prof": {
+  "fx": 378.8092041015625,
+  "fy": 378.8092041015625,
+  "cx": 321.52960205078125,
+  "cy": 235.98672485351562,
+  "ancho": 640,
+  "alto": 480,
+  "modelo": "distortion.brown_conrady",
+  "coefs": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ]
+ },
+ "nota": "captura del 2026-10-09 con el servidor del seguidor (sin extrinseco: se usa el tipico); mediana de 15 fotogramas de profundidad. Objetos: tenis, cubo y la bola de espuma (fuera del reto)."
+}

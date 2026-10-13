@@ -1,0 +1,17 @@
+# Entorno propio del PC2 (~/utec/manipulacion/.venv). unitree_sdk2py no va aqui: instalar_entorno.sh le
+# pone un .pth hacia ~/pc2_offline/src/unitree_sdk2_python, sin modificar esa carpeta.
+# pinocchio 4.1, como la PC (alli viene de robotpkg con numpy 1.26). En pypi, pin 4.1.0 trae cmeel-boost
+# 1.89, que exige numpy 2.2: por eso aqui numpy es la 2.2 y el codigo vale para las dos.
+pin==4.1.0
+numpy>=2.2,<2.3
+scipy==1.15.2
+opencv-python==4.11.0.86
+pyrealsense2==2.58.4.10922
+pymodbus==3.6.9
+pyzmq==27.2.0
+cyclonedds==0.10.2
+pyyaml
+flask
+pytest
+# colisiones con el gemelo (sin render en el PC2)
+mujoco==3.14.0

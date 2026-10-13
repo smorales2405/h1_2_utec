@@ -1,0 +1,124 @@
+# Configuracion de la manipulacion del H1-2 (reto R40-RT-H1_2-0002).
+# Limites, ganancias y tiempos viven aqui, no en el codigo (seccion 5 del PDF). Ademas:
+#   config/montaje.yaml            mesa, zona, bandejas, cruz y ArUco (herramientas/medir_montaje.py)
+#   config/objetos.yaml            tabla por objeto: medidas, color, agarre y fuerza (hito 2)
+#   config/calibracion_<fecha>.yaml  camara-torso y marcadores del dorso (calibrar_camara_torso.py)
+# Los topes de la seccion 10 se aplican ademas en el codigo: aqui se pueden bajar, no subir.
+
+red:
+  iface: eth0                             # DDS de Unitree: solo por el cable interno del robot
+  zmq_fotogramas: tcp://127.0.0.1:5556    # camara_servidor.py (root) -> procesos del usuario
+  manos: {izq: 192.168.124.211, der: 192.168.124.210}   # al reves que la documentacion de Unitree
+  puerto_manos: 6000
+
+camara:
+  fps: 30
+  ancho: 640
+  alto: 480
+  color: true           # el IR izquierdo va siempre
+  profundidad: true
+  emisor: true          # sin el, el tablero negro pierde profundidad
+  puerto_video: 5000    # mosaico de depuracion en http://<robot>:5000 (0 = sin video)
+
+brazo:                  # manip/brazo.py, con los patrones de caja_cuadrado.py
+  hz: 50
+  kp: 100.0             # <= 150 (seccion 10). Con 100 el brazo se queda ~5 grados corto
+  kd: 2.0
+  kp_cintura: 200.0     # la cintura (indice 12) se sujeta en la q medida al entrar
+  kd_cintura: 5.0
+  t_rampa_entrada_s: 12.0
+  t_rampa_salida_s: 5.0     # >= 5 s (seccion 10)
+  tope_seguir_rad: 0.035    # la rampa de entrada sigue la postura medida sin apartarse mas de 2 grados
+  t_min_mov_s: 8.0          # >= max(8 s, el minimo medido en 6.3): se sube con la curva de pasos
+  vel_max_rad_s: 0.5        # seccion 10; la minima sacudida tiene un pico de 1.875 * dq / T
+  err_seguimiento_max_rad: 0.25   # mas que esto con el brazo quieto -> choque o arm_sdk sin efecto
+  margen_limites_rad: 0.05
+  limites:              # web n URDF, como caja_cuadrado.py; indices de arm_sdk
+    12: [-2.35, 1.57]
+    13: [-3.14, 1.57]
+    14: [-0.38, 3.40]
+    15: [-2.66, 2.66]
+    16: [-0.95, 1.60]
+    17: [-2.967, 2.75]
+    18: [-0.4625, 0.349]
+    19: [-1.012, 1.012]
+    20: [-3.14, 1.57]
+    21: [-3.40, 0.38]
+    22: [-2.66, 2.66]
+    23: [-0.95, 1.60]
+    24: [-2.75, 2.967]
+    25: [-0.4625, 0.349]
+    26: [-1.012, 1.012]
+
+mano:                   # manip/mano.py; registros y trampas en la memoria del proyecto
+  speed_cierre: 100     # sobreimpulso con FORCE_SET 500: +112 gf a 50, +202 a 100, +637 a 250
+  speed_abrir: 300
+  cierre: [0, 0, 0, 0, 300, -1]   # hasta donde se manda cerrar cada DOF (el pulgar a 0 choca con los dedos)
+  force_set_max: 800    # seccion 10: tope por dedo, escrito antes de cada cierre
+  force_set_abierta: 800    # el que se deja al abrir (nunca el de fabrica, 2000 = sin limite)
+  corte_gf: 1200        # fuerza medida que dispara la salida segura
+  abierta_min: 900      # ANGLE_ACT de los cuatro dedos por encima de esto = mano abierta
+  t_abrir_s: 3.0        # si no abre en este tiempo: borrar error (1004) y reintentar
+  t_base_s: 10.0        # linea base de fuerza: mano abierta, sin carga y >= 10 s desde la ultima suelta
+  hz_lectura: 30        # cada DOF publica cada ~30.7 ms
+
+supervisor:
+  palabra: MOVER
+  hz: 50
+  yaw_max_deg: 5.0          # seccion 10
+  inclinacion_max_deg: 10.0
+  paso_pierna_rad: 0.10     # una junta de pierna que se aparta mas que esto de la postura inicial = paso
+  lowstate_max_s: 0.5
+  fotograma_max_s: 1.0
+  mano_max_s: 0.5
+  fsm_cada_s: 2.0           # lee la FSM en segundo plano; distinta de 201 -> salida segura
+  boton_parada: null        # elegir con lectores.sh mando-vivo: uno sin funcion en FSM 201
+  joystick_para: true       # un eje fuera de cero hace andar al robot: salida segura
+  salida_por_observacion: true  # salida segura: tras subir la mano, observacion -> reposo y solo entonces peso 0
+
+planificacion:          # manip/planificacion.py; alturas del punto de agarre sobre la mesa
+  altura_segura_m: 0.15     # ningun punto de paso por debajo, salvo el descenso final
+  altura_transporte_m: 0.18 # los puntos de paso altos van aqui: entre ellos el brazo no baja de la de seguridad
+  altura_suelta_m: 0.10     # el objeto por encima de las paredes de 4 cm de la bandeja
+  altura_aproximacion_m: 0.06   # donde empieza el descenso final
+  holgura_m: 0.02           # distancia minima del robot a mesa, bandejas y cuerpo en el gemelo
+  holgura_agarre_m: 0.005   # en el descenso final y el agarre, los dedos pueden acercarse mas a la mesa
+  muestras_tramo: 8         # puntos por tramo en la comprobacion contra el gemelo
+  entrada_lado_m: 0.08      # agarre de lado: se baja a esta distancia del objeto y se entra en horizontal
+  tol_pos_m: 0.003          # IK
+  palma_abajo_tol_deg: 35
+  guinada_tol_deg: 20       # el ancho de la mano a lo largo del lado largo de una caja, con esto de margen
+  dedos_abajo_deg: [15, 55] # agarre de lado: los dedos inclinados hacia abajo
+  yema_abajo_tol_deg: 45
+  semillas: 12
+
+contacto:               # nivel 1: la yema del indice toca la diana
+  vel_descenso_m_s: 0.01
+  umbral_gf: 120            # sobre la linea base (medir en el hito 2 con la bascula)
+  maximo_gf: 300            # seccion 4: fuerza de contacto <= 300 gf
+  bajada_max_m: 0.04        # bajo la altura esperada de la diana, sin contacto -> se aborta
+
+percepcion:             # manip/percepcion.py
+  paso_px: 2                # se usa 1 de cada 2 pixeles de profundidad en cada eje
+  altura_min_m: 0.012       # lo que sobresale de la mesa (los reflejos dan 15-25 mm: filtro por tamano)
+  altura_nucleo_m: 0.02     # se agrupa por encima de esto (todos los objetos miden >= 4 cm)
+  altura_max_m: 0.20
+  resolucion_m: 0.003       # vista desde arriba
+  margen_zona_m: 0.05       # se mira la zona de recogida ampliada esto
+  area_min_m2: 0.0012       # menos que esto es ruido (un reflejo de 2 cm son 0.0004)
+  plano_vivo: true          # reajusta el plano de la mesa en cada escena (RANSAC alrededor del calibrado)
+  movido_m: 0.02            # un objeto se da por movido si su centro cambia mas que esto...
+  movido_deg: 10.0          # ...o gira mas que esto
+  confianza_min: 0.5
+  color_min: 0.35           # fraccion de la mancha del color de la clase...
+  geometria_min: 0.3        # ...y parecido de alto y planta: si falta uno, es desconocido
+
+calibracion:
+  marcador_lado_m: 0.05     # cuadrado negro, medido con regla
+  diccionario: DICT_4X4_50
+  ids: {izq: 0, der: 1}
+  poses_min: 15
+
+registro:
+  carpeta: datos
+  hz: 50

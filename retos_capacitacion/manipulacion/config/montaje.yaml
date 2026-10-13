@@ -1,0 +1,61 @@
+# Montaje del reto. mesa: la escribe herramientas/medir_montaje.py.
+# zona_recogida, bandejas y cruz: las fija el plan (marco del torso).
+zona_recogida:
+  x: [0.4, 0.52]
+  y: [-0.13, 0.13]
+bandejas:
+  A:
+    centro: [0.42, 0.27]
+    hueco_m: 0.12
+    pared_m: 0.003
+    alto_m: 0.04
+    color: null
+  B:
+    centro: [0.56, 0.27]
+    hueco_m: 0.12
+    pared_m: 0.003
+    alto_m: 0.04
+    color: null
+  C:
+    centro: [0.42, -0.27]
+    hueco_m: 0.12
+    pared_m: 0.003
+    alto_m: 0.04
+    color: null
+  D:
+    centro: [0.56, -0.27]
+    hueco_m: 0.12
+    pared_m: 0.003
+    alto_m: 0.04
+    color: null
+cruz: [0.46, 0.0]
+fecha: 2026-10-12 22:36
+origen: dataset_20261013_112444_mesa_20261013 (15 fotogramas); calibracion urdf 2026-10-12
+  22:36
+mesa:
+  plano:
+    n: [0.009168, 0.02059, 0.999746]
+    d: 0.11401
+  T_torso_mesa:
+  - [0.999022, 0.043255, 0.009168, 0.332657]
+  - [-0.043436, 0.998844, 0.02059, -0.033112]
+  - [-0.008267, -0.020968, 0.999746, -0.116405]
+  - [0.0, 0.0, 0.0, 1.0]
+  yaw_deg: -2.49
+  superficie:
+    x: [0.0, 0.523]
+    y: [-0.408, 0.405]
+  labio_alto_m: 0.037
+  asas:
+    izq:
+      y: 0.482
+      alto: 0.15
+      x: [0.007, 0.472]
+    der:
+      y: -0.483
+      alto: 0.135
+      x: [0.011, 0.478]
+  aruco_torso:
+    3: [0.7988, -0.424, -0.1126]
+    4: [0.3884, 0.33, -0.1244]
+    5: [0.3568, -0.3997, -0.1091]

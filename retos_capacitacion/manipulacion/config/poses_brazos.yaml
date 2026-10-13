@@ -1,0 +1,18 @@
+# Pose de observacion de cada brazo (q de 7 juntas, orden de arm_sdk): las manos fuera de la
+# mesa y de la vista. Cada tirada va del reposo a ella con los dos brazos en espejo, trabaja
+# desde ella y vuelve por ella al reposo antes de bajar el peso. La genera
+# herramientas/poses_brazos.py con el gemelo; se prueba en el robot en el hito 3.
+generadas: herramientas/poses_brazos.py
+semilla: 0
+reposo_medido:
+  izq: [0.282, 0.24, -0.109, 0.68, -0.0, 0.031, -0.005]
+  der: [0.289, -0.241, 0.122, 0.707, 0.003, 0.049, 0.01]
+observacion:
+  izq: [0.6165, 0.4589, 1.3252, -0.5119, -1.8007, 0.094, 0.2571]
+  der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
+alternativas_izq:
+- [0.7937, 0.3048, 1.1722, -0.7949, -1.966, 0.1883, 0.56]
+- [0.3626, 0.9253, 0.7459, 0.172, -1.951, -0.015, -0.8058]
+- [1.0286, 0.2624, 1.4864, -0.6148, -1.3648, -0.2037, -0.6399]
+- [0.7932, 0.9168, 1.3198, -0.5146, -0.8392, 0.0712, -0.0169]
+- [1.2523, 0.0816, 1.4051, -0.8505, -1.5896, 0.2069, -0.2884]

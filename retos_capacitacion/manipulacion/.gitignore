@@ -1,0 +1,7 @@
+# Registros de cada tirada, grabaciones y datasets sinteticos (cientos de MB); tests/datos si va (captura de prueba)
+/datos/
+# Entorno propio del PC2 y copia del modelo que hace desplegar.sh en el robot
+.venv/
+modelo/
+# Salen personas del laboratorio y el repo es publico: solo en local
+montajes/toma_frontal.jpeg

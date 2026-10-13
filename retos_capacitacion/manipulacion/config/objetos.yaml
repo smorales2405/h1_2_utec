@@ -1,0 +1,74 @@
+# Tabla por objeto (secciones 4 y 6.4 del PDF). Medidas y pesos confirmados el 2026-10-12; el agarre,
+# FORCE_SET y SPEED se miden en el hito 2 con la bascula (herramientas/fuerza_mano.py) y se apuntan aqui.
+#   forma: esfera (medidas = [diametro]), caja (medidas = [largo, ancho, alto], largo en x del objeto),
+#          cilindro de pie (medidas = [diametro, alto])
+#   simetria_deg: el yaw en planta se da modulo esto (0 = sin orientacion medible)
+#   color: rangos HSV de OpenCV (H 0-179); se ajustan con las imagenes reales del hito 2
+#   agarre: los que se prueban, en orden: arriba (palma abajo) | lado (palma vertical, dedos 15-55 grados abajo)
+#   force_set: gf por DOF [menique, anular, medio, indice, pulgar flexion, pulgar rotacion]; -1 = no cierra
+#   bandeja: la asigna el instructor al empezar (A-D de montaje.yaml)
+
+objetos:
+  tenis:
+    altura_agarre_m: 0.035       # del punto de agarre sobre la mesa
+    nombre: pelota de tenis
+    forma: esfera
+    medidas_m: [0.070]
+    masa_kg: 0.0587
+    simetria_deg: 0
+    color: {nombre: amarillo, hsv_min: [25, 80, 80], hsv_max: [42, 255, 255]}
+    agarre: [arriba, lado]
+    force_set: [300, 300, 300, 300, 350, -1]   # sin datos de banco: medir
+    preforma: abierta_opuesta
+    bandeja: null
+  cubo:
+    altura_agarre_m: 0.035       # del punto de agarre sobre la mesa
+    nombre: cubo de PLA
+    forma: caja
+    medidas_m: [0.060, 0.060, 0.060]
+    masa_kg: 0.0605
+    simetria_deg: 90
+    guinada_tol_deg: 30          # si no hay plan alineado (6 cm de cara: a 30 grados, 6.9 de cuerda)
+    color: {nombre: blanco, hsv_min: [0, 0, 160], hsv_max: [179, 50, 255]}
+    agarre: [arriba, lado]
+    force_set: [-1, -1, 300, 300, 350, -1]     # tres dedos: 295/179/341 gf estable en banco; dos dedos gira
+    preforma: tres_dedos
+    bandeja: null
+  cilindro:
+    altura_agarre_m: 0.050       # del punto de agarre sobre la mesa
+    nombre: cilindro de PLA
+    forma: cilindro
+    medidas_m: [0.050, 0.080]
+    masa_kg: null                              # pesar
+    simetria_deg: 0
+    color: {nombre: azul, hsv_min: [95, 100, 50], hsv_max: [130, 255, 255]}
+    agarre: [lado, arriba]
+    force_set: [300, 300, 300, 300, 350, -1]
+    preforma: abierta_opuesta
+    bandeja: null
+  prisma:
+    altura_agarre_m: 0.030       # del punto de agarre sobre la mesa
+    nombre: prisma de PLA
+    forma: caja
+    medidas_m: [0.100, 0.040, 0.040]
+    masa_kg: null                              # pesar
+    simetria_deg: 180
+    guinada_tol_deg: 35          # si no hay plan alineado (4 cm de ancho: a 35 grados, 4.9 de cuerda)
+    color: {nombre: naranja, hsv_min: [3, 120, 100], hsv_max: [24, 255, 255]}
+    agarre: [arriba, lado]
+    force_set: [-1, -1, 300, 300, 350, -1]
+    preforma: tres_dedos
+    bandeja: null
+
+# Agarre en el marco de la mano (*_wrist_yaw_link; izq: dedos en +x, palma hacia -y, indice en +z; la
+# derecha es el espejo en y). El centro del objeto queda en `centro` (la y se cambia de signo en la
+# derecha); se ajusta con el gemelo y el robot en el hito 2.
+agarres:
+  arriba:   {centro: [0.215, -0.070, 0.010]}
+  lado:     {centro: [0.215, -0.065, 0.010]}
+
+# Preformas en ANGLE_SET (0 cerrado, 1000 abierto) antes de bajar; el cierre va a 0 con FORCE_SET.
+preformas:
+  abierta_opuesta: [1000, 1000, 1000, 1000, 1000, 0]    # pulgar girado enfrente de los dedos
+  tres_dedos:      [0, 0, 1000, 1000, 1000, 0]          # menique y anular recogidos
+  senalar:         [0, 0, 0, 1000, 600, 500]            # nivel 1: solo el indice extendido

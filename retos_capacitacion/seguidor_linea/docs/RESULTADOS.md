@@ -2,7 +2,7 @@
 
 Lo obtenido en el robot y en los datos, con su método, para el informe final (preguntas 6.1–6.4 del
 PDF) y para decidir sobre el [plan](PLAN.md). Cada apartado dice de dónde salen los números. Los datos
-crudos están en `seguidor_linea/datos/` de la PC y `~/utec/seguidor_linea/datos/` del robot, fuera de
+crudos están en `retos_capacitacion/seguidor_linea/datos/` de la PC y `~/utec/seguidor_linea/datos/` del robot, fuera de
 git; las figuras clave están copiadas en [`img/`](img/).
 
 Estado al 2026-10-05: **la cinta se cambió por una negra** (más oscura que el suelo); el Hito 1 se repitió

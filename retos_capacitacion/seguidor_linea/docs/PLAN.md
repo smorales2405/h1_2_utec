@@ -148,7 +148,7 @@ el supervisor recorre los mismos estados y registra la orden que mandaría, pero
 
 ## d) Scripts nuevos
 
-Todo va en `seguidor_linea/`, que se copia con rsync a `~/utec/seguidor_linea/` del PC2. De
+Todo va en `retos_capacitacion/seguidor_linea/`, que se copia con rsync a `~/utec/seguidor_linea/` del PC2. De
 `~/robotics40` solo se lee, por ejemplo `lectores_h1_2/build/lee_fsm`.
 
 Los lanzadores siguen el patrón de `comun.sh`: se reenvían solos por SSH si no están en el robot, fijan
@@ -202,15 +202,15 @@ cd ~/Documents/UTEC/CAPACITACION/code_cap
 
 ```bash
 cd ~/Documents/h1_2_utec
-rsync -av --exclude datos/ --exclude __pycache__ --exclude config/geometria.yaml seguidor_linea/ unitree@192.168.0.143:~/utec/seguidor_linea/
-rsync -av unitree@192.168.0.143:~/utec/seguidor_linea/config/geometria.yaml seguidor_linea/config/
-rsync -av unitree@192.168.0.143:~/utec/seguidor_linea/datos/ seguidor_linea/datos/
+rsync -av --exclude datos/ --exclude __pycache__ --exclude config/geometria.yaml retos_capacitacion/seguidor_linea/ unitree@192.168.0.143:~/utec/seguidor_linea/
+rsync -av unitree@192.168.0.143:~/utec/seguidor_linea/config/geometria.yaml retos_capacitacion/seguidor_linea/config/
+rsync -av unitree@192.168.0.143:~/utec/seguidor_linea/datos/ retos_capacitacion/seguidor_linea/datos/
 ```
 
 **Desarrollar y analizar sin robot:**
 
 ```bash
-cd ~/Documents/h1_2_utec/seguidor_linea
+cd ~/Documents/h1_2_utec/retos_capacitacion/seguidor_linea
 python3 -m pytest tests/
 python3 herramientas/analizar_escalon.py datos/escalon_<fecha>_<...> --figura
 python3 herramientas/evaluar_percepcion.py datos/dataset_<fecha>_<nombre> --video   # Hito 2
@@ -222,7 +222,7 @@ python3 herramientas/metricas.py datos/tirada_<fecha>                           
 **Lanzar en el robot**, en terminales separadas, porque el PC2 no tiene `tmux`:
 
 ```bash
-cd ~/Documents/h1_2_utec/seguidor_linea
+cd ~/Documents/h1_2_utec/retos_capacitacion/seguidor_linea
 ./camara_servidor.sh                                    # terminal 1 (pide sudo en el robot)
 ./ejecutar.sh herramientas/comprobar.py                 # terminal 2
 ./ejecutar.sh herramientas/grabar_dataset.py --nombre nivel1_b
@@ -354,7 +354,7 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 - [x] ¿Se puede escribir el código antes de la sesión de 4 h? Sí: hay fase 0.
 - [x] ¿Quién pone la barra de fin de 60 cm? El responsable del reto; ya está puesta en la recta de 4 m. Las pistas de los niveles 2 a 4, sin fecha.
 - [x] ¿Se permite `escalon_vyaw.py` antes del Hito 3? Sí.
-- [x] ¿La carpeta va en la raíz del repo (`seguidor_linea/`) y en `~/utec/seguidor_linea/` del PC2? Sí.
+- [x] ¿La carpeta va en la raíz del repo (`seguidor_linea/`) y en `~/utec/seguidor_linea/` del PC2? Sí; el 2026-10-13 pasó a `retos_capacitacion/seguidor_linea/`, junto a la manipulación (en el PC2 sigue en `~/utec/seguidor_linea/`).
 - [ ] ¿Se trabaja por cable o por WiFi? Solo afecta a ver el vídeo y copiar datos, no al lazo.
 - [ ] ¿Quién opera el mando en las tiradas?
 - [ ] ¿Se puede instalar algo en el PC2, como pytest en `teleop_venv`? Si no, las pruebas del robot usan `unittest`.
@@ -362,7 +362,7 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 ## Fuentes
 
 - Enunciado: `~/Documents/UTEC/CAPACITACION/Reto_Seguidor_Linea_H1_2_Robotics40.pdf` (R40-RT-H1_2-0001 v1.0)
-- Capacitación: `~/Documents/UTEC/CAPACITACION/Capacitacion_H1_2_Robotics40.pdf` (R40-CAP-H1_2-0001) y su resumen en [`docs/CAPACITACION_H1_2.md`](../../docs/CAPACITACION_H1_2.md)
+- Capacitación: `~/Documents/UTEC/CAPACITACION/Capacitacion_H1_2_Robotics40.pdf` (R40-CAP-H1_2-0001) y su resumen en [`docs/CAPACITACION_H1_2.md`](../../../docs/CAPACITACION_H1_2.md)
 - Código de referencia: `code_cap/wasd.py`, `cuadrado.py`, `comun.sh` y `camara.sh`; en el robot, `~/robotics40/camara.py` (versión del 27 de septiembre)
 - Registros: `code_cap/datos_cuadrado/`, de donde salen los 49 giros del punto de partida
 - Medidas propias: ver [RESULTADOS.md](RESULTADOS.md)

@@ -37,12 +37,12 @@ robot, así que primero se despliega. Por cable: `ROBOT_SSH=unitree@192.168.123.
 
 ```bash
 # desplegar (desde la raiz del repo, en la PC); la geometria la escribe el robot: no pisarla
-rsync -av --exclude datos/ --exclude __pycache__ --exclude config/geometria.yaml seguidor_linea/ unitree@192.168.0.143:~/utec/seguidor_linea/
+rsync -av --exclude datos/ --exclude __pycache__ --exclude config/geometria.yaml retos_capacitacion/seguidor_linea/ unitree@192.168.0.143:~/utec/seguidor_linea/
 # traer la calibracion y los registros
-rsync -av unitree@192.168.0.143:~/utec/seguidor_linea/config/geometria.yaml seguidor_linea/config/
-rsync -av unitree@192.168.0.143:~/utec/seguidor_linea/datos/ seguidor_linea/datos/
+rsync -av unitree@192.168.0.143:~/utec/seguidor_linea/config/geometria.yaml retos_capacitacion/seguidor_linea/config/
+rsync -av unitree@192.168.0.143:~/utec/seguidor_linea/datos/ retos_capacitacion/seguidor_linea/datos/
 
-cd seguidor_linea
+cd retos_capacitacion/seguidor_linea
 ~/Documents/UTEC/CAPACITACION/code_cap/camara.sh parar   # la camara solo la abre un proceso
 ./camara_servidor.sh                       # IR sin emisor; --profundidad, --color, --emisor
 ./ejecutar.sh herramientas/comprobar.py    # antes de cada tirada: robot y camara, solo lectura

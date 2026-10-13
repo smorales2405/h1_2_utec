@@ -453,4 +453,4 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 - Manos: `~/Documents/inspire_hand_interface` (`Caracterizacion/exp2`, `exp3`, `resultados/MONTAJES.md`, `Control/`)
 - URDF con manos: `ros_h1_2_ws/src/h1_2_inspire_description/urdf/h1_2_with_RH56DFTP_hands.urdf`
 - MuJoCo: [`h1_2_mujoco/`](../../../h1_2_mujoco/) (`modelo_h1_2_manos.py`)
-- Patrón de procesos, cámara y lanzadores: [`seguidor_linea/`](../../../seguidor_linea/)
+- Patrón de procesos, cámara y lanzadores: [`seguidor_linea/`](../../seguidor_linea/)

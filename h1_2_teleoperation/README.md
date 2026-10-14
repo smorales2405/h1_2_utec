@@ -6,8 +6,10 @@ del operador, que lleva unas **Meta Quest 3**. Todo corre en el **PC2 del robot*
 `env_tv`). Desde este PC solo se lanza, por SSH, con los scripts de
 [`scripts/`](scripts/).
 
-La teleoperación **en simulación** (Isaac Sim) es otra cosa y está en
-[`README_SIM.md`](README_SIM.md), con sus scripts en `scripts_sim/`.
+Lo que corre en el robot está copiado en [`scripts_robot/`](scripts_robot/README.md),
+con los pasos para montarlo en otro H1-2 (§10). La teleoperación **en
+simulación** (Isaac Sim) es otra cosa y está en [`README_SIM.md`](README_SIM.md),
+con sus scripts en `scripts_sim/`.
 
 **Nada de esto se lanza sin el visto bueno del responsable del laboratorio.
 L2 + B en el mando es la parada de emergencia.**
@@ -33,7 +35,8 @@ L2 + B en el mando es la parada de emergencia.**
   `./teleop_xr.sh` se convierte en
   `ssh -t unitree@192.168.0.143 "cd ~/robotics40 && ./teleop_xr.sh"`.
 - **Siempre se ejecuta el código del robot.** Cambiar estos scripts aquí no
-  cambia el teleop; el teleop se cambia en `~/robotics40/meta` del robot.
+  cambia el teleop; el teleop se cambia en `~/robotics40/meta` del robot. Su
+  copia versionada está en [`scripts_robot/`](scripts_robot/README.md).
 - **Las gafas se conectan directamente al robot**, no a este PC. Por eso aquí no
   hace falta conda, SDK, CycloneDDS, ROS ni certificados.
 
@@ -69,7 +72,8 @@ comparadas por sha256 el 2026-10-06.
 
 **En el robot** ya está todo instalado; no hay que tocar nada:
 `~/robotics40/meta` (con `env_tv` y el certificado para la `.0.143`),
-`~/teleop_venv`, `~/inspire_ftp_dual_driver.py` y la D435i en el USB del PC2.
+`~/teleop_venv`, `~/inspire_ftp_dual_driver.py`, la D435i en el USB del PC2 y
+la WiFi TP-Link. En otro H1-2 hay que instalarlo: §10.
 
 ## 4. Antes de cada sesión
 
@@ -219,3 +223,20 @@ git show 1df4e32:h1_2_teleoperation/README_DEPLOY.md
 `patches/xr_teleoperate_h1_2_dq_ref.patch` y `xr_teleoperate_h1_2_tuning.patch`
 (con sus README) se conservan porque los cita `h1_2_joint_control/docs`. El
 teleop actual del robot no los aplica.
+
+## 10. Montar la teleoperación en otro H1-2
+
+Para otro H1-2 con manos Inspire RH56DFTP, mismo sistema operativo y el mismo
+adaptador WiFi (TP-Link Archer TX20U Plus):
+
+1. **WiFi del robot**: driver y conexión a la red del laboratorio, con
+   [`robot_config/wifi_tplink_tx20u_plus/`](../robot_config/wifi_tplink_tx20u_plus/README.md).
+   Se hace desde el PC por el cable interno, porque sin WiFi el robot no tiene
+   Internet.
+2. **El teleop**: copiar [`scripts_robot/`](scripts_robot/README.md) al robot,
+   recrear `xr_teleoperate`, `env_tv` y `teleop_venv`, y cambiar los valores
+   propios de ese robot: IP, hostname, interfaz WiFi, número de serie de la D435i,
+   IP y lateralidad de las manos, y el certificado. Todo paso a paso en su README.
+3. **Este PC**: `ssh-copy-id unitree@<IP>` y lanzar con
+   `ROBOT_SSH=unitree@<IP> ./teleop_xr.sh`. En las Quest:
+   `https://<IP>:8012/?ws=wss://<IP>:8012`.

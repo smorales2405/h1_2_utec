@@ -6,7 +6,10 @@ sobre [`xr_teleoperate`](https://github.com/unitreerobotics/xr_teleoperate) de U
 Este repositorio contiene **solo lo propio**: los scripts escritos para este
 despliegue y los parches al código de terceros. Los repositorios upstream no se
 vendorizan — se clonan siguiendo [`README_SIM.md`](h1_2_teleoperation/README_SIM.md) §5
-(el robot real no los necesita en este PC: corren en su PC2).
+(el robot real no los necesita en este PC: corren en su PC2). **Única excepción**:
+`h1_2_teleoperation/scripts_robot/` guarda las fuentes exactas de
+`unitree_sdk2_python` 1.0.1 e `inspire_hand_sdk` (ya parcheado) que usa el robot,
+porque no tienen commit conocido y son las versiones que funcionan.
 
 ```
 docs/
@@ -40,6 +43,8 @@ h1_2_teleoperation/
 │   ├── 12_launch_teleop_sim.sh   lanza xr_teleoperate en modo `--sim` contra el simulador
 │   ├── 13_check_sim.sh           diagnóstico del lado simulación
 │   └── 14_test_inspire_ftp_bridge.py   prueba del puente FTP del simulador, sin Isaac Sim
+├── scripts_robot/            Robot real: copia de lo que corre en el PC2 del robot, y cómo
+│                             montarlo en otro H1-2 (README.md)
 └── patches/
     ├── inspire_sdkpy_uint16.patch              corrige un fallo de inspire_sdkpy (ver abajo)
     ├── unitree_sim_isaaclab_inspire_ftp.patch  añade las manos RH56DFTP (FTP) al simulador
@@ -49,6 +54,9 @@ h1_2_teleoperation/
     └── xr_teleoperate_h1_2_{dq_ref,tuning}.patch  velocidad de referencia y sintonización del
                                                  H1-2 (resultado de h1_2_joint_control; el
                                                  teleop actual del robot no los aplica)
+
+robot_config/                 Configuración del sistema del PC2 del robot
+└── wifi_tplink_tx20u_plus/       driver de la WiFi USB TP-Link Archer TX20U Plus y conexión
 
 ros_h1_2_ws/                  Workspace ROS 2
 ├── setup_env.sh                  entorno del workspace

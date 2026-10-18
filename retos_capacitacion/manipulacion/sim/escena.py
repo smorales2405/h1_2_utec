@@ -12,6 +12,7 @@ Todo sale de config/montaje.yaml, config/objetos.yaml y la calibracion: aqui no 
 las del carrito que la camara no ve (patas y baldas) y la postura de pie por defecto.
 """
 
+import math
 import os
 import sys
 
@@ -31,6 +32,14 @@ ALTO_MESA = 0.855           # m del suelo a la superficie (usuario)
 # Postura de pie en FSM 201 leida de rt/lowstate el 2026-10-13 (orden DDS 0-26)
 POSTURA_PIE = [-0.009, -0.413, -0.038, 0.667, -0.371, -0.019, 0.015, -0.423, 0.014, 0.711, -0.379, 0.051,
                0.001, 0.282, 0.24, -0.109, 0.68, -0.0, 0.031, -0.005, 0.289, -0.241, 0.122, 0.707, 0.003, 0.049, 0.01]
+
+
+def postura_arnes(cfg):
+    """Las 27 juntas de pie en el arnes con los brazos a 0 (lo que manda herramientas/arnes.py)."""
+    c = cfg["cuerpo"]
+    return np.radians(np.r_[c["postura_pie_deg"], c["brazos_cero_deg"]])
+
+
 COLOR_BANDEJA = {"blanca": (0.92, 0.92, 0.90), "roja": (0.85, 0.08, 0.08), "azul": (0.05, 0.25, 0.85),
                  "naranja": (1.0, 0.45, 0.05)}
 COLORES_OBJETO = {"amarillo": (0.85, 0.95, 0.15), "blanco": (0.95, 0.95, 0.93), "azul": (0.05, 0.22, 0.80),
@@ -47,11 +56,12 @@ def _cache():
 
 
 BORDE_ARUCO = 0.2          # margen blanco de los impresos, en lados del cuadrado negro (fotos de montajes/)
+BORDE_ARUCO_MESA = 0.12    # los de las esquinas de la mesa: 6 mm de blanco en 5 cm, contra el labio (wincha, 2026-10-18)
 
 
 def textura_aruco(i, dicc="DICT_4X4_50", px=240, borde=BORDE_ARUCO):
     """PNG del marcador con su margen blanco (`borde` del lado a cada lado). Devuelve la ruta."""
-    ruta = os.path.join(_cache(), f"aruco_{dicc}_{i}_{px}.png")
+    ruta = os.path.join(_cache(), f"aruco_{dicc}_{i}_{px}" + ("" if borde == BORDE_ARUCO else f"_b{borde:g}") + ".png")
     if not os.path.exists(ruta):
         d = cv2.aruco.getPredefinedDictionary(getattr(cv2.aruco, dicc))
         m = cv2.aruco.generateImageMarker(d, int(i), px)
@@ -88,17 +98,17 @@ def _capsula(cuerpo, nombre, a, b, r, rgba, colision=True):
     return g
 
 
-def _marcador(spec, cuerpo, nombre, i, centro, R, lado_m, dicc):
+def _marcador(spec, cuerpo, nombre, i, centro, R, lado_m, dicc, borde=BORDE_ARUCO):
     """Un ArUco de lado `lado_m` (cuadrado negro) como placa fina con su textura, normal = R[:, 2]."""
     tex = spec.add_texture()
-    tex.name, tex.type, tex.file = f"tex_{nombre}", mujoco.mjtTexture.mjTEXTURE_2D, textura_aruco(i, dicc)
+    tex.name, tex.type, tex.file = f"tex_{nombre}", mujoco.mjtTexture.mjTEXTURE_2D, textura_aruco(i, dicc, borde=borde)
     mat = spec.add_material()
     mat.name = f"mat_{nombre}"
     mat.textures[int(mujoco.mjtTextureRole.mjTEXROLE_RGB)] = tex.name
     mat.texrepeat = [1, 1]
     mat.texuniform = False
     mat.specular, mat.shininess, mat.reflectance = 0.0, 0.0, 0.0
-    total = lado_m * (1 + 2 * BORDE_ARUCO) / 2       # con el margen blanco
+    total = lado_m * (1 + 2 * borde) / 2             # con el margen blanco
     g = cuerpo.add_geom()
     g.name, g.type = nombre, mujoco.mjtGeom.mjGEOM_BOX
     g.size = [total, total, 0.0005]
@@ -174,12 +184,14 @@ def _mesa(spec, montaje):
     return b, T_mesa
 
 
-def _bandeja(spec, nombre, b, centro_torso, plano, color):
-    """Bandeja abierta: fondo y cuatro paredes, sobre el plano de la mesa y con los ejes del torso."""
+def _bandeja(spec, nombre, b, centro_torso, plano, color, yaw=0.0):
+    """Bandeja abierta: fondo y cuatro paredes, sobre el plano de la mesa y con los ejes del torso girados `yaw`
+    (rad) alrededor de su normal."""
     from manip.montaje import punto_en_mesa
     c = punto_en_mesa({"mesa": {"plano": plano}}, centro_torso)
     n = np.asarray(plano["n"], float)
-    x = np.array([1.0, 0, 0]) - n[0] * n
+    x = np.array([math.cos(yaw), math.sin(yaw), 0.0])
+    x = x - (x @ n) * n
     x /= np.linalg.norm(x)
     R = np.column_stack([x, np.cross(n, x), n])
     cu = spec.worldbody.add_body()
@@ -238,21 +250,29 @@ def construir(montaje=None, objetos=None, cal=None, cfg=None, postura=None, con_
     colores = list(COLOR_BANDEJA)
     for k, (nombre, b) in enumerate(sorted(montaje.get("bandejas", {}).items() if con_bandejas else [])):
         color = COLOR_BANDEJA.get(b.get("color") or colores[k % len(colores)])
-        _bandeja(spec, nombre, b, b["centro"], plano, color)
+        # donde se midio con el [g] de las bandejas (el giro, respecto de la mesa) o su objetivo
+        from manip.montaje import bandeja_real
+        c, yaw_rel = bandeja_real(b)
+        yaw = math.radians(yaw_rel) + math.atan2(T_mesa[1, 0], T_mesa[0, 0]) if b.get("medida") else 0.0
+        _bandeja(spec, nombre, b, c, plano, color, yaw)
     lado_m = cfg["calibracion"]["marcador_lado_m"]
     dicc = cfg["calibracion"]["diccionario"]
-    # ArUco de la mesa: los medidos y, si falta alguno, en la esquina que le toca
+    # ArUco de la mesa: en sus esquinas con las medidas de wincha (mesa_fisica) o, sin ellas, los medidos y en
+    # la esquina que le toca el que falte. Los medidos no: la camara real los ve ~3 % mas separados (RESULTADOS
+    # §22) y aqui caerian bajo el labio
     me = montaje["mesa"]
     x0, x1 = me["superficie"]["x"]
     y0, y1 = me["superficie"]["y"]
-    from manip.montaje import MARGEN_MARCADOR as mg
+    from manip.montaje import MARGEN_MARCADOR, fisica
+    fis = fisica(montaje)
+    mg = fis["margen"] if fis else MARGEN_MARCADOR
     esquinas = {2: (x1 - mg, y1 - mg), 3: (x1 - mg, y0 + mg), 4: (x0 + mg, y1 - mg), 5: (x0 + mg, y0 + mg)}
     for i, (xm, ym) in esquinas.items():
         p = aplicar(T_mesa, [xm, ym, 0.0])
-        if str(i) in map(str, me.get("aruco_torso", {})):
+        if fis is None and str(i) in map(str, me.get("aruco_torso", {})):
             p = np.asarray(me["aruco_torso"].get(i, me["aruco_torso"].get(str(i))), float)
         R = T_mesa[:3, :3] @ np.diag([-1.0, -1.0, 1.0])      # el "arriba" del marcador hacia el robot
-        _marcador(spec, spec.worldbody, f"aruco_{i}", i, p, R, lado_m, dicc)
+        _marcador(spec, spec.worldbody, f"aruco_{i}", i, p, R, lado_m, dicc, BORDE_ARUCO_MESA)
     # ArUco del dorso de cada mano, con la calibracion (o su semilla)
     from manip import calibracion as cb
     T_dorso = cal.T_dorso if cal is not None else cb.T_DORSO_DEFECTO

@@ -47,6 +47,21 @@ def test_escala_de_tiempo(robot):
     b.parar()
 
 
+def test_la_escala_se_aplica_una_sola_vez(robot):
+    """El planificador da la duracion base y brazo.py la escala: con la escala 2, un tramo minimo dura 16 s, no 32."""
+    from manip.planificacion import Planificador
+    cfg = config.cargar()
+    pl = Planificador(cfg, config.cargar_montaje(), config.cargar_objetos(), None, escala_tiempo=2.0)
+    q = np.zeros(7)
+    assert pl.duracion(q, q + 0.1) == 8.0
+    b, _ = _brazo(robot, escala_tiempo=2.0)
+    ini = b.consigna()
+    fin = dict(ini)
+    fin[16] += 0.1
+    assert b.ir_a(fin, pl.duracion(q, q + 0.1)) == 16.0
+    b.parar()
+
+
 def test_ir_a_respeta_limites_y_no_mueve_la_cintura(robot):
     b, _ = _brazo(robot)
     c12 = b.consigna()[12]

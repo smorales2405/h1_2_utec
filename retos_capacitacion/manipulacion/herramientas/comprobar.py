@@ -30,7 +30,11 @@ def leer_mano(ip, puerto):
         return None
     try:
         sal = {}
-        for nombre, a in (("angulo", mm.ANGLE_ACT), ("fuerza", mm.FORCE_ACT), ("error", mm.ERROR), ("force_set", mm.FORCE_SET)):
+        for nombre, a in (("angulo", mm.ANGLE_ACT), ("fuerza", mm.FORCE_ACT), ("error", mm.ERROR), ("estado", mm.ESTADO),
+                          ("force_set", mm.FORCE_SET)):
+            if a in mm.BLOQUES_BYTE:            # un byte por DOF en 3 registros
+                sal[nombre] = mm.bytes_de(c.read_holding_registers(a, 3, 1).registers)
+                continue
             r = c.read_holding_registers(a, 6, 1)
             sal[nombre] = list(struct.unpack(">6h", struct.pack(">6H", *r.registers)))
         return sal
@@ -82,8 +86,10 @@ def main():
             malos += 1
             continue
         abierta = min(r["angulo"][:5]) > 900
+        fabrica = "  (de fabrica: manipulacion.py lo baja a 800 al empezar)" if min(r["force_set"]) >= 2000 else ""
         print(BIEN if not any(r["error"]) else MAL, f"{lado} ({ip}): angulos {r['angulo']}, fuerzas {r['fuerza']} gf, "
-              f"errores {r['error']}, FORCE_SET {r['force_set']}{'' if abierta else '  (no esta abierta)'}")
+              f"errores {r['error']}, estado {r['estado']}, FORCE_SET {r['force_set']}{fabrica}"
+              f"{'' if abierta else '  (no esta abierta)'}")
         malos += any(r["error"])
     print("Configuracion")
     ruta = config.ruta_calibracion()

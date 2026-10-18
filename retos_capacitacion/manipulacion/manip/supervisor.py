@@ -4,6 +4,7 @@ que da un objeto por terminado; ejecuta la salida segura.
     ESPERA -> ENTRADA (rampa de 12 s) -> A_OBSERVACION (los dos brazos, en espejo)
       -> por cada diana u objeto: OBSERVAR -> PLANIFICAR -> MOVER -> DESCENSO -> (TOCAR | CERRAR -> TRANSPORTE
          -> SOLTAR) -> VOLVER
+         agrupados por brazo: todos los de un brazo y luego los del otro (el que espera, en la observacion)
       -> SALIDA (observacion -> reposo, peso a 0 en >= 5 s) -> FIN
     cualquier estado con peso -> SALIDA_SEGURA: congelar, abrir la mano, subir a la altura de seguridad, salir
       por la pose de observacion al reposo y solo entonces bajar el peso.
@@ -46,6 +47,7 @@ class Supervisor:
         self.estado = "ESPERA"
         self.motivo_estado = ""
         self._plan_activo = None      # el plan que se esta ejecutando: la salida segura sale por sus puntos altos
+        self.al_estado = []           # funciones f(estado) a cada cambio de estado (pruebas: --parada-en)
         self.resultados = []
         self.c = cfg["contacto"]
         self.s = cfg["supervisor"]
@@ -55,6 +57,8 @@ class Supervisor:
     def _a(self, estado, motivo="", detalle=None):
         self.estado, self.motivo_estado = estado, motivo
         self.reg.evento(estado, motivo, detalle)
+        for f in self.al_estado:
+            f(estado)
 
     def q(self, lado):
         return self.robot.q()[JUNTAS_BRAZO[lado]]
@@ -135,6 +139,10 @@ class Supervisor:
             _, f = self.observar()
             dianas = self.detector_dianas(f)
             self._a("OBSERVAR", f"{len(dianas)} dianas", {"dianas": [np.round(d, 3).tolist() for d in dianas]})
+        # agrupadas por brazo (el de su lado), empezando por el de la primera; dentro de cada brazo, en su orden
+        if dianas:
+            primero = "izq" if dianas[0][1] >= 0 else "der"
+            dianas = sorted(dianas, key=lambda d: ("izq" if d[1] >= 0 else "der") != primero)
         for i, xy in enumerate(dianas):
             preferida = "izq" if xy[1] >= 0 else "der"
             plan = None
@@ -194,6 +202,7 @@ class Supervisor:
     def _niveles_objetos(self):
         pendientes = dict(self.asignacion)
         intentos = {k: 0 for k in pendientes}
+        en_curso = None             # el brazo que esta trabajando: sigue con sus objetos antes de pasar al otro
         while pendientes:
             esc, f = self.observar()
             vistos = {o.clase: o for o in esc.objetos if o.clase in pendientes and o.confianza >= self.cfg["percepcion"]["confianza_min"]}
@@ -201,14 +210,19 @@ class Supervisor:
                 self._a("PLANIFICAR", f"no veo ninguno de {sorted(pendientes)}")
                 break
             hecho = False
-            # primero los mas faciles: los que tienen plan; entre ellos, el mas cercano a su mano
-            for clase, o in sorted(vistos.items(), key=lambda kv: kv[1].p[0]):
+            # agrupados por brazo: primero los del brazo en curso (al empezar, el del objeto mas cercano); dentro de
+            # un brazo, el mas cercano primero. Si ninguno del brazo en curso tiene plan, pasa al otro.
+            def orden(kv):
+                lado_kv = self.pl.lado_de_bandeja(pendientes[kv[0]])
+                return (en_curso is not None and lado_kv != en_curso, float(kv[1].p[0]))
+            for clase, o in sorted(vistos.items(), key=orden):
                 bandeja = pendientes[clase]
                 lado = self.pl.lado_de_bandeja(bandeja)
                 plan = self.pl.coger(o, bandeja, self.q(lado), lado)
                 if not plan.comprobado:
                     self._a("PLANIFICAR", f"{clase} -> {bandeja}: {plan.motivo}", {"rechazos": plan.detalle.get("rechazos", [])})
                     continue
+                en_curso = lado
                 ok = self._coger(plan, f)
                 intentos[clase] += 1
                 self.resultados.append({"objeto": clase, "bandeja": bandeja, "mano": lado,

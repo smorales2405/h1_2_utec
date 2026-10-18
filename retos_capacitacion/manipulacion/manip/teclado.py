@@ -19,8 +19,10 @@ import tty
 
 
 class Teclado:
-    def __init__(self, al_pulsar, tecla=b" ", fd=None):
+    def __init__(self, al_pulsar, tecla=b" ", fd=None, al_teclear=None):
+        """al_teclear(caracter): ademas, cada tecla (herramientas/arnes.py)."""
         self.al_pulsar = al_pulsar
+        self.al_teclear = al_teclear
         self.tecla = tecla
         try:
             self.fd = sys.stdin.fileno() if fd is None else fd
@@ -55,13 +57,19 @@ class Teclado:
             if self.tecla in datos and not self.pulsada:
                 self.pulsada = True
                 self.al_pulsar()
+            if self.al_teclear is not None:
+                for ch in datos.decode(errors="ignore"):
+                    self.al_teclear(ch)
 
     def cerrar(self):
         self._fin.set()
         if self._hilo is not None:
             self._hilo.join(timeout=0.5)
         if self._viejo is not None:
-            termios.tcsetattr(self.fd, termios.TCSADRAIN, self._viejo)
+            try:
+                termios.tcsetattr(self.fd, termios.TCSADRAIN, self._viejo)
+            except (termios.error, OSError):     # el terminal ya no existe (SSH cortado)
+                pass
             self._viejo = None
 
     def __enter__(self):

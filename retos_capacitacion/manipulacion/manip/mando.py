@@ -19,6 +19,14 @@ def decodificar(wireless_remote) -> Mando:
     return Mando(botones=botones, lx=lx, ly=ly, rx=rx, ry=ry)
 
 
+def mascara(wireless_remote) -> int:
+    """Solo los botones (uint16), sin decodificar los ejes: para el hilo de control a 500 Hz."""
+    return (int(wireless_remote[2]) & 0xFF) | ((int(wireless_remote[3]) & 0xFF) << 8)
+
+
+L2B = (1 << BOTONES.index("L2")) | (1 << BOTONES.index("B"))
+
+
 def codificar(m: Mando) -> bytes:
     """Inverso de decodificar(), para las pruebas."""
     datos = bytearray(40)

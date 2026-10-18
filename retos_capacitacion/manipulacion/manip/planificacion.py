@@ -6,7 +6,8 @@ Requisitos del PDF que se comprueban en cada plan:
     bandeja): se mira el punto de agarre (o la yema) a lo largo de cada tramo, no solo en los puntos de paso
   - dentro de los limites del URDF (web n URDF, con margen) y sin colisiones en el gemelo: la mano, el brazo y
     el objeto que se lleva contra la mesa, el labio, las asas, las bandejas, el cuerpo y el otro brazo
-  - duraciones con la regla de brazo.py (>= 8 s, pico de 0.5 rad/s), por la escala de tiempo
+  - duraciones con la regla de brazo.py (>= 8 s, pico de 0.5 rad/s), SIN la escala de tiempo: la aplica
+    brazo.py, una sola vez (aplicarla tambien aqui duplicaba los tiempos: tramos de 32 s con la escala 2)
 Cada objeto lo coge la mano del lado de su bandeja (la otra no llega a esas bandejas: mapa de alcance).
 
 Agarres (objetos.yaml): "arriba" con la palma abajo; para cajas, el ancho de la mano (menique -> indice) a lo
@@ -44,7 +45,7 @@ class Planificador:
         self.observacion = {k: np.asarray(v, float) for k, v in (observacion or {}).items()}
         b = cfg["brazo"]
         self.t_min, self.vel_max = b["t_min_mov_s"], b["vel_max_rad_s"]
-        self.escala = escala_tiempo
+        self.escala = escala_tiempo     # solo para informar de lo que tardara el plan (la aplica brazo.py)
 
     # --- geometria ---------------------------------------------------------------------------------
     def punto(self, xy, altura):
@@ -61,11 +62,13 @@ class Planificador:
         return sup["x"][0] - margen <= x <= sup["x"][1] + margen and sup["y"][0] - margen <= y <= sup["y"][1] + margen
 
     def lado_de_bandeja(self, bandeja):
-        return "izq" if self.montaje["bandejas"][bandeja]["centro"][1] >= 0 else "der"
+        from .montaje import bandeja_real
+        return "izq" if bandeja_real(self.montaje["bandejas"][bandeja])[0][1] >= 0 else "der"
 
     def duracion(self, qa, qb):
-        return duracion_movimiento(float(np.abs(np.asarray(qb) - np.asarray(qa)).max()), self.t_min, self.vel_max,
-                                   self.escala)
+        """La duracion base del tramo (>= t_min, pico de vel_max). brazo.ir_a la recibe y la multiplica por la
+        escala de tiempo: aqui no se multiplica."""
+        return duracion_movimiento(float(np.abs(np.asarray(qb) - np.asarray(qa)).max()), self.t_min, self.vel_max)
 
     # --- tareas ----------------------------------------------------------------------------------------
     def _tareas_agarre(self, lado, clase, centro_xy, yaw, altura, tipo):
@@ -150,7 +153,8 @@ class Planificador:
         hs, ht = self.p["altura_segura_m"], self.p.get("altura_transporte_m", self.p["altura_segura_m"])
         ha, hsu = self.p["altura_aproximacion_m"], self.p["altura_suelta_m"]
         xy = objeto.p[:2]
-        sobre_b = np.asarray(self.montaje["bandejas"][bandeja]["centro"], float)
+        from .montaje import bandeja_real
+        sobre_b = bandeja_real(self.montaje["bandejas"][bandeja])[0]     # la medida con [g], o el objetivo
         self.mano_gemelo(lado, self.objetos["preformas"][o["preforma"]])
         ultimo, intentos, rechazos = None, 0, []
         for tipo in tipos:
@@ -290,12 +294,12 @@ class Planificador:
                     if d[0] < d[1]:
                         plan.motivo = f"tramo a '{p.nombre}': {d[2]}"
                         return plan
-            detalle.append((p.nombre, round(p.duracion, 1)))
+            detalle.append((p.nombre, round(p.duracion * self.escala, 1)))     # lo que tardara de verdad
             q_prev = p.q
         plan.comprobado = True
         plan.detalle.update({"tramos": detalle, "altura_min_fuera_del_descenso_m": round(float(h_min_fuera), 3),
                              "distancia_min_m": round(float(d_min), 4) if np.isfinite(d_min) else None,
-                             "duracion_s": round(sum(p.duracion for p in puntos), 1)})
+                             "duracion_s": round(sum(p.duracion for p in puntos) * self.escala, 1)})
         return plan
 
     def _colision(self, lado, q, M_mano_sujeto, plan, objeto_ignorado, nombre):

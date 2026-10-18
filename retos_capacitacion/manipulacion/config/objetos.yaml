@@ -6,7 +6,9 @@
 #   color: rangos HSV de OpenCV (H 0-179); se ajustan con las imagenes reales del hito 2
 #   agarre: los que se prueban, en orden: arriba (palma abajo) | lado (palma vertical, dedos 15-55 grados abajo)
 #   force_set: gf por DOF [menique, anular, medio, indice, pulgar flexion, pulgar rotacion]; -1 = no cierra
-#   bandeja: la asigna el instructor al empezar (A-D de montaje.yaml)
+#   bandeja: la que le toca, por color (o nombre A-D) de montaje.yaml; --asignacion la cambia. Orden fijado
+#            por el usuario el 2026-10-17: cilindro azul -> roja, pelota amarilla -> blanca, cubo blanco ->
+#            naranja, prisma naranja -> azul
 
 objetos:
   tenis:
@@ -20,7 +22,7 @@ objetos:
     agarre: [arriba, lado]
     force_set: [300, 300, 300, 300, 350, -1]   # sin datos de banco: medir
     preforma: abierta_opuesta
-    bandeja: null
+    bandeja: blanca
   cubo:
     altura_agarre_m: 0.035       # del punto de agarre sobre la mesa
     nombre: cubo de PLA
@@ -33,7 +35,7 @@ objetos:
     agarre: [arriba, lado]
     force_set: [-1, -1, 300, 300, 350, -1]     # tres dedos: 295/179/341 gf estable en banco; dos dedos gira
     preforma: tres_dedos
-    bandeja: null
+    bandeja: naranja
   cilindro:
     altura_agarre_m: 0.050       # del punto de agarre sobre la mesa
     nombre: cilindro de PLA
@@ -45,7 +47,7 @@ objetos:
     agarre: [lado, arriba]
     force_set: [300, 300, 300, 300, 350, -1]
     preforma: abierta_opuesta
-    bandeja: null
+    bandeja: roja
   prisma:
     altura_agarre_m: 0.030       # del punto de agarre sobre la mesa
     nombre: prisma de PLA
@@ -58,7 +60,7 @@ objetos:
     agarre: [arriba, lado]
     force_set: [-1, -1, 300, 300, 350, -1]
     preforma: tres_dedos
-    bandeja: null
+    bandeja: azul
 
 # Agarre en el marco de la mano (*_wrist_yaw_link; izq: dedos en +x, palma hacia -y, indice en +z; la
 # derecha es el espejo en y). El centro del objeto queda en `centro` (la y se cambia de signo en la

@@ -1,0 +1,58 @@
+# Masas de los brazos para la compensacion de gravedad (ganancias tuned_gff). NO EDITAR A MANO: la escribe
+# herramientas/gravedad_brazos.py a partir del ajuste de h1_2_joint_control (13_gravity_fit.py, 2026-09-08).
+# Por cuerpo de junta (marco de la junta del URDF del reto): masa y centro de masas. wrist_yaw lleva la mano
+# entera agrupada (dedos a 0); los dedos del URDF quedan sin masa.
+izq:
+  cuerpos:
+    shoulder_pitch:
+      masa_kg: 1.327
+      cdm_m: [-0.03024, 0.06042, 0.02416]
+    shoulder_roll:
+      masa_kg: 0.0031
+      cdm_m: [-28.37209, -0.91349, -76.25116]
+    shoulder_yaw:
+      masa_kg: 2.0438
+      cdm_m: [0.02174, -0.01256, -0.04328]
+    elbow:
+      masa_kg: 0.924
+      cdm_m: [0.07751, -0.05112, -0.08445]
+    wrist_roll:
+      masa_kg: 0.8329
+      cdm_m: [0.05096, -0.00212, 0.02104]
+    wrist_pitch:
+      masa_kg: 0.5974
+      cdm_m: [0.04447, -0.00027, -0.00459]
+    wrist_yaw:
+      masa_kg: 1.1378
+      cdm_m: [0.11747, -0.01069, -0.00032]
+  origen: gravity_params_20260908_145812.json
+  rms_ajuste_nm: 0.337
+  rms_urdf_nm: 2.574
+  rms_este_urdf_nm: 0.337
+der:
+  cuerpos:
+    shoulder_pitch:
+      masa_kg: 1.327
+      cdm_m: [-0.02055, -0.06042, -0.0444]
+    shoulder_roll:
+      masa_kg: 0.6677
+      cdm_m: [-0.11144, -0.02654, -0.31864]
+    shoulder_yaw:
+      masa_kg: 1.93
+      cdm_m: [0.0025, 0.00204, -0.03455]
+    elbow:
+      masa_kg: 0.8921
+      cdm_m: [0.07662, 0.02859, -0.0782]
+    wrist_roll:
+      masa_kg: 0.8133
+      cdm_m: [0.04817, -0.01558, 0.02013]
+    wrist_pitch:
+      masa_kg: 0.5833
+      cdm_m: [-0.05369, -0.01898, -0.00386]
+    wrist_yaw:
+      masa_kg: 1.0736
+      cdm_m: [0.15571, 0.02225, 0.00385]
+  origen: gravity_params_20260908_150409.json
+  rms_ajuste_nm: 0.36
+  rms_urdf_nm: 2.252
+  rms_este_urdf_nm: 0.36

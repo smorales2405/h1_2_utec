@@ -84,3 +84,14 @@ def test_mano_que_no_abre():
     sim.atascado = Terca({3})
     with pytest.raises(ManoSinRespuesta):
         mano.abrir()
+
+
+def test_error_y_estado_van_en_bytes():
+    # como la mano real por Modbus TCP: 3 registros con dos DOF cada uno; los 3 siguientes dan 0xFFFF
+    assert m.bytes_de([0x0102, 0x0300, 0x0005]) == [1, 2, 3, 0, 0, 5]
+    mano, sim = _mano()
+    sim.error[3] = 4
+    assert sim.read_holding_registers(m.ERROR, 6).registers[3:] == [0xFFFF] * 3
+    e = mano.leer()
+    assert e.error.tolist() == [0, 0, 0, 4, 0, 0]
+    assert e.estado.tolist() == [0] * 6

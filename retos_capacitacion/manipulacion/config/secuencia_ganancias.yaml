@@ -1,0 +1,371 @@
+# Secuencia de poses de los brazos para herramientas/comparar_ganancias.py. NO EDITAR A MANO: la escribe
+# herramientas/secuencia_ganancias.py a partir de la tirada simulada del nivel 2 en la PC (los objetos de
+# COLOCACION_SIM a las bandejas de ASIGNACION_SIM, agrupados por brazo).
+# Cada tramo: la consigna de los dos brazos al final (rad, orden de arm_sdk) y la duracion pedida sin la escala
+# de tiempo. El ultimo es el reposo: en el robot se sustituye por la postura medida al empezar.
+# fase: ida (reposo -> observacion), trabajo, vuelta (observacion -> reposo).
+# 34 tramos; solo movimiento, sin pausas ni rampas de peso: 4.7 min con la escala 1,
+# 9.4 min con la 2.
+# Parada (los dos brazos a la observacion en linea recta, desde 1/4, 1/2, 3/4 y el final de cada tramo de
+# trabajo): ningun choque con el propio cuerpo;
+# la distancia minima al cuerpo y el peor choque con la mesa (que en la prueba no esta) van en 'paradas'.
+origen: simulacion del nivel 2 en la PC
+colocacion:
+  cilindro:
+  - [0.42, 0.01]
+  - 0.0
+  tenis:
+  - [0.45, 0.1]
+  - 0.0
+  cubo:
+  - [0.43, -0.07]
+  - 0.3
+  prisma:
+  - [0.5, -0.04]
+  - 1.57
+asignacion: {tenis: A, cilindro: B, cubo: C, prisma: D}
+observacion:
+  izq: [0.6165, 0.4589, 1.3252, -0.5119, -1.8007, 0.094, 0.2571]
+  der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
+duracion_movimiento_min: {escala_1: 4.7, escala_2: 9.4}
+tramos:
+- n: 1
+  fase: ida
+  estado: A_OBSERVACION
+  nombre: observacion
+  lado: ambos
+  objeto: null
+  base_s: 8.0
+  izq: [0.6165, 0.4589, 1.3252, -0.5119, -1.8007, 0.094, 0.2571]
+  der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
+- n: 2
+  fase: trabajo
+  estado: MOVER
+  nombre: sobre
+  lado: izq
+  objeto: cilindro
+  base_s: 8.81
+  izq: [-0.3267, 0.3918, -1.0234, 0.0015, 0.2081, 0.299, 0.6089]
+  der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
+- n: 3
+  fase: trabajo
+  estado: MOVER
+  nombre: aproximar
+  lado: izq
+  objeto: cilindro
+  base_s: 8.0
+  izq: [-0.3116, 0.1868, -1.067, 0.4605, 0.2839, 0.2925, 0.7118]
+  der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
+- n: 4
+  fase: trabajo
+  estado: DESCENSO
+  nombre: agarrar
+  lado: izq
+  objeto: cilindro
+  base_s: 8.0
+  izq: [-0.3154, 0.1774, -1.0697, 0.4819, 0.2783, 0.299, 0.6985]
+  der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
+- n: 5
+  fase: trabajo
+  estado: TRANSPORTE
+  nombre: levantar
+  lado: izq
+  objeto: cilindro
+  base_s: 8.0
+  izq: [-0.3267, 0.3918, -1.0234, 0.0015, 0.2081, 0.299, 0.6089]
+  der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
+- n: 6
+  fase: trabajo
+  estado: TRANSPORTE
+  nombre: sobre_bandeja
+  lado: izq
+  objeto: cilindro
+  base_s: 8.0
+  izq: [-0.5761, 0.7312, -0.8715, 0.3751, 0.0455, 0.2036, 0.2916]
+  der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
+- n: 7
+  fase: trabajo
+  estado: TRANSPORTE
+  nombre: bajar_a_bandeja
+  lado: izq
+  objeto: cilindro
+  base_s: 8.0
+  izq: [-0.5768, 0.5614, -0.921, 0.7283, 0.0946, 0.0541, 0.382]
+  der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
+- n: 8
+  fase: trabajo
+  estado: VOLVER
+  nombre: retirar_de_bandeja
+  lado: izq
+  objeto: cilindro
+  base_s: 8.0
+  izq: [-0.5531, 0.6973, -0.8722, 0.5363, 0.0722, -0.0551, 0.4143]
+  der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
+- n: 9
+  fase: trabajo
+  estado: VOLVER
+  nombre: observacion
+  lado: izq
+  objeto: cilindro
+  base_s: 8.24
+  izq: [0.6165, 0.4589, 1.3252, -0.5119, -1.8007, 0.094, 0.2571]
+  der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
+- n: 10
+  fase: trabajo
+  estado: MOVER
+  nombre: sobre
+  lado: izq
+  objeto: tenis
+  base_s: 9.24
+  izq: [-0.0992, 0.1826, -0.3392, -0.0775, 0.6632, 0.2855, 0.0041]
+  der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
+- n: 11
+  fase: trabajo
+  estado: MOVER
+  nombre: aproximar
+  lado: izq
+  objeto: tenis
+  base_s: 8.0
+  izq: [-0.2979, 0.2713, -0.951, 0.472, 0.1986, 0.2766, 0.7557]
+  der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
+- n: 12
+  fase: trabajo
+  estado: DESCENSO
+  nombre: agarrar
+  lado: izq
+  objeto: tenis
+  base_s: 8.0
+  izq: [-0.3199, 0.2407, -0.9575, 0.544, 0.1798, 0.299, 0.7124]
+  der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
+- n: 13
+  fase: trabajo
+  estado: TRANSPORTE
+  nombre: levantar
+  lado: izq
+  objeto: tenis
+  base_s: 8.0
+  izq: [-0.0992, 0.1826, -0.3392, -0.0775, 0.6632, 0.2855, 0.0041]
+  der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
+- n: 14
+  fase: trabajo
+  estado: TRANSPORTE
+  nombre: sobre_bandeja
+  lado: izq
+  objeto: tenis
+  base_s: 8.0
+  izq: [0.066, 0.4173, -0.173, -0.1892, 0.6675, 0.299, 0.0332]
+  der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
+- n: 15
+  fase: trabajo
+  estado: TRANSPORTE
+  nombre: bajar_a_bandeja
+  lado: izq
+  objeto: tenis
+  base_s: 8.0
+  izq: [0.0084, 0.3802, -0.2151, 0.0294, 0.6782, 0.299, -0.0055]
+  der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
+- n: 16
+  fase: trabajo
+  estado: VOLVER
+  nombre: retirar_de_bandeja
+  lado: izq
+  objeto: tenis
+  base_s: 8.0
+  izq: [0.0593, 0.4381, -0.1693, -0.1703, 0.6584, 0.2584, 0.0167]
+  der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
+- n: 17
+  fase: trabajo
+  estado: VOLVER
+  nombre: observacion
+  lado: izq
+  objeto: tenis
+  base_s: 9.22
+  izq: [0.6165, 0.4589, 1.3252, -0.5119, -1.8007, 0.094, 0.2571]
+  der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
+- n: 18
+  fase: trabajo
+  estado: MOVER
+  nombre: sobre
+  lado: der
+  objeto: cubo
+  base_s: 9.03
+  izq: [0.6165, 0.4589, 1.3252, -0.5119, -1.8007, 0.094, 0.2571]
+  der: [-0.3054, -0.4503, 0.6076, -0.1228, -0.6077, 0.2111, 0.2365]
+- n: 19
+  fase: trabajo
+  estado: MOVER
+  nombre: aproximar
+  lado: der
+  objeto: cubo
+  base_s: 8.0
+  izq: [0.6165, 0.4589, 1.3252, -0.5119, -1.8007, 0.094, 0.2571]
+  der: [-0.2702, -0.3109, 0.6934, 0.3419, -0.8003, 0.0487, -0.0982]
+- n: 20
+  fase: trabajo
+  estado: DESCENSO
+  nombre: agarrar
+  lado: der
+  objeto: cubo
+  base_s: 8.0
+  izq: [0.6165, 0.4589, 1.3252, -0.5119, -1.8007, 0.094, 0.2571]
+  der: [-0.2864, -0.2796, 0.7018, 0.4166, -0.8054, 0.0738, -0.0808]
+- n: 21
+  fase: trabajo
+  estado: TRANSPORTE
+  nombre: levantar
+  lado: der
+  objeto: cubo
+  base_s: 8.0
+  izq: [0.6165, 0.4589, 1.3252, -0.5119, -1.8007, 0.094, 0.2571]
+  der: [-0.3054, -0.4503, 0.6076, -0.1228, -0.6077, 0.2111, 0.2365]
+- n: 22
+  fase: trabajo
+  estado: TRANSPORTE
+  nombre: sobre_bandeja
+  lado: der
+  objeto: cubo
+  base_s: 8.0
+  izq: [0.6165, 0.4589, 1.3252, -0.5119, -1.8007, 0.094, 0.2571]
+  der: [-0.135, -0.7975, 0.4093, -0.2146, -0.6178, 0.1899, 0.2543]
+- n: 23
+  fase: trabajo
+  estado: TRANSPORTE
+  nombre: bajar_a_bandeja
+  lado: der
+  objeto: cubo
+  base_s: 8.0
+  izq: [0.6165, 0.4589, 1.3252, -0.5119, -1.8007, 0.094, 0.2571]
+  der: [-0.1705, -0.699, 0.4942, 0.0092, -0.6608, 0.1701, 0.2349]
+- n: 24
+  fase: trabajo
+  estado: VOLVER
+  nombre: retirar_de_bandeja
+  lado: der
+  objeto: cubo
+  base_s: 8.0
+  izq: [0.6165, 0.4589, 1.3252, -0.5119, -1.8007, 0.094, 0.2571]
+  der: [-0.1442, -0.8136, 0.4233, -0.1847, -0.6161, 0.1271, 0.2257]
+- n: 25
+  fase: trabajo
+  estado: VOLVER
+  nombre: observacion
+  lado: der
+  objeto: cubo
+  base_s: 9.06
+  izq: [0.6165, 0.4589, 1.3252, -0.5119, -1.8007, 0.094, 0.2571]
+  der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
+- n: 26
+  fase: trabajo
+  estado: MOVER
+  nombre: sobre
+  lado: der
+  objeto: prisma
+  base_s: 10.98
+  izq: [0.6165, 0.4589, 1.3252, -0.5119, -1.8007, 0.094, 0.2571]
+  der: [-0.4923, -0.0707, 0.3394, 0.072, -1.1278, 0.299, 0.737]
+- n: 27
+  fase: trabajo
+  estado: MOVER
+  nombre: aproximar
+  lado: der
+  objeto: prisma
+  base_s: 8.0
+  izq: [0.6165, 0.4589, 1.3252, -0.5119, -1.8007, 0.094, 0.2571]
+  der: [-0.4862, -0.1315, 0.6129, 0.5783, -0.7447, 0.2212, 0.0695]
+- n: 28
+  fase: trabajo
+  estado: DESCENSO
+  nombre: agarrar
+  lado: der
+  objeto: prisma
+  base_s: 8.0
+  izq: [0.6165, 0.4589, 1.3252, -0.5119, -1.8007, 0.094, 0.2571]
+  der: [-0.5198, -0.0848, 0.6193, 0.7091, -0.7551, 0.2479, 0.0589]
+- n: 29
+  fase: trabajo
+  estado: TRANSPORTE
+  nombre: levantar
+  lado: der
+  objeto: prisma
+  base_s: 8.0
+  izq: [0.6165, 0.4589, 1.3252, -0.5119, -1.8007, 0.094, 0.2571]
+  der: [-0.4923, -0.0707, 0.3394, 0.072, -1.1278, 0.299, 0.737]
+- n: 30
+  fase: trabajo
+  estado: TRANSPORTE
+  nombre: sobre_bandeja
+  lado: der
+  objeto: prisma
+  base_s: 8.0
+  izq: [0.6165, 0.4589, 1.3252, -0.5119, -1.8007, 0.094, 0.2571]
+  der: [-0.5797, -0.4219, 0.0808, 0.3412, -0.9519, 0.0455, 0.714]
+- n: 31
+  fase: trabajo
+  estado: TRANSPORTE
+  nombre: bajar_a_bandeja
+  lado: der
+  objeto: prisma
+  base_s: 8.0
+  izq: [0.6165, 0.4589, 1.3252, -0.5119, -1.8007, 0.094, 0.2571]
+  der: [-0.5737, -0.3617, 0.1183, 0.6407, -1.0029, -0.0431, 0.4551]
+- n: 32
+  fase: trabajo
+  estado: VOLVER
+  nombre: retirar_de_bandeja
+  lado: der
+  objeto: prisma
+  base_s: 8.0
+  izq: [0.6165, 0.4589, 1.3252, -0.5119, -1.8007, 0.094, 0.2571]
+  der: [-0.5443, -0.4484, 0.0678, 0.3979, -0.8958, -0.1235, 0.5681]
+- n: 33
+  fase: trabajo
+  estado: VOLVER
+  nombre: observacion
+  lado: der
+  objeto: prisma
+  base_s: 10.11
+  izq: [0.6165, 0.4589, 1.3252, -0.5119, -1.8007, 0.094, 0.2571]
+  der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
+- n: 34
+  fase: vuelta
+  estado: SALIDA
+  nombre: reposo
+  lado: ambos
+  objeto: null
+  base_s: 8.0
+  izq: [0.282, 0.24, -0.109, 0.68, 0.0, 0.031, -0.005]
+  der: [0.289, -0.241, 0.122, 0.707, 0.003, 0.049, 0.01]
+  reposo: true
+paradas:
+- {tramo: 2, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: 0.0}
+- {tramo: 3, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: -0.0267}
+- {tramo: 4, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: -0.0197}
+- {tramo: 5, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: -0.0263}
+- {tramo: 6, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: 0.0}
+- {tramo: 7, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: -0.0035}
+- {tramo: 8, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: -0.0012}
+- {tramo: 9, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: 0.0}
+- {tramo: 10, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: 0.0}
+- {tramo: 11, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: -0.0224}
+- {tramo: 12, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: -0.0169}
+- {tramo: 13, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: -0.0146}
+- {tramo: 14, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: 0.0}
+- {tramo: 15, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: 0.0}
+- {tramo: 16, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: 0.0}
+- {tramo: 17, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: 0.0}
+- {tramo: 18, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: 0.0}
+- {tramo: 19, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: 0.0}
+- {tramo: 20, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: 0.0}
+- {tramo: 21, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: 0.0}
+- {tramo: 22, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: 0.0}
+- {tramo: 23, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: 0.0}
+- {tramo: 24, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: 0.0}
+- {tramo: 25, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: 0.0}
+- {tramo: 26, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: 0.0}
+- {tramo: 27, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: 0.0}
+- {tramo: 28, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: 0.0}
+- {tramo: 29, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: 0.0}
+- {tramo: 30, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: 0.0}
+- {tramo: 31, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: 0.0}
+- {tramo: 32, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: 0.0}
+- {tramo: 33, dist_cuerpo_m: 0.02, pareja: '', choque_mesa_m: 0.0}

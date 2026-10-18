@@ -18,6 +18,7 @@ from manip import mano as mm
 from manip.cinematica import T_punto
 from manip.geometria import Plano, T, aplicar, inv, rpy_a_R
 from manip.mensajes import JUNTAS_BRAZO, LADOS
+from manip.montaje import bandeja_real
 from sim.camara_virtual import CamaraVirtual
 from sim.escena import Estado, angle_set_a_rad, construir
 from sim.mano_simulada import ManoSimulada
@@ -108,7 +109,8 @@ class MundoSimulado:
         """La bandeja en la que esta el objeto (por su centro), o None."""
         p = self.poses[clase][:3, 3]
         for k, b in self.montaje["bandejas"].items():
-            if abs(p[0] - b["centro"][0]) < b["hueco_m"] / 2 and abs(p[1] - b["centro"][1]) < b["hueco_m"] / 2:
+            c, _ = bandeja_real(b)
+            if abs(p[0] - c[0]) < b["hueco_m"] / 2 and abs(p[1] - c[1]) < b["hueco_m"] / 2:
                 return k
         return None
 
@@ -146,7 +148,7 @@ class MundoSimulado:
         self.manos[lado].poner_objeto({})
         M = self._T_mano(lado) @ self.T_rel[lado]
         xy = M[:3, 3][:2]
-        base = 0.003 if any(abs(xy[0] - b["centro"][0]) < b["hueco_m"] / 2 and abs(xy[1] - b["centro"][1]) < b["hueco_m"] / 2
+        base = 0.003 if any(np.all(np.abs(xy - bandeja_real(b)[0]) < b["hueco_m"] / 2)
                             for b in self.montaje["bandejas"].values()) else 0.0
         self.poner(clase, xy, math.atan2(M[1, 0], M[0, 0]), base)
 

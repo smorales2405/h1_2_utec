@@ -33,6 +33,32 @@ def diferencia(A, B):
     return 1000 * float(np.linalg.norm(A[:3, 3] - B[:3, 3])), math.degrees(float(np.linalg.norm(R_a_rotvec(D[:3, :3]))))
 
 
+def profundidad_en_marcador(carpeta, cin, cal, meta, ventana=3):
+    """Con la camara ya calibrada (el color): donde tiene que estar el centro de cada marcador y lo que mide la
+    profundidad alli (mediana de (2*ventana+1)^2 pixeles validos). [(n, lado, z esperada, z medida)] de las
+    muestras con prof/. Si la profundidad mide de mas (la mesa ~3 % mas grande, RESULTADOS §22), sale aqui."""
+    with open(os.path.join(carpeta, "muestras.json")) as f:
+        filas = json.load(f)
+    ip = Intrinsecos.de_meta(meta["prof"])
+    T_prof_torso = inv(T_color_prof(meta)) @ inv(cal.T_torso_color)
+    sal = []
+    for m in filas:
+        if "prof" not in m or m["lado"] not in cal.T_dorso:
+            continue
+        P = cv2.imread(os.path.join(carpeta, m["prof"]), cv2.IMREAD_UNCHANGED)
+        if P is None:
+            continue
+        p = T_prof_torso @ (cin.fk(m["lado"], np.array(m["q"]), "mano") @ cal.T_dorso[m["lado"]])[:, 3]
+        u, v = (int(round(c)) for c in ip.proyectar(p[None, :3])[0])
+        if not (ventana <= u < P.shape[1] - ventana and ventana <= v < P.shape[0] - ventana):
+            continue
+        w = P[v - ventana:v + ventana + 1, u - ventana:u + ventana + 1].astype(float)
+        w = w[w > 0] * float(meta.get("escala_prof", 0.001))
+        if len(w) >= 5:
+            sal.append((m["n"], m["lado"], float(p[2]), float(np.median(w))))
+    return sal
+
+
 def leer(carpeta, cfg, usar="q"):
     with open(os.path.join(carpeta, "meta.json")) as f:
         meta = json.load(f)
@@ -80,6 +106,17 @@ def main():
     print(f"Kabsch de los centros (con el dorso ajustado) frente al ajuste completo: {mm:.1f} mm, {deg:.2f} grados")
     extra = {"grabacion": os.path.basename(os.path.normpath(a.grabacion)), "sin_marcador": perdidas,
              "error_px_por_muestra": inf["error_px_por_muestra"], "error_mm_por_muestra": inf["error_mm_por_muestra"]}
+    prof = profundidad_en_marcador(a.grabacion, cin, cal, meta)
+    if prof:
+        ze, zm = np.array([p[2] for p in prof]), np.array([p[3] for p in prof])
+        r = zm / ze
+        b, c = np.polyfit(ze, r, 1)
+        print(f"profundidad en el marcador / la esperada: {np.median(r):.4f} de mediana (p10-p90 "
+              f"{np.percentile(r, 10):.4f}-{np.percentile(r, 90):.4f}) en {len(r)} muestras a {ze.min():.2f}-"
+              f"{ze.max():.2f} m; con la distancia: {c + b * ze.min():.4f} a {ze.min():.2f} m, {c + b * ze.max():.4f} "
+              f"a {ze.max():.2f} m")
+        extra["profundidad_marcador"] = {"mediana": round(float(np.median(r)), 4), "pendiente_por_m": round(float(b), 4),
+                                         "muestras": [[n, l, round(z1, 4), round(z2, 4)] for n, l, z1, z2 in prof]}
     if a.consigna:
         _, mc, _ = leer(a.grabacion, cfg, usar="q_cmd")
         cal_c, inf_c = cb.ajustar(mc, cin, intr, cal0, lado_m)

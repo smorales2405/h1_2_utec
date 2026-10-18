@@ -85,6 +85,7 @@ python3 -m pytest tests/                                                 # MUJOC
 | `manip/supervisor.py`, `manip/vigilante.py` | Máquina de estados, salida segura y causas de parada |
 | `manip/registro.py`, `manip/teclado.py`, `manip/fuentes.py` | Registro de tiradas, tecla de parada, cámara o dataset |
 | `sim/` | Gemelo en MuJoCo, cámara virtual, colisiones, robot y mano simulados, mundo simulado, visor (`--sim --visor`) |
+| `sim/editor_observacion/` | Interfaz de prueba (PyQt5) para elegir la pose de observación: sliders en espejo, poses en JSON, camino reposo ↔ pose con colisiones; no escribe en `config/` |
 | `herramientas/` | Medida, poses, calibración, datos sintéticos, evaluación, grabación y comprobación |
 | `tests/` | Pruebas sin robot (pytest) |
 | `datos/` | Grabaciones y registros (fuera de git) |

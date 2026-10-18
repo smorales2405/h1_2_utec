@@ -48,6 +48,9 @@ def test_captura_real(cin):
     cal = cb.desde_urdf(cin, T_COLOR_PROF)
     mon = copy.deepcopy(config.cargar_montaje())
     mon["zona_recogida"] = {"x": [0.50, 0.66], "y": [-0.22, 0.12]}      # los objetos estaban mas lejos
+    # el plano de la mesa de esa captura con la camara del URDF (2026-10-09: 0.118 m bajo el torso, a nivel), no
+    # el del montaje de hoy, que puede estar medido con otra camara (calibrada: 2.4 grados de diferencia)
+    mon["mesa"]["plano"] = {"n": [0.0, 0.0, 1.0], "d": 0.118}
     esc = Percepcion(cfg, mon, config.cargar_objetos(), cal, cin).procesar(f)
     clases = sorted(o.clase for o in esc.objetos)
     assert clases.count("tenis") == 1 and clases.count("cubo") == 1

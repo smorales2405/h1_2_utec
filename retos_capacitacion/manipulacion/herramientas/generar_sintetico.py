@@ -30,7 +30,7 @@ from manip.geometria import T, rpy_a_R  # noqa: E402
 from manip.mensajes import LADOS  # noqa: E402
 from manip.registro import carpeta_tirada, guardar_json  # noqa: E402
 from sim.camara_virtual import CamaraVirtual  # noqa: E402
-from sim.escena import Estado, construir  # noqa: E402
+from sim.escena import Estado, construir, postura_arnes  # noqa: E402
 
 T_COLOR_PROF_TIPICO = np.array([[1, 0, 0, 0.015], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1.0]])
 
@@ -47,14 +47,18 @@ def calibracion(a, cfg):
     verdad.T_torso_color = desviar(base.T_torso_color, a.giro_camara, a.mover_camara)
     verdad.T_dorso = {"izq": desviar(base.T_dorso["izq"], (0, 0, 7), (4, -3, 1)),
                       "der": desviar(base.T_dorso["der"], (0, 0, -12), (-5, 2, 1))}
-    m, info = construir(cal=verdad, con_bandejas=False)
+    pc = config._leer(os.path.join(config.CONFIG, "poses_calibracion.yaml"))
+    poses = pc["poses"]
+    # en el arnes, de pie con los brazos a 0 (el otro brazo en `inicio`)
+    m, info = construir(cal=verdad, con_bandejas=False,
+                        postura=list(postura_arnes(cfg)) if pc.get("modo") == "arnes" else None)
     est = Estado(m, info)
     cam = CamaraVirtual(m, info, verdad, ruido_mm=1.0)
-    poses = config._leer(os.path.join(config.CONFIG, "poses_calibracion.yaml"))["poses"]
     carpeta = carpeta_tirada(config.ruta_datos(cfg), "calibracion", "sintetica")
     os.makedirs(os.path.join(carpeta, "color"), exist_ok=True)
+    os.makedirs(os.path.join(carpeta, "prof"), exist_ok=True)
     rng = np.random.default_rng(a.semilla)
-    reposo = {"izq": info["postura"][13:20], "der": info["postura"][20:27]}
+    reposo = pc.get("inicio") or {"izq": info["postura"][13:20], "der": info["postura"][20:27]}
     muestras = []
     for lado in LADOS:
         for k, q in enumerate(poses[lado]):
@@ -65,10 +69,11 @@ def calibracion(a, cfg):
             f = cam.fotograma(est)
             nombre = f"color/{lado}_{k:02d}.png"
             cv2.imwrite(os.path.join(carpeta, nombre), f.color)
+            cv2.imwrite(os.path.join(carpeta, nombre.replace("color/", "prof/")), f.prof)
             # la q "medida": la verdadera con el ruido de los encoders (~1 mrad)
             q_med = np.asarray(q) + rng.normal(0, a.ruido_q, 7)
             muestras.append({"n": len(muestras), "lado": lado, "q": q_med.round(5).tolist(), "q_cmd": list(q),
-                             "color": nombre})
+                             "color": nombre, "prof": nombre.replace("color/", "prof/")})
             if len(muestras) == 1:
                 guardar_meta(carpeta, f.meta)
     guardar_json(os.path.join(carpeta, "muestras.json"), muestras)

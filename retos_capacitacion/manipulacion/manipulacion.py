@@ -3,7 +3,7 @@
 
     ./manipulacion.sh --nivel 1 --simulacro            # hito 3: todo el lazo sin publicar en rt/arm_sdk
     ./manipulacion.sh --nivel 1                        # primeras tiradas: --escala-tiempo 2 por defecto
-    ./manipulacion.sh --nivel 2 --asignacion tenis=A cubo=C cilindro=B prisma=D
+    ./manipulacion.sh --nivel 2 --asignacion tenis=blanca cubo=naranja   # por color o por nombre (A-D)
     python3 manipulacion.py --nivel 2 --sim            # en la PC: robot, manos y camara simulados (gemelo)
     python3 manipulacion.py --nivel 2 --sim --visor    # lo mismo en una ventana de MuJoCo, a velocidad real
 
@@ -34,11 +34,12 @@ from manip.supervisor import Supervisor  # noqa: E402
 from manip.vigilante import Vigilante  # noqa: E402
 
 
-# --sim sin --colocacion/--asignacion: los cuatro objetos en la zona de recogida, cada uno a su bandeja
-# (probada: los cuatro a su bandeja al primer intento; el cilindro, el mas alto, el primero)
-COLOCACION_SIM = {"cilindro": ((0.42, 0.01), 0.0), "tenis": ((0.45, 0.10), 0.0),
-                  "cubo": ((0.43, -0.07), 0.3), "prisma": ((0.50, -0.04), 1.57)}
-ASIGNACION_SIM = {"tenis": "A", "cilindro": "B", "cubo": "C", "prisma": "D"}
+# --sim sin --colocacion: los cuatro objetos en la zona de recogida, cada uno en el lado de su bandeja (nivel 2):
+# cilindro (roja) y prisma (azul) a la izquierda, pelota (blanca) y cubo (naranja) a la derecha
+COLOCACION_SIM = {"cilindro": ((0.42, 0.04), 0.0), "prisma": ((0.50, 0.10), 1.57),
+                  "tenis": ((0.43, -0.11), 0.0), "cubo": ((0.50, -0.04), 0.3)}
+# la de objetos.yaml (usuario, 2026-10-17), por color de bandeja
+ASIGNACION_SIM = {"cilindro": "roja", "tenis": "blanca", "cubo": "naranja", "prisma": "azul"}
 
 
 class FsmFija:
@@ -65,12 +66,15 @@ def leer_args(cfg, objetos):
     ap.add_argument("--sim", action="store_true", help="en la PC: robot, manos y camara simulados")
     ap.add_argument("--escala-tiempo", type=float, default=2.0, help="duraciones x esto (2 en las primeras tiradas)")
     ap.add_argument("--dianas", nargs="*", default=None, help="nivel 1: x,y en el torso; si no, se detectan")
-    ap.add_argument("--asignacion", nargs="*", default=None, help="clase=bandeja (por defecto, la de objetos.yaml)")
+    ap.add_argument("--asignacion", nargs="*", default=None,
+                    help="clase=bandeja, por nombre (A-D) o color (por defecto, la de objetos.yaml)")
     ap.add_argument("--colocacion", nargs="*", default=None, help="--sim: clase=x,y,yaw de cada objeto en la mesa")
     ap.add_argument("--visor", action="store_true", help="--sim: ventana de MuJoCo, a velocidad real (o --velocidad)")
     ap.add_argument("--velocidad", type=float, default=1.0, help="--visor: x esto la velocidad real")
     ap.add_argument("--parada-en", default=None, metavar="ESTADO[+s]",
                     help="--sim: pide la salida segura s segundos despues de entrar en ESTADO (p. ej. TRANSPORTE+4)")
+    ap.add_argument("--sin-comprobar-montaje", action="store_true",
+                    help="no mirar al empezar si la mesa y las bandejas siguen donde dice montaje.yaml")
     ap.add_argument("--salida-directa", action="store_true",
                     help="salida segura del PDF tal cual: sin pasar por la observacion y el reposo (para comparar)")
     a = ap.parse_args()
@@ -80,8 +84,8 @@ def leer_args(cfg, objetos):
         a.colocacion = [f"{k}={xy[0]},{xy[1]},{yaw}" for k, (xy, yaw) in COLOCACION_SIM.items()]
     a.dianas = [tuple(float(v) for v in d.split(",")) for d in a.dianas] if a.dianas else None
     asign = {k: v["bandeja"] for k, v in objetos["objetos"].items() if v.get("bandeja")}
-    if a.sim and not asign and not a.asignacion:
-        asign = {k: b for k, b in ASIGNACION_SIM.items() if any(x.startswith(k + "=") for x in a.colocacion or [])}
+    if a.sim and not a.asignacion:          # en la simulacion, solo los objetos que se ponen en la mesa
+        asign = {k: b for k, b in (asign or ASIGNACION_SIM).items() if any(x.startswith(k + "=") for x in a.colocacion or [])}
     for x in a.asignacion or []:
         k, b = x.split("=")
         asign[k] = b
@@ -108,6 +112,9 @@ def armar(a, cfg=None, montaje=None, objetos=None, log=print):
     cfg = cfg or config.cargar()
     montaje = montaje or config.cargar_montaje()
     objetos = objetos or config.cargar_objetos()
+    from manip.montaje import resolver_asignacion
+    a.asignacion = resolver_asignacion(a.asignacion, montaje)       # los colores, a nombres de bandeja
+    t_montaje = montaje
     if getattr(a, "salida_directa", False):
         cfg["supervisor"]["salida_por_observacion"] = False
     t = Tirada()
@@ -179,6 +186,7 @@ def armar(a, cfg=None, montaje=None, objetos=None, log=print):
                         "escala_tiempo": a.escala_tiempo, "reposo": {l: v.round(4).tolist() for l, v in reposo.items()}})
     t.robot, t.brazo, t.manos, t.fuente, t.lector_fsm, t.vig, t.reg, t.sup, t.cal = \
         robot, brazo, manos, fuente, lector_fsm, vig, reg, sup, cal
+    t.montaje = t_montaje
     if getattr(a, "visor", False):
         from sim.visor import Visor
         t.visor = Visor(t.mundo, texto=lambda: _texto_visor(t), al_espacio=lambda: vig.pedir_parada("tecla ESPACIO (visor)"))
@@ -194,29 +202,71 @@ def _texto_visor(t):
 
 
 def _parada_en(t, orden):
-    """--parada-en ESTADO[+s]: un hilo que pide la salida segura s segundos (de simulacion) despues de que el
-    supervisor entre en ESTADO por primera vez."""
+    """--parada-en ESTADO[+s]: pide la salida segura s segundos (de simulacion) despues de que el supervisor entre
+    en ESTADO por primera vez. Sin --visor la simulacion no tiene reloj: se pide al entrar."""
     estado, _, s = orden.partition("+")
     estado, s = estado.strip().upper(), float(s or 0.0)
     vel = t.a.velocidad if getattr(t.a, "visor", False) else None
+    hecho = []
 
-    def vigilar():
-        while t.sup.estado != estado:
-            if t.sup.estado == "FIN":
-                return
-            time.sleep(0.005)
-        if vel:
-            time.sleep(s / vel)
-        print(f"\n  [prueba] salida segura pedida {s:g} s despues de entrar en {estado}")
+    def pedir():
+        print(f"\n  [prueba] salida segura pedida {s if vel else 0:g} s despues de entrar en {estado}")
         t.vig.pedir_parada(f"prueba: --parada-en {orden}")
-    threading.Thread(target=vigilar, daemon=True).start()
+
+    def al_estado(e):
+        if e != estado or hecho:
+            return
+        hecho.append(e)
+        if vel and s > 0:
+            temporizador = threading.Timer(s / vel, pedir)
+            temporizador.daemon = True
+            temporizador.start()
+        else:
+            pedir()
+    t.sup.al_estado.append(al_estado)
+
+
+def comprobar_montaje(t, n=6, timeout_s=6.0):
+    """Antes de mover nada: la mesa y las bandejas siguen donde dice montaje.yaml (el [g] de marcar_montaje.py)?
+    Con n fotogramas distintos. Devuelve (problemas, informe) de manip.montaje.comprobar."""
+    from manip.calibracion import detector
+    from manip.montaje import comprobar
+    fotos, vistos, t0 = [], set(), time.monotonic()
+    while len(fotos) < n and time.monotonic() - t0 < timeout_s:
+        f = t.fuente.fresco(timeout_s=2.0)
+        if f is not None and f.n not in vistos and f.color is not None and f.prof is not None:
+            vistos.add(f.n)
+            fotos.append(f)
+        else:
+            time.sleep(0.05)
+    if not fotos:
+        return ["no llegan fotogramas con color y profundidad"], []
+    return comprobar(fotos, t.cal, t.montaje, detector(t.cfg["calibracion"]["diccionario"]),
+                     t.cfg["montaje"]["hsv_bandejas"])
 
 
 def correr(t, confirmar=True):
-    """Pide la palabra (salvo en la PC), ejecuta la tirada y cierra todo. Devuelve el motivo de fin."""
+    """Comprueba el montaje, pide la palabra (salvo en la PC), ejecuta la tirada y cierra todo. Devuelve el
+    motivo de fin."""
     a, cfg = t.a, t.cfg
     print(f"\n  Nivel {a.nivel}{' en SIMULACRO (no se publica en rt/arm_sdk)' if a.simulacro else ''}"
           f"{' SIMULADO en la PC' if a.sim else ''}; duraciones x{a.escala_tiempo}.")
+    if not getattr(a, "sin_comprobar_montaje", False):
+        problemas, informe = comprobar_montaje(t)
+        print("\n  Montaje:\n" + "\n".join(f"    {x}" for x in informe))
+        if problemas:
+            print("\n  El montaje no esta como en config/montaje.yaml:\n" + "\n".join(f"    - {p}" for p in problemas)
+                  + "\n  Vuelve a pasar herramientas/marcar_montaje.py ([g] de la mesa y de las bandejas) y despliega,"
+                    " o --sin-comprobar-montaje.\n")
+            t.brazo.parar()
+            if hasattr(t.fuente, "cerrar"):
+                t.fuente.cerrar()
+            if t.lector_fsm is not None:
+                t.lector_fsm.parar()
+            if t.mundo is not None:
+                t.mundo.parar()
+            t.reg.cerrar(motivo="montaje movido", problemas_montaje=problemas)
+            return "montaje movido"
     if confirmar and not a.sim:
         print("  Robot de pie en FSM 201, nadie al alcance de los brazos, operador con L2+B. ESPACIO: salida segura.")
         if input(f"  Escribe {cfg['supervisor']['palabra']} para empezar: ").strip() != cfg["supervisor"]["palabra"]:

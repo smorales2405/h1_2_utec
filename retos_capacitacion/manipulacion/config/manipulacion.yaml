@@ -20,6 +20,72 @@ camara:
   emisor: true          # sin el, el tablero negro pierde profundidad
   puerto_video: 5000    # mosaico de depuracion en http://<robot>:5000 (0 = sin video)
 
+montaje:                # herramientas/marcar_montaje.py: colocar la mesa y las bandejas mirando el video
+  puerto_video: 5001    # http://<robot>:5001 con el objetivo pintado (0 = sin video)
+  # [[min], [max]] de OpenCV (H 0-179) por color de bandeja; roja, azul y blanca de la captura real del
+  # 2026-10-09 (medianas H 2 / 106, S 255; blanca S 4, V 255, y 89 en la sombra de sus paredes; en el gemelo
+  # sale gris, V ~110); la naranja, sin imagen real: medirla. Los reflejos del tablero (S ~25, V hasta 255)
+  # quedan en la mesa: no cuentan como pared, que es lo que pide medir_bandejas
+  hsv_bandejas:
+    roja: [[[0, 120, 60], [8, 255, 255]], [[170, 120, 60], [179, 255, 255]]]
+    naranja: [[[9, 140, 100], [22, 255, 255]]]
+    azul: [[[95, 120, 40], [125, 255, 255]]]
+    blanca: [[[0, 0, 90], [179, 35, 255]]]
+
+cuerpo:                 # manip/cuerpo.py: rt/lowcmd de las 27 juntas con el robot en el arnes (PLAN, Hito 0)
+  hz: 500
+  ganancias_brazos: tuned_gff   # h1_2_joint_control/config/gains.yaml (brazos y cintura), con la gravedad compensada
+  piernas:                      # legs_hold de gains.yaml (H1_2_ArmController); orden: cadera yaw, pitch, roll, rodilla, tobillo pitch, roll
+    kp: [300, 300, 300, 300, 140, 140]
+    kd: [5, 5, 5, 5, 3, 3]
+  # Postura de pie: la de FSM 201 medida el 2026-10-13, hecha simetrica (piernas izq, der y cintura, grados)
+  postura_pie_deg: [-0.7, -23.9, -1.5, 39.5, -21.5, -2.0, 0.7, -23.9, 1.5, 39.5, -21.5, 2.0, 0.0]
+  # Brazos: a 0 (codo doblado 90 grados, antebrazos horizontales: el carrito entra por debajo) y colgado (el
+  # minimo de la gravedad, rest_posture_deg de gains.yaml: soltar ahi no mueve nada)
+  brazos_cero_deg: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  brazos_colgado_deg: [0, 5, 0, 80, 0, 0, 0, 0, -5, 0, 80, 0, 0, 0]
+  roll_salida_deg: 10           # el hombro sale antes de doblar o estirar el codo: la mano no roza la pierna
+  t_toma_s: 3                   # kp de 0 a 1 sosteniendo la postura medida
+  t_postura_s: 10               # de la postura colgada a la de pie (minima sacudida)
+  t_soltar_s: 3                 # kp a 0 al terminar (queda kd: amortiguacion)
+  t_soltar_fallo_s: 0.5         # kp a 0 por un fallo de motor o sin lowstate
+  carga:                        # parte del peso que llevan los pies, del par medido de las piernas (manip/dinamica.py)
+    escala: 0.75                # con la tara colgado: de pie con la cuerda floja marcaba 1.09 con 0.82 (datos/arnes_20261016_102119)
+    filtro_s: 0.3
+  estabilizador:                # par de los tobillos (pitch y roll) con la inclinacion y la velocidad angular de la IMU
+    kp_nm_rad: 300              # simulado (2026-10-15, sim/cuerpo_simulado.py): de pie sin cuerda
+    kd_nm_s_rad: 15             # robusto a 100 Hz, al azar 2-20 ms y pausas de 50 ms; con 30 o mas oscila si
+                                # el lazo se retrasa o se empuja el robot (RESULTADOS 12)
+    ki_nm_rad_s: 30             # integral de pitch, tras [n]: sin ella el robot real se quedo 3.4 grados adelante de la
+                                # referencia; simulado: 120 oscila, 30-60 bien (RESULTADOS 15)
+    ki_roll_nm_rad_s: 0         # en roll no: el par del tobillo casi no mueve el torso y la integral solo se acumula
+    integral_max_nm: 15         # por tobillo, ademas del sesgo de abajo
+    integral_banda_deg: 0.25    # no integra con el torso a menos de esto de la referencia: con la cuerda llevando
+                                # parte del peso llegaba al tope peleando contra ella (2026-10-16); con 0.5 el torso
+                                # se quedaba 0.45 por debajo al volver de la integral al tope (2026-10-17)
+    # nivelar ([n] con la cuerda floja): la referencia, tomada al encender, va a esta y la integral actua.
+    # Con la referencia del momento de [e] el robot quedo +5.3 grados (lo inclina la carga al bajar el
+    # polipasto); de pie en FSM 201, con la misma postura de piernas, la IMU daba +0.5 (2026-10-16)
+    ref_pitch_deg: 0.5
+    ref_roll_deg: null          # null: la medida al encender (de pie, +0.2 a +0.7)
+    ref_vel_deg_s: 0.3
+    ref_seguimiento_deg: 1.0    # la referencia solo avanza con el torso a menos de esto de ella
+    sesgo_tobillo_nm:           # por tobillo, con el par de pie: lo que el robot real pide y el modelo no da
+      pitch: 13.0               # (integral con la cuerda floja y el torso a +0.5, 2026-10-16; ~5 grados de
+      roll: 0.0                 #  desfase URDF-robot en cadera/rodilla dan 11-21). El roll cambia con la cuerda
+    tau_tobillo_max_nm:         # sosten + estabilizador por tobillo; el PD pone el resto hasta el motor (60/40).
+      pitch: 50                 # Con 54 medidos el robot se atascaba inclinado y saltaba (2026-10-16)
+      roll: 30
+    tau_max_nm: 40
+    rampa_s: 3
+    carga_min: 0.5              # no se enciende con menos carga en los pies
+    carga_apagar: 0.35          # al colgar se apaga solo por debajo de esto
+  limites:
+    inclinacion_max_deg: 10     # respecto de la referencia del estabilizador: se apaga y se sostiene (cae en la cuerda)
+    edad_lowstate_max_s: 0.25   # mas: amortiguacion
+    temperatura_max_c: 75       # mas: parada (sostener)
+  boton_parada: L1              # en el mando, ademas de ESPACIO en el terminal
+
 brazo:                  # manip/brazo.py, con los patrones de caja_cuadrado.py
   hz: 50
   kp: 100.0             # <= 150 (seccion 10). Con 100 el brazo se queda ~5 grados corto

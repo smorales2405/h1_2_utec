@@ -77,10 +77,10 @@ class ManoSimulada:
             v = self.ang
         elif a == m.FORCE_ACT:
             v = self._fuerza()
-        elif a == m.ERROR:
-            v = self.error
-        elif a == m.ESTADO:
-            v = np.zeros(6)
+        elif a in m.BLOQUES_BYTE:
+            # un byte por DOF, dos por registro (el primero en el alto); lo que sigue al bloque da 0xFFFF
+            by = self.error if a == m.ERROR else np.zeros(6)
+            v = [(int(by[2 * k]) << 8) | int(by[2 * k + 1]) for k in range(3)] + [0xFFFF] * 3
         elif a == m.FORCE_SET:
             v = self.fset
         else:

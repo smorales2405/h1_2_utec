@@ -82,3 +82,15 @@ def test_salida_segura_en_el_transporte_sale_por_la_observacion(tmp_path):
     assert any(m.startswith("observacion -> reposo") and "izq" in m for m in motivos)
     assert not any("se queda" in m or "fuera de la observacion" in m for m in motivos)
     assert t.brazo.peso == 0.0
+
+
+@gl
+def test_nivel2_agrupa_los_objetos_por_brazo(tmp_path):
+    """Opcion b (2026-10-14): todos los objetos de un brazo y luego los del otro, no intercalados."""
+    a = _args(tmp_path, nivel=2, asignacion=dict(manipulacion.ASIGNACION_SIM),
+              colocacion=dict(manipulacion.COLOCACION_SIM))
+    t = manipulacion.armar(a, _cfg(), log=lambda *x: None)
+    assert manipulacion.correr(t, confirmar=False) == "completado"
+    manos = [r["mano"] for r in t.sup.resultados]
+    assert len(manos) == 4 and all(r["resultado"] == "colocado" for r in t.sup.resultados)
+    assert manos in (["izq", "izq", "der", "der"], ["der", "der", "izq", "izq"])

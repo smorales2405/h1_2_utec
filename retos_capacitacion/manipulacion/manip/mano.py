@@ -24,6 +24,7 @@ from .mensajes import EstadoMano, Parada
 ANGLE_SET, FORCE_SET, SPEED_SET = 1486, 1498, 1522
 ANGLE_ACT, FORCE_ACT, ERROR, ESTADO = 1546, 1582, 1606, 1612
 CLEAR, SAVE = 1004, 1005
+BLOQUES_BYTE = (ERROR, ESTADO)                # un byte por DOF: 3 registros (inspire_sdkpy los lee asi)
 TACTIL_INDICE = ((4110, 9), (4128, 96))     # punta y yema del indice (zonas de caja_cuadrado.py)
 DEDOS = (0, 1, 2, 3)
 PULGAR, ROTACION = 4, 5
@@ -31,6 +32,12 @@ PULGAR, ROTACION = 4, 5
 
 class ManoSinRespuesta(Parada):
     pass
+
+
+def bytes_de(registros):
+    """ERROR, STATUS y TEMP van en bytes, dos DOF por registro y el primero en el byte alto (como inspire_sdkpy).
+    Son 3 registros, no 6: los 3 siguientes quedan fuera del bloque y la mano los da como 0xFFFF (-1)."""
+    return [(int(r) >> s) & 0xFF for r in registros for s in (8, 0)]
 
 
 class Mano:
@@ -63,11 +70,17 @@ class Mano:
         self.escribir_force_set([self.fs_abierta] * 6)
 
     # --- registros -----------------------------------------------------------------------------------
-    def regs(self, a, n, signo=True):
+    def _crudos(self, a, n):
         with self.cerrojo:
             r = self.c.read_holding_registers(a, n, 1)
         if r is None or (hasattr(r, "isError") and r.isError()):
             raise ManoSinRespuesta(f"mano {self.lado}: fallo al leer {a}")
+        return r
+
+    def regs(self, a, n, signo=True):
+        if a in BLOQUES_BYTE:
+            return np.array(bytes_de(self._crudos(a, 3).registers), dtype=float)
+        r = self._crudos(a, n)
         f = "h" if signo else "H"
         return np.array(struct.unpack(f">{n}{f}", struct.pack(f">{n}H", *r.registers)), dtype=float)
 

@@ -122,6 +122,16 @@ class Percepcion:
             return self.plano_cal
         return pl
 
+    def _fuera_de_bandejas(self, Pt, margen=0.01):
+        """Fuera de las bandejas de montaje.yaml (con `margen`): sus paredes de 4 cm caen dentro de la zona
+        ampliada y, pegadas a un objeto, lo deformaban (o salian como objeto desconocido)."""
+        from .montaje import bandeja_real
+        fuera = np.ones(len(Pt), bool)
+        for b in self.montaje.get("bandejas", {}).values():
+            a = b["hueco_m"] / 2 + b["pared_m"] + margen
+            fuera &= ~np.all(np.abs(Pt[:, :2] - bandeja_real(b)[0]) <= a, axis=1)
+        return fuera
+
     def _mascara_robot(self, Pt, q_brazos):
         if q_brazos is None or self.cin is None:
             return np.ones(len(Pt), bool)
@@ -173,6 +183,7 @@ class Percepcion:
                & (Pt[:, 0] > self.zona["x"][0] - mg) & (Pt[:, 0] < self.zona["x"][1] + mg)
                & (Pt[:, 1] > self.zona["y"][0] - mg) & (Pt[:, 1] < self.zona["y"][1] + mg))
         sel &= self._mascara_robot(Pt, q_brazos)
+        sel &= self._fuera_de_bandejas(Pt)
         P_prof, Pt, h = P_prof[sel], Pt[sel], h[sel]
         objetos = []
         if len(Pt):

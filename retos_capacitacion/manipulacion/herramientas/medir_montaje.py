@@ -2,7 +2,7 @@
 """Mide la mesa (plano, ArUco 2-5, superficie util, labio y asas) y la escribe en config/montaje.yaml.
 
 Solo lee la camara: no mueve nada. Con la mesa VACIA (sin bandejas ni objetos) para que el plano y el
-labio salgan limpios. Conserva lo que el plan fija en el montaje (zona de recogida, bandejas, cruz).
+labio salgan limpios. Conserva lo que el plan fija en el montaje (zona de recogida, bandejas, cruz y objetivo_mesa).
 
     python3 herramientas/medir_montaje.py datos/dataset_<fecha>_mesa       # en la PC, sobre una grabacion
     ./ejecutar.sh herramientas/medir_montaje.py --vivo                     # en el robot, con la camara
@@ -59,14 +59,14 @@ def main():
     f = promediar(fotos)
     cin = Cinematica.desde_config(cfg)
     cal = calibracion.cargar_o_urdf(cin, f.meta)
-    previo = config.cargar_montaje() if os.path.exists(a.salida) else {}
+    previo = config.cargar_montaje() if os.path.exists(config.RUTA_MONTAJE) else {}   # aunque --salida sea otra
     mesa, informe = mt.medir(f, cal, previo, cfg["calibracion"]["diccionario"])
     nuevo = dict(previo)
     nuevo["fecha"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
     nuevo["origen"] = f"{origen} ({len(fotos)} fotogramas); calibracion {cal.origen} {cal.fecha}"
     nuevo["mesa"] = mesa
-    config.guardar_yaml(a.salida, nuevo, "Montaje del reto. mesa: la escribe herramientas/medir_montaje.py.\n"
-                        "zona_recogida, bandejas y cruz: las fija el plan (marco del torso).")
+    config.guardar_yaml(a.salida, nuevo, "Montaje del reto. mesa: la escriben herramientas/medir_montaje.py y\n"
+                        "marcar_montaje.py. zona_recogida, bandejas, cruz y objetivo_mesa: las fija el plan (marco del torso).")
     print(json.dumps({"yaw_deg": mesa["yaw_deg"], "superficie": mesa["superficie"], "labio_alto_m": mesa["labio_alto_m"],
                       "asas": mesa["asas"], "origen_mesa": [r[3] for r in mesa["T_torso_mesa"][:3]], **informe},
                      indent=1, ensure_ascii=False))

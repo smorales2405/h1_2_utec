@@ -1,61 +1,79 @@
 # Montaje del reto. mesa: la escribe herramientas/medir_montaje.py.
-# zona_recogida, bandejas y cruz: las fija el plan (marco del torso).
+# zona_recogida, bandejas, cruz y objetivo_mesa: las fija el plan (marco del torso), con el robot de pie en el
+# arnes y los brazos a 0. Bandejas del 2026-10-17 (RESULTADOS §21): rectangulo de 16 x 56 cm centrado en la
+# cruz, a +-0.28 (las asas, mas lejos que a los 0.30 de la guia); la azul (prisma) a la izquierda, donde mejor
+# se coge el prisma. Se colocan con herramientas/marcar_montaje.py.
 zona_recogida:
-  x: [0.4, 0.52]
-  y: [-0.13, 0.13]
+  x: [0.4, 0.56]
+  y: [-0.2, 0.2]
 bandejas:
   A:
-    centro: [0.42, 0.27]
     hueco_m: 0.12
     pared_m: 0.003
     alto_m: 0.04
-    color: null
+    color: azul
+    centro: [0.40, 0.28]
   B:
-    centro: [0.56, 0.27]
     hueco_m: 0.12
     pared_m: 0.003
     alto_m: 0.04
-    color: null
+    color: roja
+    centro: [0.56, 0.28]
   C:
-    centro: [0.42, -0.27]
     hueco_m: 0.12
     pared_m: 0.003
     alto_m: 0.04
-    color: null
+    color: blanca
+    centro: [0.40, -0.28]
   D:
-    centro: [0.56, -0.27]
     hueco_m: 0.12
     pared_m: 0.003
     alto_m: 0.04
-    color: null
-cruz: [0.46, 0.0]
-fecha: 2026-10-12 22:36
-origen: dataset_20261013_112444_mesa_20261013 (15 fotogramas); calibracion urdf 2026-10-12
-  22:36
+    color: naranja
+    centro: [0.56, -0.28]
+cruz: [0.48, 0.0]
+objetivo_mesa:          # herramientas/marcar_montaje.py: donde va el carrito (borde cercano, marco del torso)
+  # 0.275 m, centrada y recta con la camara del URDF (lo que pidio el usuario) pasado a la camara calibrada
+  # (calibracion_20261017_1944: el marco de los brazos esta ~2 grados y ~2 cm movido respecto del URDF;
+  # RESULTADOS §24). Es el mismo sitio fisico: las piernas conservan su holgura
+  x0_m: 0.294
+  y_m: 0.0105
+  yaw_deg: 0.0
+  tol_x_m: 0.01
+  tol_y_m: 0.01
+  tol_yaw_deg: 1.0
+tol_bandejas_m: 0.015
+mesa_fisica:            # wincha del usuario (2026-10-18), entre las caras interiores del labio. El marco de la mesa
+  ancho_interior_m: 0.778   # sale de los ArUco con estas medidas (manip/montaje.py), no de suponer el margen
+  fondo_interior_m: 0.488
+  aruco_al_labio_m: 0.031   # del centro de cada ArUco de las esquinas a sus dos labios (5 cm de negro + 6 mm de blanco)
+  lado_aruco_m: 0.05
+fecha: 2026-10-17 19:44
+origen: dataset_20261018_080019_mesa_marcar (15 fotogramas); calibracion calibrada
+  2026-10-17 19:44
 mesa:
   plano:
-    n: [0.009168, 0.02059, 0.999746]
-    d: 0.11401
+    n: [-0.041133, -0.011238, 0.99909]
+    d: 0.11882
   T_torso_mesa:
-  - [0.999022, 0.043255, 0.009168, 0.332657]
-  - [-0.043436, 0.998844, 0.02059, -0.033112]
-  - [-0.008267, -0.020968, 0.999746, -0.116405]
+  - [0.999103, -0.010069, -0.041133, 0.29188]
+  - [0.009615, 0.999891, -0.011238, 0.015404]
+  - [0.041242, 0.010832, 0.99909, -0.106743]
   - [0.0, 0.0, 0.0, 1.0]
-  yaw_deg: -2.49
+  yaw_deg: 0.55
   superficie:
-    x: [0.0, 0.523]
-    y: [-0.408, 0.405]
-  labio_alto_m: 0.037
+    x: [0.0, 0.502]
+    y: [-0.4, 0.4]
+  labio_alto_m: 0.027
   asas:
     izq:
-      y: 0.482
-      alto: 0.15
-      x: [0.007, 0.472]
+      y: 0.478
+      alto: 0.154
+      x: [-0.004, 0.463]
     der:
-      y: -0.483
-      alto: 0.135
-      x: [0.011, 0.478]
+      y: -0.489
+      alto: 0.13
+      x: [0.004, 0.476]
   aruco_torso:
-    3: [0.7988, -0.424, -0.1126]
-    4: [0.3884, 0.33, -0.1244]
-    5: [0.3568, -0.3997, -0.1091]
+    2: [0.7575, 0.3879, -0.0834]
+    3: [0.765, -0.3481, -0.0914]

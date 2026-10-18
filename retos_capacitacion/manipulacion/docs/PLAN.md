@@ -6,11 +6,69 @@ medido y lo que cambie irá a [RESULTADOS.md](RESULTADOS.md), que se crea con la
 casillas de [Orden de implementación](#orden-de-implementación) marcan el avance real.
 
 El sistema corre en el PC2 del robot en dos procesos, como el seguidor de línea: la cámara como root y
-el resto como `unitree`, porque el DDS no arranca con sudo. Los brazos van por `rt/arm_sdk` y las manos
-por Modbus TCP, mientras la marcha de Unitree equilibra el cuerpo en FSM 201. La PC desarrolla, calibra
-y comprueba sin robot, con un gemelo del montaje en MuJoCo que tiene cámara virtual. Se valida por
-hitos: alcance y mesa fijada, calibración y caracterización, percepción y planificación sin robot,
-simulacro y tiradas al doble de la duración mínima.
+el resto como `unitree`, porque el DDS no arranca con sudo. **Desde el 2026-10-15 el cuerpo entero va
+por `rt/lowcmd` con el robot en el arnés** (ver [Cambio a rt/lowcmd](#cambio-a-rtlowcmd-2026-10-15)):
+piernas en una postura de pie fija con su par de sostén y un estabilizador de tobillos con la IMU,
+brazos con `tuned_gff` y la gravedad compensada; las manos, por Modbus TCP. La PC desarrolla, calibra
+y comprueba sin robot, con un gemelo del montaje en MuJoCo que tiene cámara virtual y, ahora, un robot
+con física colgado del pórtico. Se valida por hitos: de pie en el arnés (Hito 0), alcance y mesa
+fijada, calibración y caracterización, percepción y planificación sin robot, simulacro y tiradas al
+doble de la duración mínima.
+
+## Cambio a rt/lowcmd (2026-10-15)
+
+**Por qué.** En `comparar_ganancias.py` (`rt/arm_sdk`, FSM 201) la marcha de Unitree dio pasos en los
+11 intentos, a veces durante la rampa de peso sin mover el brazo; con la pose de observación se echaba
+atrás y al adelantar la mano izquierda daba pasos. El instructor lo atribuye al controlador de
+equilibrio (cambiarlo es un trabajo de RL aparte) y autoriza trabajar con `rt/lowcmd` de cuerpo entero
+y el robot sujeto por el arnés. Esto sustituye las restricciones del PDF de usar solo `rt/arm_sdk` y no
+llamar a `ReleaseMode()` (sección 10); el resto de la sección 10 sigue (≥ 8 s por movimiento, ≤ 0.5
+rad/s, FORCE_SET ≤ 800, salida segura).
+
+**Qué se evaluó** (MuJoCo, `datos/evaluacion_lowcmd_20261015/`):
+
+| Configuración | Resultado |
+| --- | --- |
+| Piernas en PD fijo, sin cuerda (cualquier postura, también inclinada atrás) | Cae en 1–2 s: péndulo invertido; los tobillos dan 160–280 N m/rad y hacen falta > m·g·h ≈ 600 |
+| Postura fija + par de sostén + estabilizador IMU → par de tobillo, sin cuerda | De pie; ±0.1–1.5° y < 1 cm con un brazo adelante y atrás; sin deslizar |
+| Cuerda cargando el 20 % del peso, sin estabilizador | De pie; ±2°, el torso se mueve 2–3 cm |
+| Colgado sin tocar el suelo | 8° y 12 cm con cada movimiento: descartado |
+
+El centro de masas no es el problema: los brazos lo mueven −0.8…+2.1 cm y siempre queda a ≥ 9.7 cm
+del borde de los pies. Inclinar el torso atrás no ayuda (lleva el CdM al talón y quita alcance y vista).
+
+**Cómo** (decisiones del usuario, 2026-10-15): los tres pasos, cada uno red del siguiente, con
+`herramientas/arnes.py`:
+
+1. **Colgado** con los pies ~5 cm sobre el suelo, en amortiguación: `ReleaseMode()` desde el programa
+   (tras escribir SOLTAR, ≤ 3 intentos y 3 s sin nadie en `rt/lowcmd`), toma con kp de 0 a 1, postura
+   de pie (la de FSM 201 hecha simétrica), brazos a 0 y tara de la carga de los pies. Medido el
+   2026-10-16 (RESULTADOS §14): en Debug el robot ignora L2+B, así que lo atiende el programa
+   (amortiguación), y sin órdenes los motores quedan sin par a los 0.2 s.
+2. **Apoyo**: se baja el polipasto (manivela) hasta que los pies llevan 50–80 % del peso y `[e]`
+   enciende el estabilizador y después pasa el par de sostén a "de pie". En ese orden: el par de pie
+   afloja la cuerda solo, y sin estabilizador el robot se balancea (simulado).
+3. **De pie, con la cuerda llevando parte del peso** (procedimiento de trabajo, decisión del usuario del
+   2026-10-16): tras `[e]` las piernas descargan la cuerda solas y `[n]` (nivelar) lleva la referencia
+   del estabilizador a la fija (IMU pitch +0.5°, la de FSM 201 con la misma postura de piernas) solo
+   mientras el torso la sigue, y activa la integral. Nivelado (lo dice la pantalla), se centra el pórtico
+   hasta que la cuerda quede vertical y se sube el polipasto hasta que los pies llevan 70–85 % (la cuerda
+   el resto). En ese orden: al nivelar el torso se echa atrás 2–4° y mueve la cinta ~5 cm (2026-10-17). Con la cuerda floja el robot real se
+   atascaba con los tobillos casi al límite (54 de 60 N m) y oscilaba (RESULTADOS §17); con parte del peso
+   en la cuerda estaba quieto. Durante las tiradas no se toca el polipasto. Al terminar, al revés: subir el polipasto (el
+   estabilizador se apaga solo por debajo del 35 % de carga y el par vuelve a "colgado" por debajo del
+   15 %), brazos a la postura colgada y kp a 0.
+
+**Brazos a 0** (codo doblado 90°, antebrazos horizontales hacia delante, la yema a 25 cm sobre el
+tablero): el carrito entra por debajo y ya no hace falta la pose de observación para salir del reposo
+sin barrer la mesa. Las manos a 0 tapan la imagen de las bandejas: para percibir sigue haciendo falta
+una pose de observación, a la que ahora se llega por encima de la mesa.
+
+**Datos medidos que lo apoyan:** el control interno de FSM 201 manda tobillo kp 80, rodilla 400, cadera
+250 y cintura 600 (`rt/lowcmd` leído); la postura de FSM 201 deja, en el URDF, el torso 6° adelantado
+con el pie plano mientras la IMU del robot marca ~0°, así que la postura se toma de lo medido y el
+estabilizador se refiere a la IMU al encenderse; el par de las piernas medido de pie es ~22 % mayor que
+el del modelo (escala de la carga 0.82, a recalibrar con la cuerda floja).
 
 ## Punto de partida
 
@@ -43,20 +101,21 @@ colocan con `marcar_montaje.py`, que pinta el objetivo sobre la imagen en vivo.
 
 | Elemento | Posición inicial | Por qué |
 | --- | --- | --- |
-| Mesa | Borde cercano a ~0.32 m, centrada en el eje (hoy ~3 cm a la derecha), con frenos; no se mueve en toda la sesión | d ≈ 19 cm del pecho. Acercarla no ayuda: el color no ve antes de 0.36 m |
-| Zona de recogida (desviación aceptada) | x 0.40–0.52, y −0.13…+0.13: unos 26 × 12 cm, frente a los 40 × 25 del PDF | Es lo que ve el color y alcanzan las dos manos con un agarre válido |
-| Bandejas A y B (izquierda) | Centros en (0.42, +0.27) y (0.56, +0.27) | Las alcanza la mano izquierda soltando a 10 cm; quedan a unos 4 cm de la zona y lejos de las asas |
-| Bandejas C y D (derecha) | Centros en (0.42, −0.27) y (0.56, −0.27) | Espejo de las anteriores |
+| Mesa **(revisado 2026-10-17)** | 77.8 × 48.8 cm entre labios, ArUco de las esquinas a 3.1 cm de cada labio (wincha, 2026-10-18). Borde cercano a **0.275 ± 0.01 m** (d ≈ 14 cm del pecho, ~3 cm por delante de la punta de los pies), centrada (± 1 cm) y recta (± 1°), con frenos; se coloca con el robot ya de pie y los brazos a 0 mirando `marcar_montaje.py`, y no se mueve en toda la sesión (`objetivo_mesa` en `montaje.yaml`) | Con los brazos a 0 lo que limita es el muslo contra el borde (≥ 0.24 m; ~5 cm de holgura a 0.27). Las baldas del carrito están a ras del tablero (confirmado). La base del pórtico rodea los pies: el carrito tiene que caber delante sin tocarla |
+| Zona de recogida (desviación aceptada, revisada) | x 0.40–0.56, y −0.20…+0.20: **40 × 16 cm**, frente a los 40 × 25 del PDF | El color ve desde x ≈ 0.40 y el agarre desde arriba llega a x ≈ 0.56 (IK sin colisiones; el mapa con colisiones puede recortarla a ~0.52). Acercar la mesa no ensancha esta banda: la centra en el tablero |
+| Bandejas A y B (izquierda, **revisado 2026-10-17**) | A azul en (0.40, +0.28) y B roja en (0.56, +0.28): a 12.5 y 28.5 cm del borde con la mesa a 0.275 | Rectángulo de 16 × 56 cm centrado en la cruz (las cuatro a 29 cm de ella), alineado con los bordes de la zona. A ±0.28 en vez de los ±0.30 de la guía: el brazo queda ≥ 8.1 cm de las asas al soltar (7.2 a ±0.30) y la bandeja a 1.7 cm de la zona. La azul (prisma) a la izquierda: el prisma se coge mucho mejor hacia ese lado (RESULTADOS §21) |
+| Bandejas C y D (derecha, revisado 2026-10-17) | C blanca en (0.40, −0.28) y D naranja en (0.56, −0.28) | La roja y la naranja en lados distintos (tonos cercanos). Con los brazos a 0 las manos tapan parte de las cuatro: no hay sitio libre de esa sombra fuera de la zona y lejos de las asas; `marcar_montaje.py` las mide igual (le bastan dos paredes) |
 | Dianas del nivel 1 | Cuatro pegatinas de 2 cm con una cruz, al azar dentro de la zona | — |
-| Cruz del nivel 4 (desviación) | Centro de la zona, (0.46, 0) | El centro del tablero (x ≈ 0.57) no se alcanza |
-| Huellas de los pies | Cinta alrededor de los dos pies, con la mesa ya fijada | Un pie que sale 5 cm de su huella cuenta como paso |
-| Orden | Medir el montaje con la mesa vacía y después poner las bandejas | La bandeja A tapa el ArUco 4 (RESULTADOS §1) |
+| Cruz del nivel 4 (desviación, revisada) | Centro de la zona, (0.48, 0) | El centro del tablero (x ≈ 0.53) queda casi en el borde de la zona |
+| Huellas de los pies | Cinta alrededor de los dos pies, ya de pie en el arnés | Un pie que se desliza 5 cm cuenta como paso |
+| Orden | Robot de pie con los brazos a 0 → `marcar_montaje.py`: carrito hasta "MESA EN SU SITIO", frenos, `[g]` mide la mesa vacía → bandejas hasta "BANDEJAS EN SU SITIO" | Las bandejas cambian el plano y el labio medidos |
 
 Si el mapa con colisiones recorta las esquinas lejanas de la zona para la mano del lado contrario, la
 zona se queda en trapecio o se usa la entrega de mano a mano (6.4.6). La mano contraria no llega a las
 bandejas del otro lado: cada objeto lo coge la mano del lado de su bandeja.
 
-Objetos, que el instructor asigna a las bandejas:
+Objetos y su bandeja (orden fijado por el usuario el 2026-10-17, en `objetos.yaml`; `--asignacion` lo cambia):
+cilindro azul → bandeja roja, pelota amarilla → blanca, cubo blanco → naranja y prisma naranja → azul.
 
 | Objeto | Medidas y peso | Agarre inicial | Riesgos |
 | --- | --- | --- | --- |
@@ -76,19 +135,20 @@ flowchart LR
       CAL[("calibracion_fecha.yaml<br/>montaje.yaml")] --> P
       CAL --> PL
       P --> PL["Planificación<br/>mano, agarre y puntos de paso<br/>IK propia y colisiones"]
-      PL --> S["Supervisor<br/>estados y vigilante<br/>único que cambia el peso"]
-      S --> B["Brazo<br/>rt/arm_sdk a 50 Hz, rampas de peso"]
+      PL --> S["Supervisor<br/>estados y vigilante"]
+      S --> B["Cuerpo<br/>rt/lowcmd a 500 Hz, 27 juntas: postura de pie,<br/>par de sostén, estabilizador, brazos tuned_gff"]
       S --> M["Mano<br/>Modbus .211 / .210"]
       R["robot.py<br/>rt/lowstate: q, IMU, mando<br/>FSM con lee_fsm"] --> S
       REG["Registro<br/>CSV a 50 Hz, imágenes de cada agarre, JSON"]
     end
     CAM -- "Fotograma por ZMQ (127.0.0.1)" --> F
   end
-  PC1["PC1 · marcha de Unitree, FSM 201<br/>mezcla arm_sdk con el peso del slot 27"]
-  B -- "DDS rt/arm_sdk" --> PC1
+  PC1["PC1 · motores en Debug<br/>(ReleaseMode: sin control de marcha)"]
+  B -- "DDS rt/lowcmd" --> PC1
   PC1 -- "rt/lowstate 500 Hz" --> R
   MANOS["Manos Inspire RH56DFTP"] <-- "Modbus TCP (br0)" --> M
-  MANDO["Mando · operador<br/>L2+B: parada de emergencia"] --> PC1
+  MANDO["Mando · operador<br/>botón de parada leído por el programa<br/>L2+B = amortiguación (la hace el programa)"] --> R
+  POLI["Polipasto del pórtico<br/>segunda persona en la manivela"] -.- PC1
   PORT["PC portátil<br/>calibración, mapa de alcance<br/>gemelo MuJoCo y cámara virtual"] <-- "ssh -t, rsync" --> MAN
 ```
 
@@ -120,7 +180,7 @@ Convenciones:
 | `Montaje` | `medir_montaje.py` → percepción, planificación, gemelo (YAML) | Marco de la mesa (origen y yaw), labio, asas, zona de recogida, bandejas A–D (centro, hueco y alto), cruz, objetos (clase, medidas, color) | Una por sesión |
 | `Escena` | percepción → planificación, supervisor | `t` del fotograma, `ms` de proceso y, por objeto: `id`, `clase`, `p` (centro en el torso, m), `yaw` (rad, módulo su simetría), `medidas`, `confianza` (0–1), `visible`, `movido` (respecto de la escena anterior) | 5–30 Hz |
 | `Plan` | planificación → supervisor | `objeto`, `mano`, `agarre` (preforma; FORCE_SET y SPEED por dedo; pose de agarre en el torso), `puntos_de_paso` (q de 7 juntas + duración), `pose_suelta`, `bandeja`, `comprobado` (límites, velocidad, altura segura y colisiones en el gemelo) | Uno por objeto, rehecho antes de cada agarre |
-| `OrdenBrazo` | supervisor → brazo | `lado`, `q_obj` (7), `duracion` (s, ≥ la mínima medida), `perfil` (mínima sacudida), `kp` (≤ 150), `kd` | Por segmento |
+| `OrdenBrazo` | supervisor → cuerpo | `lado`, `q_obj` (7), `duracion` (s, ≥ 8), `perfil` (mínima sacudida); kp/kd de `tuned_gff` con el par de gravedad de las masas identificadas (`config/gravedad_brazos.yaml`) | Por segmento |
 | `OrdenMano` | supervisor → mano | `lado`, `accion` (preforma, cerrar, sujetar, soltar, abrir), `force_set[6]` (≤ 800), `speed[6]`, `angulos[6]` | Por acción |
 | `Salud` | vigilante → supervisor | `fsm`, `motores_en_fallo`, `edad_lowstate`, `edad_fotograma`, `mano_ok[2]`, `paso` (y la junta que lo delata), `yaw_desde_inicio`, `roll`, `pitch`, `error_seguimiento` (rad), `fuerza_max` (gf), `parada` (tecla o botón) | 50 Hz |
 | `Decision` | supervisor → registro | `estado`, `motivo`, `objeto`, `peso`, `simulacro` | 50 Hz |
@@ -158,11 +218,13 @@ no lleva números escritos.
 | Calibración real | Render con la pose calibrada superpuesto a la imagen real: bordes de la mesa, ArUco, bandejas y la mano | Desfase en píxeles, convertido a mm | Hito 2 |
 | Reproducción | `reproducir_mujoco.py` con la q medida en el CSV y, al lado, las imágenes grabadas | Ver qué hizo de verdad el brazo (la caída de ~5°, contactos) | Hito 3 y tras cada tirada fallida |
 | Caída del brazo (opcional) | Con gravedad, actuadores de posición con kp 100–150 y kd 2 en los brazos, y la pelvis fija | Comparar con el error medido en el robot | Hito 2 |
+| De pie por `rt/lowcmd` **(nuevo)** | `sim/cuerpo_simulado.py`: el robot con física colgado de un gancho con polipasto, que obedece LowCmd; `arnes.py --sim [--operador-auto]` y `tests/test_cuerpo.py` | De pie sin cuerda; inclinación y deslizamiento con los brazos moviéndose | Hito 0, antes de cada cambio del controlador |
 
-Límites del gemelo: no simula la marcha (la pelvis está fija), así que ni pasos ni giro; las fuerzas de
-contacto de la mano no son fiables; y corre en la PC, no en el PC2. Los pasos y las fuerzas solo se
-miden en el robot. Las "trayectorias reproducidas en MuJoCo" del Hito 3 son las de esta sección; el
-simulador C++ de `unitree_mujoco` no implementa `rt/arm_sdk`.
+Límites del gemelo: las fuerzas de contacto de la mano no son fiables y el robot con física no conoce
+los ~6° de desajuste URDF/IMU, la conversión del tobillo paralelo ni los retardos reales; corre en la
+PC, no en el PC2. La inclinación y el deslizamiento de verdad solo se miden en el robot. El simulador
+C++ de `unitree_mujoco` sí acepta `rt/lowcmd` de cuerpo entero (su cinta elástica hace de cuerda): sirve
+para probar el programa por DDS antes del robot.
 
 ## Decisiones técnicas iniciales
 
@@ -182,12 +244,12 @@ su método.
 | 6.2.4 Brazo y mano en la imagen | Máscara del propio robot proyectando cápsulas de los eslabones con la FK y la calibración | Ningún objeto falso con el brazo a la vista |
 | 6.2.5 Oclusión | Pose medida antes del descenso, con el brazo fuera de la vista, y confirmación por la mano (fuerza y táctil) | Distancia a la que se pierde el objeto en el dataset |
 | 6.2.6 Objeto movido | Se vuelve a percibir antes de cada agarre; un objeto se da por movido si se desplaza > 2 cm o gira > 10° | Prueba con el objeto desplazado 5–10 cm |
-| 6.3.1–2 Pasos frente a duración | Curva a 8, 10, 20 y 30 s con la IMU y las juntas de las piernas; duración mínima y presupuesto por objeto en el YAML | Curva de pasos y giro |
-| 6.3.3 El otro brazo | Quieto en reposo; probar el contrapeso de `caja_cuadrado.py` si la curva lo pide | Pasos con y sin contrapeso |
-| 6.3.4 Error de ~5° | kp ≤ 150, precompensar la consigna con un modelo de la caída (gravedad / kp) y corregir con el dorso visible antes del descenso final | Error de la yema en el nivel 1 |
+| 6.3.1–2 Pasos frente a duración **(revisado)** | Con `rt/lowcmd` no hay marcha que dé pasos: se mide la inclinación de la IMU y el deslizamiento de los pies con el estabilizador a 8, 10, 20 y 30 s | Curva de inclinación (`arnes.py [m]` y su registro) |
+| 6.3.3 El otro brazo | Quieto a 0 o en la observación | Inclinación con y sin el otro brazo |
+| 6.3.4 Error de ~5° **(revisado)** | `tuned_gff` con el par de gravedad de las masas identificadas en `h1_2_joint_control` (rms 0.34 N m); corregir con el dorso visible antes del descenso final | Error de la yema en el nivel 1 |
 | 6.3.5 Articulares o cartesianas **(revisado)** | Puntos de paso cartesianos resueltos con IK y movimientos articulares de mínima sacudida entre ellos; altura segura de 15 cm (10 cm al soltar) | Los puntos altos van a 18 cm: entre ellos el brazo bajaba 1–4 cm. Cada tirada pasa por una pose de observación: desde el reposo, subir el antebrazo barre la mesa (RESULTADOS §7) |
-| 6.3.6 Cintura (índice 12) | Sujeta en la q medida al entrar, con kp 200 como en `caja_cuadrado.py` | Yaw del torso en el registro |
-| 6.3.7 Fin y aborto **(revisado)** | Congelar, abrir, subir a la altura segura, ir a la observación si el tramo es limpio, al reposo solo desde ella, y bajar el peso en ≥ 5 s | Probado en el mundo simulado; con el peso en 0 desde encima de la mesa, la política barrería la mesa |
+| 6.3.6 Cintura (índice 12) | A 0 con kp 200 / kd 2 (`tuned_gff`); girarla 20° no amplía el alcance hacia delante | Yaw del torso en el registro |
+| 6.3.7 Fin y aborto **(revisado 2026-10-15)** | Congelar, abrir, subir a la altura segura y brazos a 0 sobre la mesa; el robot sigue de pie con el estabilizador. Para terminar: retirar el carrito, colgar con el polipasto, brazos a la postura colgada y kp a 0 | Simulado en `arnes.py --sim`; con los pies cargados el programa nunca suelta (el robot caería en la cuerda) |
 | 6.4.1 Agarre y margen | Uno por objeto (tabla de arriba), con preforma que tolere ±2 cm | Margen medido desplazando el objeto en el gemelo y en el robot |
 | 6.4.2 FORCE_SET | 250–450 gf con SPEED ≤ 100; tabla por objeto medida con la báscula | Fuerza real y sobreimpulso por objeto |
 | 6.4.3 ¿Hay objeto en la mano? | Dedos parados lejos de 0 con fuerza por encima de su curva de flexión libre | Mano vacía frente a mano con objeto, en el robot |
@@ -223,18 +285,25 @@ stateDiagram-v2
   SALIDA_SEGURA: SALIDA SEGURA · congelar, abrir la mano, subir a la altura segura y peso a 0 en ≥ 5 s
 ```
 
-Solo el supervisor cambia el peso de `arm_sdk` y da un objeto por terminado. Cualquier estado con peso
-pasa a SALIDA SEGURA por:
+**Revisión pendiente (2026-10-15):** con `rt/lowcmd` el supervisor no tiene peso que subir ni bajar.
+ENTRADA pasa a ser el procedimiento de `arnes.py` (colgado → apoyo → de pie, brazos a 0) dentro del
+mismo proceso (dos procesos no pueden publicar en `rt/lowcmd`), ESPERA es "de pie con los brazos a 0"
+(se puede acercar o retirar el carrito y colocar objetos) y SALIDA vuelve a los brazos a 0, espera a
+que se retire el carrito y cuelga. Hasta reescribirlo, la máquina de estados de abajo es la de
+`rt/arm_sdk`.
 
-- paso detectado (pie fuera de su huella, o una junta de pierna desviada);
-- yaw > 5°, roll o pitch > 10°;
+Cualquier estado con el robot moviendo los brazos pasa a SALIDA SEGURA por:
+
+- inclinación respecto de la referencia del estabilizador > 10° (el estabilizador se apaga solo y se
+  sostiene la postura), o un pie que se desliza;
+- yaw > 5°;
 - error de seguimiento por encima del fijado, o fuerza > 1200 gf;
 - cámara sin fotogramas o mano sin respuesta;
-- FSM distinta de 201, excepción, Ctrl+C, tecla ESPACIO o el botón de parada del mando.
+- motor en fallo o `rt/lowstate` de más de 0.25 s (amortiguación: el robot cae en la cuerda), modo
+  distinto de Debug, excepción, Ctrl+C, tecla ESPACIO o el botón de parada del mando (L1).
 
 En simulacro recorre los mismos estados con la cámara en vivo y registra lo que mandaría: las
-trayectorias se reproducen en el gemelo y la mano abre y cierra en el aire, pero no publica en
-`rt/arm_sdk`.
+trayectorias se reproducen en el gemelo y la mano abre y cierra en el aire, pero no publica.
 
 ## A) Scripts nuevos
 
@@ -258,7 +327,13 @@ DDS.
 | `manip/mensajes.py` | Interfaces | Los mensajes de la tabla de interfaces | Ambos | 0 | pendiente |
 | `manip/fuentes.py` | Fuente | `FuenteZmq` y `FuenteDataset` con la misma interfaz | Ambos | 0 | pendiente |
 | `manip/robot.py` | E/S del robot | `rt/lowstate` (q, IMU, mando), FSM con `lee_fsm`, `mode_machine` leído | Robot | 0 | pendiente |
-| `manip/brazo.py` | Brazo | `rt/arm_sdk` a 50 Hz con el peso en el slot 27 y el CRC; rampas de 12 s con tope de 2° y de ≥ 5 s; mínima sacudida; tope de 0.5 rad/s y kp ≤ 150; cintura sujeta; `congelar()` | Robot | 0 | pendiente |
+| `manip/brazo.py` | Brazo | `rt/arm_sdk` a 50 Hz con el peso en el slot 27 y el CRC; rampas de 12 s con tope de 2° y de ≥ 5 s; mínima sacudida; tope de 0.5 rad/s y kp ≤ 150; cintura sujeta; `congelar()` | Robot | 0 | sustituido por `cuerpo.py` (2026-10-15) |
+| `manip/cuerpo.py` **(nuevo)** | Cuerpo | `rt/lowcmd` a 500 Hz de las 27 juntas: postura de pie, brazos (`tuned_gff`), par de sostén colgado/de pie, estabilizador IMU → tobillos, rampas de kp, amortiguación por fallo, lowstate viejo o L2+B del mando; tara de la carga colgado | Robot | H0 | hecho, probado en simulación |
+| `manip/dinamica.py` **(nuevo)** | Cuerpo | Pinocchio con base libre: par de gravedad (colgado), par de pie con la cuerda en el gancho, carga de cada pie desde el par de las piernas | Ambos | H0 | hecho |
+| `manip/modo.py` **(nuevo)** | Cuerpo | CheckMode, `ReleaseMode()` tras escribir SOLTAR (≤ 3 intentos), 3 s escuchando `rt/lowcmd` | Robot | H0 | hecho |
+| `config/gravedad_brazos.yaml` + `herramientas/gravedad_brazos.py` **(nuevo)** | Cuerpo | Masas de los brazos identificadas en `h1_2_joint_control` pasadas a este URDF (mano agrupada en `wrist_yaw`); reproduce el rms del ajuste (0.34/0.36 N m) | PC | H0 | hecho |
+| `herramientas/arnes.py` **(nuevo)** | Hito 0 | Los tres pasos en el arnés con teclas (sin distinguir mayúsculas); `--solo-colgado`; sigue si se corta el SSH; `--sim [--visor] [--operador-auto]` en la PC | Robot y PC | H0 | hecho, probado en simulación |
+| `sim/cuerpo_simulado.py` **(nuevo)** | Gemelo | Robot con física colgado de un gancho con polipasto que obedece LowCmd | PC | H0 | hecho |
 | `manip/mano.py` | Mano | Modbus por bloques separados; FORCE_SET antes de cada cierre; preforma, cerrar, sujetar, soltar y abrir comprobando ANGLE_ACT; borrar error (1004); línea base; nunca SAVE (1005) | Robot | 0 | pendiente |
 | `manip/cinematica.py` | Planificación | IK propia (Levenberg–Marquardt con límites) sobre el URDF del repo; marcos de la yema, del punto de agarre y del dorso; pinocchio 3 y 4 | Ambos | 0 | pendiente |
 | `manip/geometria.py` | Percepción | Píxel y profundidad → torso con la calibración; plano y marco de la mesa | Ambos | 1 | pendiente |
@@ -274,12 +349,12 @@ DDS.
 | `manipulacion.py` + `.sh` | Principal | `--nivel N`, `--simulacro`, `--escala-tiempo 2`; pide MOVER antes de mover | Robot | 3 | pendiente |
 | `herramientas/comprobar.py` | — | Robot, manos y cámara, solo lectura | Robot | 1 | pendiente |
 | `herramientas/medir_montaje.py` | 6.1.2 | Plano, ArUco de la mesa, bandejas y objetos → `montaje.yaml` | Robot | 1 | pendiente |
-| `herramientas/marcar_montaje.py` | Hito 1 | Pinta la zona, las bandejas y la cruz sobre el vídeo para colocarlas | Robot y navegador | 1 | pendiente |
+| `herramientas/marcar_montaje.py` | Hito 1 | Mesa (borde, lateral y giro) y bandejas medidas en vivo frente a su objetivo, con lo que falta; pinta mesa, zona, bandejas y cruz en `http://<robot>:5001` y `[g]` guarda la mesa | Robot y navegador | 1 | hecho (probado en la PC con grabación real y gemelo) |
 | `herramientas/mapa_alcance.py` | 6.1.1 | Mapa por mano, agarre y giro en planta, con colisiones del gemelo | PC | 1 | pendiente |
-| `herramientas/grabar_calibracion.py` | 6.1.3 | Lleva el brazo a poses fijas (sin cámara en el lazo) y graba color, profundidad, q e IMU | Robot | 2 | pendiente |
+| `herramientas/grabar_calibracion.py` | 6.1.3 | En el arnés, mientras `arnes.py` [k] recorre `poses_calibracion.yaml` (cada brazo desde 0 y de vuelta): una muestra (color, profundidad, q medida y mandada) cada vez que un brazo se queda quieto 1 s en una pose nueva; solo lee | Robot | 2 | hecho, sin probar en el robot (el recorrido, con física en `arnes.py --sim`) |
 | `herramientas/calibrar_camara_torso.py` | 6.1.3–4 | Calibración y su residuo; con la q medida y con la consigna | PC | 2 | pendiente |
 | `herramientas/vibracion_camara.py` | 6.1.5 | ArUco fijo durante 60 s con el robot quieto | Robot | 2 | pendiente |
-| `herramientas/curva_pasos.py` + `analizar_pasos.py` | 6.3.1–2 | Un mismo movimiento a 8, 10, 20 y 30 s; pasos y giro | Robot y PC | 2 | pendiente |
+| `herramientas/curva_pasos.py` + `analizar_pasos.py` | 6.3.1–2 | Un mismo movimiento a 8, 10, 20 y 30 s; inclinación y deslizamiento (antes: pasos y giro) | Robot y PC | 2 | pendiente |
 | `herramientas/fuerza_mano.py` | 6.4.2–4 | Fuerza real frente a FORCE_SET y SPEED con la báscula, apertura tras cerrar por fuerza y contacto de la yema | Robot | 2 | pendiente |
 | `herramientas/grabar_dataset.py` | 6.2 | Objetos en posiciones medidas con regla, con y sin mano delante | Robot | 2 | pendiente |
 | `herramientas/generar_sintetico.py` | 6.2 | Dataset de la cámara virtual con la verdad del simulador | PC | 0–2 | pendiente |
@@ -302,6 +377,8 @@ rsync -av --exclude datos/ --exclude __pycache__ --exclude .venv ./ unitree@192.
 rsync -av unitree@192.168.0.143:~/utec/manipulacion/datos/ datos/
 
 python3 -m pytest tests/
+python3 herramientas/arnes.py --sim --visor                               # Hito 0 en la PC: [u]/[j] polipasto
+python3 herramientas/arnes.py --sim --operador-auto                       # ensayo completo sin teclear
 python3 herramientas/generar_sintetico.py --n 200                         # Fase 0
 python3 herramientas/mapa_alcance.py --montaje config/montaje.yaml        # Hito 1
 python3 herramientas/calibrar_camara_torso.py datos/calib_<fecha>         # Hito 2
@@ -320,10 +397,12 @@ fase en la terminal 2.
 | --- | --- | --- | --- |
 | `~/robotics40/estado.sh`, `camara.sh usb`, `manos/manos.sh leer` | `unitree` | FSM 201, motores, cámara a 5000 Mbps, manos | Antes de cada tirada |
 | `instalar_entorno.sh` | `unitree` | Crear el `.venv` | Una vez |
+| `herramientas/arnes.py --solo-colgado` | `unitree`, terminal 2 (desde la PC: `./ejecutar.sh`) | Solo el paso 1 (colgado): postura y tara | Tras cambiar la postura o las ganancias |
+| `herramientas/arnes.py` | `unitree`, terminal 2 | Los tres pasos: colgado, apoyo y de pie | Hito 0 |
 | `camara_servidor.sh --color --profundidad --emisor` | root por sudo, terminal 1 | Fotogramas por ZMQ | Toda fase con cámara |
 | `herramientas/comprobar.py` | `unitree`, terminal 2 | Robot, manos y cámara, solo lectura | Antes de cada tirada |
 | `herramientas/medir_montaje.py`, `marcar_montaje.py` | `unitree`, terminal 2 | Mesa, bandejas y zona → `montaje.yaml` | Hito 1 |
-| `herramientas/grabar_calibracion.py --mano izq\|der` | `unitree`, terminal 2 | Poses fijas del brazo | Hito 2 |
+| `herramientas/grabar_calibracion.py` (y [k] en `arnes.py`) | `unitree`, terminal 2 | Muestras de calibración mientras `arnes.py` recorre las poses | Hito 2 |
 | `herramientas/vibracion_camara.py`, `curva_pasos.py --duraciones 30 20 10 8` | `unitree`, terminal 2 | Cámara quieta; pasos frente a duración | Hito 2 |
 | `herramientas/fuerza_mano.py --mano izq --force-set 250 350 450` | `unitree`, terminal 2 | Con la báscula | Hito 2 |
 | `herramientas/grabar_dataset.py --nombre objetos_a` | `unitree`, terminal 2 | Dataset de percepción | Antes del Hito 3 |
@@ -332,7 +411,17 @@ fase en la terminal 2.
 
 Los programas de `~/robotics40` no se modifican: solo se ejecutan o se leen.
 
-## C) Con el mando
+## C) Con el mando y el polipasto
+
+**Desde el 2026-10-15 (`rt/lowcmd`)** hacen falta dos personas: una en la manivela del polipasto y otra
+con el mando y el terminal. El robot no pasa por FSM 201: tras encenderlo colgado se deja en
+amortiguación (L2+B) y `arnes.py` hace el resto. La parada del programa es ESPACIO o L1 (sostiene la
+postura); Ctrl+C dos veces suelta (kp a 0: el robot cae en la cuerda, que ya lleva parte del peso).
+En Debug el robot ignora L2+B (medido el 2026-10-16): lo atiende el hilo de control de `arnes.py` (kp a 0
+en 0.5 s, queda kd; de pie, el robot cae en la cuerda). Solo funciona mientras el programa corre: si el
+programa muere, los motores quedan sin par a los 0.2 s y el robot también cae en la cuerda. Un corte del
+SSH no lo mata: para, y cuando el polipasto lo cuelga termina solo. La tabla de abajo es la
+operación con `rt/arm_sdk` (FSM 201) y queda como referencia.
 
 El operador del mando no hace otra tarea y tiene L2+B listo en todas las fases en que el peso de
 `arm_sdk` es mayor que 0. Nadie entra en el alcance de los brazos con peso: el instructor coloca los
@@ -357,6 +446,7 @@ cambio de modo. Opcionalmente, un botón sin función en FSM 201 como parada por
 ```mermaid
 flowchart TD
   F0["Fase 0 · antes de la sesión<br/>entorno, cámara, brazo y mano sin mover, IK, gemelo y cámara virtual,<br/>percepción y calibración probadas sobre datos sintéticos"]
+  H0{{"Hito 0 · de pie por rt/lowcmd en el arnés<br/>colgado → apoyo → de pie con la cuerda floja (arnes.py)"}}
   F1["0:00–0:30 · Preparación y espacio de trabajo<br/>interfaces por escrito; FSM 201, manos y cámara; medir_montaje + mapa_alcance<br/>Entregable: mapa sobre el tablero, d justificada, mesa fijada y montaje marcado"]
   H1{{"Hito 1 · desde aquí se puede mover un brazo"}}
   F2["0:30–1:10 · Calibración y caracterización<br/>grabar_calibracion, vibracion_camara, curva_pasos, fuerza_mano con la báscula<br/>Entregable: cámara–torso con residuo, curva de pasos, tabla por objeto"]
@@ -366,7 +456,7 @@ flowchart TD
   H3{{"Hito 3 · desde aquí se permite la cámara en el lazo"}}
   F5["2:30–3:30 · Tiradas por niveles<br/>primero con --escala-tiempo 2; una tirada fallida se analiza antes de repetir"]
   F6["3:30–4:00 · Métricas y cierre<br/>metricas.py; informe con 6.1–6.4, calibración y registros"]
-  F0 --> F1 --> H1 --> F2 --> H2 --> F3 --> F4 --> H3 --> F5 --> F6
+  F0 --> H0 --> F1 --> H1 --> F2 --> H2 --> F3 --> F4 --> H3 --> F5 --> F6
 ```
 
 Ningún brazo se mueve antes del Hito 1, y ninguno con la cámara en el lazo antes del Hito 3. Las
@@ -394,14 +484,40 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 - [x] Pose de observación (`poses_brazos.py`) y poses de calibración (`poses_calibracion.py`) con el gemelo
 - [x] `comprobar.py` (solo lectura) escrito; falta pasarlo en el robot
 
+**Hito 0: de pie por `rt/lowcmd` en el arnés (2026-10-15)**
+
+- [x] `dinamica.py`, `cuerpo.py`, `modo.py`, `gravedad_brazos.yaml`, `cuerpo_simulado.py` y `arnes.py`, con `tests/test_cuerpo.py` (12 pruebas) y el ensayo completo en `arnes.py --sim --operador-auto`
+- [x] Desplegar y, en el robot colgado y en amortiguación, `arnes.py --solo-colgado --pruebas` (2026-10-16): Debug al primer `ReleaseMode()`, lazo a 500 Hz con dt máx 6 ms, postura y brazos a 0 con error ≤ 1.8°; L2+B ignorado en Debug y motores sin par a los 0.2 s sin órdenes (RESULTADOS §14). Después: L2+B por el programa, tara colgado, teclas sin mayúsculas, SSH cortado; quitado `--pruebas`
+- [x] `arnes.py` completo (2026-10-16): de pie con la cuerda floja, sin oscilar, y los brazos adelante sin mover el torso (±0.1°); escala de la carga 0.82 → 0.75 (RESULTADOS §15)
+- [x] Inclinación de 3.4° adelante con el estabilizador solo proporcional → integral (Ki 30, solo de pie del todo); simulado
+- [x] Integral en el robot (2026-10-16): vuelve a la referencia en ~30 s sin oscilar, pero la referencia de `[e]` estaba en +5.3° (el robot ~4° adelante con el nivel del móvil)
+- [x] Inclinación de referencia fija con `[n]` (+0.5°, la de FSM 201) y la simulación con el desfase de ~5.4° entre el URDF y el robot; simulado
+- [x] En el robot con `[n]` (2026-10-16): con la cuerda floja oscila (tobillos a 54 N m, ~110 s); con la cuerda llevando ~25 %, quieto a +0.8° → procedimiento de trabajo con la cuerda llevando parte del peso
+- [x] Sesgo del tobillo (+13 N m), la referencia solo avanza si el torso la sigue, integral sin acumular saturada, con banda de 0.5° y sin roll, total del tobillo ≤ 50 N m; simulación con el desfase en cadera y rodilla (reproduce la oscilación); simulado
+- [x] En el robot (2026-10-17, dos tiradas): con el pórtico centrado, quieto a ~0° con los brazos moviéndose (pitch −0.03…+0.09°, tobillos ≤ 9 N m); el aviso de la integral decía la dirección al revés (corregido) y el orden pasa a `[n]` → pórtico → polipasto
+- [x] En el robot: el orden nuevo (2026-10-17, tres tiradas): nivela de +3.4° a +0.7° en ~20 s sin oscilar (tobillos ≤ 30 N m); con el pórtico centrado +0.5°; con la cuerda tensa y los brazos moviéndose +0.7…+1.0°, tobillos ≤ 16 N m. Una `[n]` pulsada mientras se encendía el estabilizador se perdía (y adelantaba el par de pie): corregido, y el siguiente paso en la línea de estado
+- [ ] Integrar `Cuerpo` en `manipulacion.py` y el supervisor (ENTRADA = arnes, ESPERA de pie con los brazos a 0, SALIDA colgando)
+- [ ] Nueva pose de observación alcanzable desde los brazos a 0 sin tapar la vista; regenerar `secuencia_ganancias.yaml`
+- [x] Mesa medida con el robot de pie en el arnés (2026-10-17): borde cercano a 0.282 m, 2.1 cm a la derecha, yaw −0.7° (solo con los ArUco lejanos y el fondo de la mesa); bandejas de la guía, zona 40 × 16 y cruz en `montaje.yaml`; el gemelo coincide con la imagen real con la calibración del URDF (RESULTADOS §20)
+- [ ] `mapa_alcance.py` con colisiones (asas a la altura de los codos, a ±0.48 m)
+
 **Hito 1: espacio de trabajo**
 
 - [ ] `comprobar.py`, `medir_montaje.py` y `mapa_alcance.py` con colisiones y giro en planta
-- [ ] Fijar d, la zona y la cruz; colocar las bandejas y la cinta con `marcar_montaje.py`; frenos; huellas
+- [x] Bandejas y asignación por color (2026-10-17): en el gemelo, rectángulo (0.40 / 0.56, ±0.28) con azul, roja, blanca y naranja en A–D; `marcar_montaje.py` (RESULTADOS §21)
+- [x] Primera colocación en el robot (2026-10-18): carrito y bandejas con `marcar_montaje.py` (la C blanca, con regla: con los brazos a 0 solo se ve una pared), la naranja detectada, los cuatro objetos reconocidos (192/192), la mesa con wincha en `mesa_fisica` y el marco escalado con lo que ve la cámara (RESULTADOS §22)
+- [ ] **La cámara ve la mesa ~3 % más grande** (ArUco 2–3: 738 mm de 716): medir la profundidad en la calibración cámara–torso con el ArUco de las manos por la zona, o calibrar el D435i en placa; hasta entonces, ~1–1.5 cm en la zona
+- [ ] Volver a colocar el carrito con el marco corregido (el `[g]` del 18 da 0.286 m, y se movió a 0.300 al medir); frenos y huellas; zona marcada con cinta (16 × 40 cm, centrada entre los labios laterales)
+- [ ] Ajustar el rango HSV del prisma (toca la roja y la pelota) con más capturas; profundidad del cubo blanco (4–5.5 cm de 6)
+- [ ] Supervisor desde los brazos a 0: desde el reposo de la FSM la mano izquierda pasa a 13 mm de la mesa con el carrito a < 0.29 m (fallan las 5 pruebas de `test_supervisor.py`)
 
 **Hito 2: calibración y caracterización**
 
-- [ ] `grabar_calibracion.py` con ≥ 15 poses por mano y `calibrar_camara_torso.py` con su residuo
+- [x] Calibración en el arnés (2026-10-18): `poses_calibracion.py` desde los brazos a 0 delante del montaje medido (caminos sin choques y marcador leído en el gemelo), [k] en `arnes.py` y `grabar_calibracion.py`; `calibrar_camara_torso.py` compara la profundidad en el marcador con la esperada (RESULTADOS §23)
+- [x] Calibración en el robot (2026-10-18): 32/32 muestras, 1.6 px / 1.7 mm; cámara a 13.9 mm y 2.25° del URDF (los ~2° son del marco de los brazos); montaje y `objetivo_mesa` pasados al marco calibrado (RESULTADOS §24)
+- [x] Bandejas medidas con `[g]` en `marcar_montaje.py` (el robot suelta en lo medido) y comprobación del montaje al empezar cada tirada (RESULTADOS §25)
+- [ ] Desplegar la calibración, el montaje y las poses (robot apagado hasta el 2026-10-20), volver a colocar las bandejas (~2 cm) con `marcar_montaje.py` y guardarlas con `[g]`
+- [ ] Profundidad: ~2 % de más a 1 m sobre papel mate y ~1 % más con el plano del tablero negro; medir en la zona (poses de calibración más bajas, 5–12 cm sobre la mesa, o tocar dianas del nivel 1) y, si hace falta, corregir la profundidad con la distancia
 - [ ] Superposición del gemelo calibrado sobre la imagen real
 - [ ] `vibracion_camara.py`
 - [ ] `curva_pasos.py` a 8, 10, 20 y 30 s; duración mínima al YAML
@@ -432,7 +548,12 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 - [x] El código se escribe antes de la sesión de 4 h (Fase 0)
 - [x] El carrito es la mesa definitiva; frenos sí; las asas no se quitan; no hay tablero mate
 - [x] La curva de pasos se mide a 8, 10, 20 y 30 s (el PDF pide 5 s en 6.3.1 y prohíbe bajar de 8 s en la sección 10)
-- [x] Cuerda con holgura durante las tiradas
+- [x] Cuerda con holgura durante las tiradas (con `rt/lowcmd`: 2–3 cm, de pie con el estabilizador)
+- [x] **2026-10-15:** `rt/lowcmd` de cuerpo entero con el robot en el arnés (con el instructor), en los tres pasos (colgado, apoyo, de pie con la cuerda floja)
+- [x] **2026-10-15:** el pórtico deja subir y bajar el robot con la manivela estando en Debug (fotos en `montajes/`: un solo gancho, cintas al soporte del cuello y a los cáncamos)
+- [x] **2026-10-15:** `ReleaseMode()` desde el programa (tras escribir SOLTAR)
+- [x] **2026-10-15:** mesa a ~0.27 m, bandejas como en la guía, zona 40 × 16; las baldas del carrito están a ras del tablero
+- [x] **2026-10-15:** brazos con `tuned_gff` (con la compensación de gravedad), sin el tope de kp 150
 - [x] Entorno propio en `~/utec`, no env_tv
 - [x] IK propia sobre el URDF del repo
 - [x] Zona de recogida reducida (~26 × 12 cm)
@@ -441,13 +562,15 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 - [x] Hay báscula y regla
 - [x] Objetos: pelota de tenis, cubo blanco, cilindro PLA azul de Ø 5 × 8 cm de pie y prisma PLA naranja de 4 × 4 × 10 cm tumbado; cuarta bandeja naranja (2026-10-12)
 - [x] Lado del cuadrado negro de los ArUco: 5.0 cm con regla, DICT_4X4_50
-- [ ] Asignación de cada objeto a su bandeja (la decide el instructor al empezar)
+- [x] Asignación de cada objeto a su bandeja (2026-10-17, el usuario): cilindro → roja, pelota → blanca, cubo → naranja, prisma → azul
 - [x] Quién opera el mando en las tiradas: el usuario
 
 ## Fuentes
 
 - Enunciado: [`Reto_Manipulacion_H1_2_Robotics40.pdf`](Reto_Manipulacion_H1_2_Robotics40.pdf) (R40-RT-H1_2-0002 v1.0)
 - Fotos del montaje: [`../montajes/`](../montajes/) (`toma_lateral`, `ArUcos_manos`, `ArUcos_mesa`; `toma_frontal` solo en local: salen personas)
+- Pórtico y arnés: `montajes/unitree-gantry.jpg`, `h1_2_sujeciones.jpeg`, `h1_2_colgado.jpeg`, `h1_2_colgado_1.jpeg` (2026-10-15)
+- Ganancias y masas de los brazos: [`h1_2_joint_control/`](../../../h1_2_joint_control/) (`config/gains.yaml`: `tuned_gff`, `legs_hold`; `logs/gravity_params_*.json`)
 - Capacitación: `~/Documents/UTEC/CAPACITACION/Capacitacion_H1_2_Robotics40.pdf` y su resumen en [`docs/CAPACITACION_H1_2.md`](../../../docs/CAPACITACION_H1_2.md)
 - Código de referencia: `code_cap/caja_cuadrado.py`, `prueba_brazos_armsdk.py`, `caja_geometria.py`, `manos/`; en el robot, `~/robotics40/lectores_h1_2/`
 - Manos: `~/Documents/inspire_hand_interface` (`Caracterizacion/exp2`, `exp3`, `resultados/MONTAJES.md`, `Control/`)

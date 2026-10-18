@@ -94,9 +94,11 @@ def test_cierre_del_montaje(cin, cal):
     e = Estado(m, info)
     e.adelante()
     f = CamaraVirtual(m, info, cal).fotograma(e)
-    assert {2, 3, 4, 5} <= set(cb.detectar(f.ir, cb.detector()))
+    # los cercanos (4 y 5) quedan pegados al labio cercano y con la mesa a 0.27-0.29 m el labio les tapa el
+    # blanco, aqui y en el robot (2026-10-18): el marco sale de los lejanos y el fondo de mesa_fisica
+    assert {2, 3} <= set(cb.detectar(f.ir, cb.detector()))
     mesa, inf = mt.medir(f, cal, mon)
     T0, T1 = np.array(mon["mesa"]["T_torso_mesa"]), np.array(mesa["T_torso_mesa"])
-    assert np.linalg.norm(T0[:3, 3] - T1[:3, 3]) < 0.003
+    assert np.linalg.norm(T0[:3, 3] - T1[:3, 3]) < 0.005
     assert abs(mesa["yaw_deg"] - mon["mesa"]["yaw_deg"]) < 0.5
     assert abs(mesa["plano"]["d"] - mon["mesa"]["plano"]["d"]) < 0.002

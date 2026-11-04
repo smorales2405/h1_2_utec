@@ -88,7 +88,7 @@ allí se borraron.
   (ver `README_SIM.md` §5). Los cambios a código ajeno están aislados en
   `patches/`.
 - **El teleop del robot real** — vive y corre en el PC2 del robot
-  (`~/robotics40/meta`, ya instalado). Aquí solo están los lanzadores que lo
+  (`~/utec/teleoperacion`, ya instalado). Aquí solo están los lanzadores que lo
   arrancan por SSH. El despliegue antiguo, con el teleop en la laptop, se retiró
   el 2026-10-09 y sigue en el historial de git
   (`git show 1df4e32:h1_2_teleoperation/README_DEPLOY.md`).
@@ -105,7 +105,7 @@ por clave SSH. Con el robot **colgado** y en **Debug (L2 + R2)**:
 cd h1_2_teleoperation/scripts
 ./robot.sh comprobar      # red, clave SSH y estado del robot (solo lectura)
 ./estado.sh               # CheckMode tiene que dar name ''
-./teleop_xr.sh            # r empieza, q sale (abre las manos y los brazos vuelven a casa)
+./teleop_xr.sh            # r empieza, q sale (brazos a 0°, abre las manos, brazos a la postura inicial)
 ./teleop_xr.sh parar      # al terminar
 ```
 

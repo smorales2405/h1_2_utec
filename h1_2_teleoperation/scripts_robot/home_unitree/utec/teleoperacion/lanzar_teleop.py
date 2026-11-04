@@ -5,15 +5,19 @@
    devuelva un nombre de modo. En el H1-2 el SDK no puede cambiar la FSM (el Debug se pone con L2+R2 en el
    mando), asi que ese bucle podria no acabar nunca. Aqui se intenta 3 veces, se registra lo que responde y
    se sigue.
-2. Al salir (q, Ctrl-C o un error) primero se abren del todo las dos manos y despues los brazos vuelven a
-   casa. Mientras las manos se abren, los brazos se quedan en la ultima consigna.
-3. Si se corta el SSH, el teleop sale como con q (y por tanto tambien abre las manos). El corte se detecta:
+2. Al salir (q, Ctrl-C o un error), en este orden:
+   a) los dos brazos van a 0 grados (antebrazos horizontales hacia delante);
+   b) se abren del todo las dos manos, con los brazos quietos en 0 grados;
+   c) los brazos vuelven a la postura medida al arrancar, antes de que se moviera nada. El programa termina
+      ahi: en Debug los brazos se quedan sin fuerza al salir, y desde 0 grados los antebrazos caerian.
+3. Si se corta el SSH, el teleop sale como con q (y por tanto hace lo mismo). El corte se detecta:
    - por el terminal colgado: se cerro la terminal o el ssh del PC;
    - porque el PC deja de responder al ping SIN_PING_S segundos: WiFi caida, portatil suspendido. Hace falta
      porque el sshd del robot no tiene ClientAliveInterval y con un corte silencioso no se entera en minutos.
    SIGHUP se ignora, tambien en los procesos hijos, para que el corte no los mate antes de salir.
 """
 import os, sys, time, runpy, signal, subprocess, threading, multiprocessing
+import numpy as np
 TELEOP = os.path.join(os.path.dirname(os.path.abspath(__file__)), "xr_teleoperate", "teleop")
 SCRIPT = os.path.join(TELEOP, "teleop_hand_and_arm.py")
 sys.path.insert(0, os.path.dirname(TELEOP))
@@ -28,6 +32,9 @@ from teleop.robot_control import robot_arm, robot_hand_inspire
 
 MANO_ABIERTA = 0.95   # angle_act/1000 de una mano abierta: ~0.99 los dedos, ~0.986 la rotacion del pulgar
 ESPERA_MANOS_S = 3.0  # si no terminan de abrir en este tiempo, los brazos vuelven igual
+VEL_BRAZOS = 1.0      # rad/s de media, en la junta que mas se mueve, en los dos movimientos de la salida
+TOL_BRAZOS = 0.05     # rad; la misma que ctrl_dual_arm_go_home de Unitree
+ESPERA_BRAZOS_S = 1.0 # tras la rampa, si no han llegado en este tiempo se sigue igual
 SIN_PING_S = 3.0      # sin respuesta del PC durante esto -> q (la WiFi tiene picos de 0.5 s)
 
 
@@ -56,14 +63,14 @@ def enter_debug_limitado(self, intentos=3):
         return None, None
 
 
-# --- 2. abrir las manos antes de volver a casa ---
+# --- 2. salida: brazos a 0 grados, abrir las manos, brazos a la postura inicial ---
 # Se crea antes de que el teleop arranque el proceso de las manos (fork), asi que lo comparten
 ABRIR_MANOS = multiprocessing.Value("b", False)
 MANOS = []   # el Inspire_Controller_FTP del teleop
 
 _init_mano = robot_hand_inspire.Inspire_Controller_FTP.__init__
 _enviar_mano = robot_hand_inspire.Inspire_Controller_FTP._send_hand_command
-_casa = robot_arm.H1_2_ArmController.ctrl_dual_arm_go_home
+_ir_a_cero_unitree = robot_arm.H1_2_ArmController.ctrl_dual_arm_go_home
 
 
 def init_mano(self, *args, **kwargs):
@@ -82,7 +89,7 @@ def abrir_manos():
     if not MANOS:
         return
     mano = MANOS[0]
-    aviso("abriendo las manos antes de volver a casa")
+    aviso("abriendo las manos")
     ABRIR_MANOS.value = True
     t0 = time.monotonic()
     while True:
@@ -98,12 +105,49 @@ def abrir_manos():
         time.sleep(0.05)
 
 
-def casa(self):
+def mover_brazos(self, q_final, destino):
+    # Rampa suave desde la q medida. ctrl_dual_arm_go_home de Unitree salta al objetivo (en MuJoCo, 3.2 rad/s de
+    # pico frente a 1.6 de esta rampa) y deja puesto el par de gravedad del ultimo instante del teleop, que ya no
+    # corresponde a la postura. Aqui ese par baja a 0 con la rampa.
+    q_ini = self.get_current_dual_arm_q()
+    with self.ctrl_lock:
+        tau_ini = np.array(self.tauff_target)
+    duracion = max(np.max(np.abs(q_final - q_ini)) / VEL_BRAZOS, 0.2)
+    aviso(f"brazos a {destino}: {duracion:.1f} s")
+    t0 = time.monotonic()
+    while (s := (time.monotonic() - t0) / duracion) < 1.0:
+        suave = 0.5 - 0.5 * np.cos(np.pi * s)
+        self.ctrl_dual_arm(q_ini + (q_final - q_ini) * suave, tau_ini * (1.0 - suave))
+        time.sleep(0.004)
+    self.ctrl_dual_arm(q_final, np.zeros_like(tau_ini))
+    t0 = time.monotonic()
+    while (error := np.max(np.abs(self.get_current_dual_arm_q() - q_final))) > TOL_BRAZOS:
+        if time.monotonic() - t0 > ESPERA_BRAZOS_S:
+            aviso(f"AVISO: brazos a {error:.3f} rad de {destino}; se sigue igual")
+            return
+        time.sleep(0.02)
+
+
+def intentar(paso, *args):
+    # Que el fallo de un paso no impida los siguientes
     try:
-        abrir_manos()
+        paso(*args)
     except Exception as e:
-        aviso(f"abrir las manos fallo: {e}")
-    _casa(self)
+        aviso(f"{paso.__name__} fallo: {e}")
+
+
+def salida(self):
+    # En Motion Mode (--motion, arrancar.sh no lo pasa) los brazos no se quedan sin fuerza: Unitree baja el peso
+    # de arm_sdk y vuelven solos a su postura. No hay que llevarlos a ningun sitio ni medir nada al arrancar.
+    if self.motion_mode:
+        intentar(_ir_a_cero_unitree, self)
+        intentar(abrir_manos)
+        return
+    # all_motor_q se mide en __init__, antes de que el controlador publique nada
+    q_inicio = self.all_motor_q[[int(j) for j in robot_arm.H1_2_JointArmIndex]]
+    intentar(mover_brazos, self, np.zeros(q_inicio.shape), "0 grados")
+    intentar(abrir_manos)
+    intentar(mover_brazos, self, q_inicio, "la postura inicial")
 
 
 # --- 3. corte del SSH = q ---
@@ -174,7 +218,7 @@ if __name__ == "__main__":
     ms.MotionSwitcher.Enter_Debug_Mode = enter_debug_limitado
     robot_hand_inspire.Inspire_Controller_FTP.__init__ = init_mano
     robot_hand_inspire.Inspire_Controller_FTP._send_hand_command = enviar_mano
-    robot_arm.H1_2_ArmController.ctrl_dual_arm_go_home = casa
+    robot_arm.H1_2_ArmController.ctrl_dual_arm_go_home = salida
     threading.Thread(target=vigilar_conexion, name="vigilar_conexion", daemon=True).start()
     sys.argv = ["teleop_hand_and_arm.py"] + sys.argv[1:]
     runpy.run_path(SCRIPT, run_name="__main__")

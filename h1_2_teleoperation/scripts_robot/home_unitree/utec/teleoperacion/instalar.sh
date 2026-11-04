@@ -4,9 +4,9 @@
 set -e
 # ~/.local tiene paquetes del usuario que se cuelan en cualquier python 3.10: aislarlo
 export PYTHONNOUSERSITE=1
-META=$HOME/robotics40/meta
-PIP="$META/env_tv/bin/python -m pip"
-XR=$META/xr_teleoperate
+AQUI="$(cd "$(dirname "$0")" && pwd)"
+PIP="$AQUI/env_tv/bin/python -m pip"
+XR=$AQUI/xr_teleoperate
 echo "### 1. requirements base"
 $PIP install -r $XR/requirements.txt
 echo "### 2. teleimager (+ servidor: realsense, zmq, aiortc, uvc)"
@@ -25,7 +25,7 @@ $PIP install -e $HOME/pc2_offline/src/unitree_sdk2_python --no-deps
 $PIP install -e $HOME/pc2_offline/src/inspire_hand_sdk --no-deps
 $PIP install "pymodbus==3.6.9" pyserial "PyQt5==5.15.11" pyqtgraph colorcet requests   # inspire_sdkpy importa Qt al cargarse
 echo "### 6. comprobacion"
-$META/env_tv/bin/python - <<"PY"
+$AQUI/env_tv/bin/python - <<"PY"
 import pinocchio, casadi, numpy, torch, vuer, televuer, teleimager, dex_retargeting, unitree_sdk2py, inspire_sdkpy, meshcat
 print("OK pinocchio", pinocchio.__version__, "numpy", numpy.__version__, "torch", torch.__version__)
 PY

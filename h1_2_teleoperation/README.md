@@ -2,7 +2,7 @@
 
 Los brazos del H1-2 y los dedos de sus manos **Inspire RH56DFTP** siguen a los
 del operador, que lleva unas **Meta Quest 3**. Todo corre en el **PC2 del robot**
-(`~/robotics40/meta`: `xr_teleoperate` de Unitree, commit `817fb00`, entorno
+(`~/utec/teleoperacion`: `xr_teleoperate` de Unitree, commit `817fb00`, entorno
 `env_tv`). Desde este PC solo se lanza, por SSH, con los scripts de
 [`scripts/`](scripts/).
 
@@ -21,10 +21,10 @@ L2 + B en el mando es la parada de emergencia.**
 ```
   ESTE PC (Ubuntu)                         H1-2
   scripts/teleop_xr.sh ── ssh -t ──▶ PC2  unitree-h1-2-pc4  (WiFi 192.168.0.143)
-                                      ~/robotics40/teleop_xr.sh → meta/arrancar.sh
+                                      ~/utec/teleoperacion/teleop_xr.sh → arrancar.sh
                                         1. servidor de imagen: teleimager + D435i (sudo)
                                         2. driver de las manos: Modbus TCP ⇄ DDS
-                                        3. teleop_hand_and_arm.py (meta/lanzar_teleop.py)
+                                        3. teleop_hand_and_arm.py (lanzar_teleop.py)
                                              · Vuer/WebXR :8012  ◀── Meta Quest 3 (WiFi UTEC_H1_2)
                                              · rt/lowcmd (DDS eth0)  ──▶ PC1: brazos, en Debug
                                              · rt/inspire_hand/ctrl/{l,r} ──▶ driver ──▶ manos
@@ -33,9 +33,9 @@ L2 + B en el mando es la parada de emergencia.**
 
 - `comun.sh` ve que este PC no es el robot y **reenvía la orden por SSH**:
   `./teleop_xr.sh` se convierte en
-  `ssh -t unitree@192.168.0.143 "cd ~/robotics40 && ./teleop_xr.sh"`.
+  `ssh -t unitree@192.168.0.143 "cd ~/utec/teleoperacion && ./teleop_xr.sh"`.
 - **Siempre se ejecuta el código del robot.** Cambiar estos scripts aquí no
-  cambia el teleop; el teleop se cambia en `~/robotics40/meta` del robot. Su
+  cambia el teleop; el teleop se cambia en `~/utec/teleoperacion` del robot. Su
   copia versionada está en [`scripts_robot/`](scripts_robot/README.md).
 - **Las gafas se conectan directamente al robot**, no a este PC. Por eso aquí no
   hace falta conda, SDK, CycloneDDS, ROS ni certificados.
@@ -49,13 +49,11 @@ L2 + B en el mando es la parada de emergencia.**
 | `estado.sh [s]` | `rt/lowstate`, FSM y `CheckMode` (¿Debug de verdad?) durante `s` segundos (5 por defecto) | no |
 | `robot.sh [comprobar\|gafas]` | `comprobar`: red, clave SSH y estado. `gafas`: URL para las Quest. Sin argumentos: terminal en el robot | no |
 
-Son copias exactas de los de `~/robotics40` (el robot y la ThinkStation de UTEC),
-comparadas por sha256 el 2026-10-06.
+`teleop_xr.sh`, `comun.sh` y `estado.sh` son los mismos que hay en
+`~/utec/teleoperacion` del robot.
 
-- Los cuatro tienen que estar **en la misma carpeta**. Lánzalos por su ruta, sin
-  enlaces simbólicos.
-- **No uses `./robot.sh traer` aquí**: copiaría todo `~/robotics40` del robot
-  dentro de esta carpeta del repositorio.
+Los cuatro tienen que estar **en la misma carpeta**. Lánzalos por su ruta, sin
+enlaces simbólicos.
 
 ## 3. Requisitos
 
@@ -71,7 +69,7 @@ comparadas por sha256 el 2026-10-06.
    detectar cortes (§6).
 
 **En el robot** ya está todo instalado; no hay que tocar nada:
-`~/robotics40/meta` (con `env_tv` y el certificado para la `.0.143`),
+`~/utec/teleoperacion` (con `env_tv`), el certificado para la `.0.143`,
 `~/teleop_venv`, `~/inspire_ftp_dual_driver.py`, la D435i en el USB del PC2 y
 la WiFi TP-Link. En otro H1-2 hay que instalarlo: §10.
 
@@ -113,7 +111,7 @@ cd ~/Documents/h1_2_utec/h1_2_teleoperation/scripts
 
    Arranca la cámara (puede pedir el `sudo` **del robot**) y el driver de las
    manos, que **las abre nada más arrancar**. Al inicializarse, **los brazos van
-   solos a 0°** (colgando rectos), deprisa y antes de pulsar `r`. Al final
+   solos a 0°** (antebrazos horizontales hacia delante), deprisa y antes de pulsar `r`. Al final
    imprime la URL para las gafas.
 4. **En las Quest 3**: WiFi `UTEC_H1_2`, y en el navegador la URL completa, con
    su `?ws=` (sin él no conecta el websocket y no se ve nada):
@@ -127,12 +125,17 @@ cd ~/Documents/h1_2_utec/h1_2_teleoperation/scripts
    esta URL.
 5. Pon los brazos como los tiene el robot y pulsa **`r`**: brazos y dedos
    empiezan a seguirte.
-6. **`q`** para salir:
-   1. Primero se **abren del todo las dos manos**. El teleop espera a leerlas
-      abiertas, como mucho 3 s.
-   2. Luego los **brazos vuelven a casa** (~0,5 s).
-   3. El programa termina. **Brazos y piernas quedan sin fuerza** (Debug y nadie
+6. **`q`** para salir, en este orden:
+   1. Los dos **brazos van a 0°**: antebrazos horizontales hacia delante. Hasta
+      aquí las manos siguen a las tuyas.
+   2. Se **abren del todo las dos manos**. El teleop espera a leerlas abiertas,
+      como mucho 3 s.
+   3. Los **brazos vuelven a la postura inicial**, la que tenían al lanzar el
+      teleop.
+   4. El programa termina. **Brazos y piernas quedan sin fuerza** (Debug y nadie
       mandando). Para volver, el mando.
+
+   Los dos movimientos de brazos tardan ~1–3 s cada uno.
 7. Parar la cámara y el driver de las manos:
 
    ```bash
@@ -141,8 +144,8 @@ cd ~/Documents/h1_2_utec/h1_2_teleoperation/scripts
 
 ## 6. Si se corta el SSH
 
-**El teleop sale solo, como con `q`**: abre las manos y los brazos vuelven a
-casa. Detecta dos tipos de corte:
+**El teleop sale solo, con la misma secuencia que `q`** (§5, paso 6). Detecta dos
+tipos de corte:
 
 - **Se cuelga el terminal**: se cierra la terminal o el `ssh` de este PC. Lo
   detecta en unos 0,2 s.
@@ -164,7 +167,7 @@ por `192.168.0.143`.
 
 ## 7. Logs y problemas frecuentes
 
-Los logs están en el robot, en `~/robotics40/meta/logs/`: `teleop.log`,
+Los logs están en el robot, en `~/utec/teleoperacion/logs/`: `teleop.log`,
 `manos.log` e `image_server.log`. La terminal muestra `teleop.log` en directo.
 
 | Síntoma | Causa y solución |
@@ -177,6 +180,31 @@ Los logs están en el robot, en `~/robotics40/meta/logs/`: `teleop.log`,
 | `No route to host` | Robot apagado, o este PC fuera de `UTEC_H1_2` |
 
 ## 8. Cambios hechos en el robot
+
+**2026-11-04: la teleoperación pasa a `~/utec/teleoperacion`.** Con `conda create
+--clone`, `env_tv` queda en la carpeta nueva con los mismos paquetes, y sus tres
+rutas editables apuntan al `xr_teleoperate` de allí. Fuera de esa carpeta siguen
+`~/inspire_ftp_dual_driver.py`, `~/teleop_venv`, `~/pc2_offline/src`, el certificado de
+`~/.config/xr_teleoperate` y, solo para `estado.sh`, `~/robotics40/lectores_h1_2`.
+
+`~/robotics40/meta` **sigue intacta**, con la salida anterior (abre las manos y
+los brazos van a 0°), y sirve de respaldo:
+
+```bash
+ssh -t unitree@192.168.0.143 ~/robotics40/teleop_xr.sh
+```
+
+Es también lo que sigue lanzando la ThinkStation de UTEC, porque su `comun.sh`
+apunta a `~/robotics40`.
+
+**Probado** sin mover el robot, desde la carpeta nueva:
+
+- mismos paquetes que el entorno original, y ninguno se carga desde `robotics40`;
+- `--help` con el teleop real, IK de los brazos y retargeting de las manos;
+- servidor de imagen y Vuer con `prueba_gafas.py`: 30 imágenes/s de la D435i;
+- desde este PC: `./robot.sh comprobar` y `./teleop_xr.sh parar`.
+
+**Falta** el teleop completo con el robot colgado.
 
 **2026-10-07**, en `~/robotics40/meta` del robot:
 
@@ -201,11 +229,31 @@ ssh unitree@192.168.0.143 'cd ~/robotics40/meta && for f in lanzar_teleop.py arr
 - un corte real del SSH con un teleop falso;
 - `--help` con el teleop real.
 
+**2026-11-03**, en `lanzar_teleop.py`, `arrancar.sh` y `README.md`: la salida pasa
+a ser brazos a 0°, abrir las manos y brazos a la postura inicial (§5, paso 6). Sus
+movimientos son rampas suaves propias, más lentas que `ctrl_dual_arm_go_home` de
+Unitree (~0,5 s).
+
+Está solo en `~/utec/teleoperacion`; para volver a la salida anterior, el respaldo
+de arriba.
+
+**Probado** en `unitree_mujoco` (el H1-2 sin manos, manos falsas y el
+`H1_2_ArmController` real de Unitree, commit `817fb00`):
+
+- el orden de los tres pasos; desde un brazo en alto, 3,5 s en total;
+- los brazos a menos de 0,02 rad de 0° mientras las manos abren;
+- que un fallo o una espera agotada al abrir las manos no impide que los brazos
+  vuelvan.
+
+La simulación **no cubre** la caída de los brazos al quedarse sin par: mantiene la
+última orden.
+
 **Falta probarlo con el robot moviéndose**:
 
 1. Pulsar `q` sin haber pulsado `r`.
 2. Pulsar `q` con una mano cerrada.
 3. Cerrar la terminal en mitad del teleop.
+4. Que los brazos no caigan al terminar el programa.
 
 ## 9. Lo que se retiró de este directorio (2026-10-09)
 

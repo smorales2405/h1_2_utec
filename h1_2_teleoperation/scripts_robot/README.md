@@ -4,7 +4,7 @@
 del H1-2**. Esta carpeta es la copia de lo que hace falta en el robot para eso.
 
 - Son copias **exactas** de los archivos del H1-2 de UTEC, comparadas por checksum
-  con el robot el 2026-10-14.
+  con el robot el 2026-11-04.
 - Sirven para tener versionado lo que corre en el robot y para montar la misma
   teleoperación en **otro H1-2 con manos Inspire RH56DFTP** (§4).
 - Los valores propios de cada robot (IP, interfaz WiFi, cámara, manos) **no están
@@ -21,15 +21,16 @@ sitio con un solo `rsync` (§4, paso 2).
 
 | En esta carpeta | En el robot | Qué es |
 |---|---|---|
-| `home_unitree/robotics40/teleop_xr.sh` | `~/robotics40/` | punto de entrada: carga `comun.sh` y lanza `meta/arrancar.sh` (o `meta/parar.sh` con `parar`) |
-| `home_unitree/robotics40/comun.sh` | `~/robotics40/` | rutas, intérpretes, IP de las manos; quita el `CYCLONEDDS_URI` del `.bashrc`, que rompe el DDS. Fuera del robot, reenvía por SSH |
-| `home_unitree/robotics40/meta/` | `~/robotics40/meta/` | `arrancar.sh`, `parar.sh`, `lanzar_teleop.py` (con los cambios del 2026-10-07: `q` abre las manos, corte del SSH = `q`), `enviar.py`, `prueba_gafas.py`, `instalar.sh` (crea `env_tv`), `README.md` y `certs/san.cnf` |
+| `home_unitree/utec/teleoperacion/teleop_xr.sh` | `~/utec/teleoperacion/` | punto de entrada: carga `comun.sh` y lanza `arrancar.sh` (o `parar.sh` con `parar`) |
+| `home_unitree/utec/teleoperacion/comun.sh` | `~/utec/teleoperacion/` | rutas e intérprete; quita el `CYCLONEDDS_URI` del `.bashrc`, que rompe el DDS. Fuera del robot, reenvía por SSH |
+| `home_unitree/utec/teleoperacion/` | `~/utec/teleoperacion/` | `arrancar.sh`, `parar.sh`, `lanzar_teleop.py` (con los cambios del 2026-10-07 y 2026-11-03: `q` lleva los brazos a 0°, abre las manos y vuelve a la postura inicial; corte del SSH = `q`), `enviar.py`, `prueba_gafas.py`, `instalar.sh` (crea `env_tv`), `README.md` y `certs/san.cnf` |
 | `home_unitree/inspire_ftp_dual_driver.py` | `~/` | driver de las manos, Modbus TCP ⇄ DDS (`rt/inspire_hand/*`), que lanza `arrancar.sh` |
 | `home_unitree/pc2_offline/src/unitree_sdk2_python` | `~/pc2_offline/src/` | `unitree_sdk2py` 1.0.1, la versión exacta que funciona |
 | `home_unitree/pc2_offline/src/inspire_hand_sdk` | `~/pc2_offline/src/` | `inspire_sdkpy` 1.0.0, **ya con** [`patches/inspire_sdkpy_uint16.patch`](../patches/inspire_sdkpy_uint16.patch) |
-| `home_unitree/robotics40/estado.sh`, `lectores_h1_2/` | `~/robotics40/` | estado del robot y `CheckMode` (¿Debug?): verificación, no hace falta para el teleop |
+| `home_unitree/utec/teleoperacion/estado.sh`, `home_unitree/robotics40/lectores_h1_2/` | `~/utec/teleoperacion/`, `~/robotics40/` | estado del robot y `CheckMode` (¿Debug?): verificación, no hace falta para el teleop |
 | `home_unitree/robotics40/manos/` | `~/robotics40/manos/` | `manos.sh leer`, `borrar-error`, `puno`/`abrir`… para diagnosticar las manos |
-| `xr_teleoperate_cambios/teleop/teleimager/cam_config_server.yaml` | `~/robotics40/meta/xr_teleoperate/teleop/teleimager/` | cámara: solo la D435i de la cabeza, por ZMQ, sin WebRTC. Se copia **después** de clonar `xr_teleoperate` |
+| `home_unitree/robotics40/comun.sh` | `~/robotics40/` | el entorno que cargan `lectores_h1_2/lectores.sh` y `manos/manos.sh` |
+| `xr_teleoperate_cambios/teleop/teleimager/cam_config_server.yaml` | `~/utec/teleoperacion/xr_teleoperate/teleop/teleimager/` | cámara: solo la D435i de la cabeza, por ZMQ, sin WebRTC. Se copia **después** de clonar `xr_teleoperate` |
 
 Los dos SDK de `pc2_offline/src/` se instalan en modo editable en `env_tv` y en
 `teleop_venv`: **tienen que quedarse en esa ruta**.
@@ -38,22 +39,22 @@ Los dos SDK de `pc2_offline/src/` se instalan en modo editable en `env_tv` y en
 
 | Qué | Tamaño | Cómo |
 |---|---|---|
-| `meta/xr_teleoperate` (Unitree, commit `817fb00` + 3 submódulos) | 404 MB | `git clone` (§4, paso 3) |
-| `meta/env_tv` (conda, Python 3.10, pinocchio 3.1.0) | 2,9 GB | conda + `meta/instalar.sh` (§4, paso 4) |
+| `utec/teleoperacion/xr_teleoperate` (Unitree, commit `817fb00` + 3 submódulos) | 404 MB | `git clone` (§4, paso 3) |
+| `utec/teleoperacion/env_tv` (conda, Python 3.10, pinocchio 3.1.0) | 2,9 GB | conda + `instalar.sh` (§4, paso 4) |
 | `~/teleop_venv` (Python 3.10 del sistema) | 0,5 GB | venv + pip (§4, paso 5) |
-| `cert.pem` / `key.pem` (en `meta/certs/` y `~/.config/xr_teleoperate/`) | — | se generan en cada robot (§4, paso 7). **Las claves privadas no van a git** |
+| `cert.pem` / `key.pem` (en `utec/teleoperacion/certs/` y `~/.config/xr_teleoperate/`) | — | se generan en cada robot (§4, paso 7). **Las claves privadas no van a git** |
 | Driver de la WiFi TP-Link | — | [`robot_config/wifi_tplink_tx20u_plus`](../../robot_config/wifi_tplink_tx20u_plus/README.md) |
 | `pc2_offline/wheels`, `install_pc2.sh` | 234 MB | la instalación sin Internet de septiembre. Ya no hace falta: el robot tiene Internet por la WiFi |
 
 ## 2. Qué se ejecuta en el robot
 
 ```
-~/robotics40/teleop_xr.sh                       (llega por: ssh -t unitree@<ip> "cd ~/robotics40 && ./teleop_xr.sh")
+~/utec/teleoperacion/teleop_xr.sh               (llega por: ssh -t unitree@<ip> "cd ~/utec/teleoperacion && ./teleop_xr.sh")
   └─ comun.sh                                   PYTHONNOUSERSITE=1, sin CYCLONEDDS_URI
-  └─ meta/arrancar.sh
+  └─ arrancar.sh
        1. sudo env_tv/bin/python -m teleimager.image_server --rs     D435i → ZMQ :55555     logs/image_server.log
        2. teleop_venv/bin/python ~/inspire_ftp_dual_driver.py --network eth0 --no-touch      logs/manos.log
-       3. env_tv/bin/python meta/lanzar_teleop.py --arm=H1_2 --ee=inspire_ftp --input-mode=hand --headless
+       3. env_tv/bin/python lanzar_teleop.py --arm=H1_2 --ee=inspire_ftp --input-mode=hand --headless
                 --network-interface=eth0 --img-server-ip=127.0.0.1      → teleop_hand_and_arm.py (Vuer :8012)
                                                                           logs/teleop.log (el terminal ve un tail)
 ```
@@ -98,17 +99,17 @@ driver y conexión a `UTEC_H1_2`. Al terminar, el robot tiene `<IP>` e Internet,
 rsync -a h1_2_teleoperation/scripts_robot/home_unitree/ unitree@<IP>:~/
 ```
 
-En un robot que ya tenga `~/robotics40`, esto **sobrescribe** los archivos con el
-mismo nombre.
+En un robot que ya tenga `~/robotics40` o `~/utec/teleoperacion`, esto
+**sobrescribe** los archivos con el mismo nombre.
 
 **Paso 3 — `xr_teleoperate` de Unitree, en el commit que funciona**
 
 ```bash
-ssh unitree@<IP> 'cd ~/robotics40/meta && git clone https://github.com/unitreerobotics/xr_teleoperate.git &&
+ssh unitree@<IP> 'cd ~/utec/teleoperacion && git clone https://github.com/unitreerobotics/xr_teleoperate.git &&
     cd xr_teleoperate && git checkout 817fb00 && git submodule update --init --recursive &&
     cp teleop/teleimager/cam_config_server.yaml teleop/teleimager/cam_config_server.yaml.orig'
 scp h1_2_teleoperation/scripts_robot/xr_teleoperate_cambios/teleop/teleimager/cam_config_server.yaml \
-    unitree@<IP>:robotics40/meta/xr_teleoperate/teleop/teleimager/
+    unitree@<IP>:utec/teleoperacion/xr_teleoperate/teleop/teleimager/
 ```
 
 Los submódulos quedan en `teleimager 57cf2a4`, `televuer 766de45` y
@@ -117,14 +118,15 @@ Los submódulos quedan en `teleimager 57cf2a4`, `televuer 766de45` y
 **Paso 4 — entorno `env_tv`** (en el robot; tarda y descarga unos 3 GB)
 
 ```bash
-~/anaconda3/bin/conda create -y -p ~/robotics40/meta/env_tv python=3.10 pinocchio=3.1.0 numpy=1.26.4 \
+~/anaconda3/bin/conda create -y -p ~/utec/teleoperacion/env_tv python=3.10 pinocchio=3.1.0 numpy=1.26.4 \
     -c conda-forge --override-channels
-bash ~/robotics40/meta/instalar.sh 2>&1 | tee ~/robotics40/meta/instalar.log
+bash ~/utec/teleoperacion/instalar.sh 2>&1 | tee ~/utec/teleoperacion/instalar.log
 ```
 
 Tiene que terminar con `OK pinocchio 3.1.0 numpy 1.26.4 torch 2.3.0+cpu` y
 `### LISTO`. Es el mismo comando (sacado del historial de conda) y el mismo
-`instalar.sh` con los que se creó el entorno del robot de UTEC el 2026-09-25.
+`instalar.sh` con los que se creó el entorno del robot de UTEC el 2026-09-25, en
+`~/robotics40/meta`. El que usa ahora ese robot es un clon de aquel.
 
 **Paso 5 — entorno `teleop_venv`** (en el robot; para el driver de las manos y `manos.sh`)
 
@@ -146,7 +148,7 @@ de lanzar nada.
 **Paso 7 — certificado HTTPS** para las gafas, con la IP nueva (en el robot):
 
 ```bash
-cd ~/robotics40/meta/certs
+cd ~/utec/teleoperacion/certs
 sed -i 's/^IP.2=.*/IP.2=<IP>/' san.cnf
 openssl req -x509 -newkey rsa:2048 -nodes -days 3650 -keyout key.pem -out cert.pem -config san.cnf
 chmod 600 key.pem
@@ -171,7 +173,7 @@ ROBOT_SSH=unitree@<IP> ./teleop_xr.sh
 ```
 
 O cambia la IP por defecto en `scripts/comun.sh` (línea 11) y `scripts/robot.sh`
-(línea 12). Ojo: las gafas usan `https://<IP>:8012/?ws=wss://<IP>:8012`.
+(línea 11). Ojo: las gafas usan `https://<IP>:8012/?ws=wss://<IP>:8012`.
 
 ## 5. Valores propios de cada robot
 
@@ -179,18 +181,18 @@ Rutas relativas a `home_unitree/`, es decir, al `$HOME` del robot.
 
 | Qué | Dónde | En el robot de UTEC | Cómo averiguarlo en el robot nuevo |
 |---|---|---|---|
-| **IP WiFi del robot** | `robotics40/meta/certs/san.cnf:15` (paso 7) · `robotics40/comun.sh:11` · en el PC, `scripts/comun.sh:11` y `scripts/robot.sh:12`, o la variable `ROBOT_SSH` | `192.168.0.143` | `ip -br addr show <wlx…>`; mejor reservarla en el router |
-| **Hostname del PC2** | `robotics40/comun.sh:12` (en el robot; en el PC no hace falta cambiarlo) | `unitree-h1-2-pc4` | `hostname`. Si no coincide, `comun.sh` cree que no está en el robot y **se reenvía por SSH a sí mismo** |
-| **Interfaz WiFi** | `robotics40/meta/arrancar.sh:22` | `wlxc03a5522df31` | `ip -br link \| grep wlx`. Solo sirve para imprimir la URL de las gafas |
+| **IP WiFi del robot** | `utec/teleoperacion/certs/san.cnf:15` (paso 7) · `utec/teleoperacion/comun.sh:11` · `robotics40/comun.sh:11` · en el PC, `scripts/comun.sh:11` y `scripts/robot.sh:11`, o la variable `ROBOT_SSH` | `192.168.0.143` | `ip -br addr show <wlx…>`; mejor reservarla en el router |
+| **Hostname del PC2** | `utec/teleoperacion/comun.sh:12` y `robotics40/comun.sh:12` (en el robot; en el PC no hace falta cambiarlo) | `unitree-h1-2-pc4` | `hostname`. Si no coincide, `comun.sh` cree que no está en el robot y **se reenvía por SSH a sí mismo** |
+| **Interfaz WiFi** | `utec/teleoperacion/arrancar.sh:22` | `wlxc03a5522df31` | `ip -br link \| grep wlx`. Solo sirve para imprimir la URL de las gafas |
 | **Número de serie de la D435i** | `xr_teleoperate_cambios/…/cam_config_server.yaml:19` | `"134322071879"` | el comando de abajo |
 | **IP de cada mano** | `inspire_ftp_dual_driver.py:60-61` (y su copia en `robotics40/manos/h1_2_utec/`) · `robotics40/comun.sh:31-32` · `robotics40/manos/mano.py:15` · `manos/prueba_manos.py:20` · `manos/prueba_manos_pulgar.py:20` | izquierda `.211`, derecha `.210` (al revés que la documentación de Unitree) | ver abajo |
-| **Intérprete `PY_SDK`** (solo `estado.sh` y otras herramientas) | `robotics40/comun.sh:28` | `~/unitree_sdk2_python/.venv/bin/python` | si no existe, pon `~/teleop_venv/bin/python`: tiene `MotionSwitcherClient` y `LocoClient` del H1 (comprobado) |
+| **Intérprete `PY_SDK`** (solo `estado.sh` y otras herramientas) | `utec/teleoperacion/comun.sh:27` y `robotics40/comun.sh:28` | `~/unitree_sdk2_python/.venv/bin/python` | si no existe, pon `~/teleop_venv/bin/python`: tiene `MotionSwitcherClient` y `LocoClient` del H1 (comprobado) |
 | **`sudo` sin contraseña** | — | el usuario `unitree` tiene `NOPASSWD` | si no lo tiene, `arrancar.sh` y `parar.sh` piden la contraseña en el terminal, y funciona igual |
 
 **Número de serie de la D435i** (en el robot; solo enumera, no abre la cámara):
 
 ```bash
-sudo env PYTHONNOUSERSITE=1 ~/robotics40/meta/env_tv/bin/python -c "import pyrealsense2 as rs; \
+sudo env PYTHONNOUSERSITE=1 ~/utec/teleoperacion/env_tv/bin/python -c "import pyrealsense2 as rs; \
 print([(d.get_info(rs.camera_info.name), d.get_info(rs.camera_info.serial_number), d.get_info(rs.camera_info.usb_type_descriptor)) \
 for d in rs.context().query_devices()])"
 ```
@@ -216,14 +218,14 @@ Si no, la teleoperación sale espejada.
 De menos a más. Las tres primeras no mueven nada:
 
 1. **El teleop arranca** (en el robot):
-   `cd ~ && PYTHONNOUSERSITE=1 ~/robotics40/meta/env_tv/bin/python ~/robotics40/meta/lanzar_teleop.py --help`.
+   `cd ~ && PYTHONNOUSERSITE=1 ~/utec/teleoperacion/env_tv/bin/python ~/utec/teleoperacion/lanzar_teleop.py --help`.
    Tiene que imprimir la ayuda de `teleop_hand_and_arm.py`.
 2. **Las manos se leen**: `~/robotics40/manos/manos.sh leer`.
 3. **Las gafas, sin DDS**: arranca solo el servidor de imagen (la línea `sudo
-   bash -c …` de `meta/arrancar.sh`) y después
-   `cd ~/robotics40/meta && PYTHONNOUSERSITE=1 env_tv/bin/python prueba_gafas.py`.
+   bash -c …` de `arrancar.sh`) y después
+   `cd ~/utec/teleoperacion && PYTHONNOUSERSITE=1 env_tv/bin/python prueba_gafas.py`.
    Abre `https://<IP>:8012/?ws=wss://<IP>:8012` en las Quest. Para todo con
-   `~/robotics40/teleop_xr.sh parar`.
+   `~/utec/teleoperacion/teleop_xr.sh parar`.
 4. **Desde el PC**: `ROBOT_SSH=unitree@<IP> ./robot.sh comprobar`.
 5. **El teleop completo**, con el robot colgado y en Debug, siguiendo
    [`../README.md`](../README.md).
@@ -244,21 +246,31 @@ De menos a más. Las tres primeras no mueven nada:
   los paquetes sin versión fija de PyPI pueden haber cambiado desde entonces.
 - **La instalación completa en un robot nuevo**: no se ha hecho todavía.
 
-## 8. Actualizar esta copia desde el robot
+## 8. Mantener esta copia y el robot iguales
 
-Si cambian los archivos del robot (desde la raíz del repositorio, con
-`R=unitree@192.168.0.143`):
+**Del repositorio al robot** (desde la raíz; solo copia los archivos de aquí, sin
+tocar `env_tv`, `xr_teleoperate` ni `logs`):
+
+```bash
+rsync -a h1_2_teleoperation/scripts_robot/home_unitree/utec/teleoperacion/ unitree@192.168.0.143:utec/teleoperacion/
+```
+
+Si cambias `teleop_xr.sh`, `comun.sh` o `estado.sh`, cópialos también a
+[`../scripts/`](../scripts/).
+
+**Del robot al repositorio** (desde la raíz, con `R=unitree@192.168.0.143`):
 
 ```bash
 D=h1_2_teleoperation/scripts_robot
-rsync -a $R:robotics40/{teleop_xr.sh,comun.sh,estado.sh} $D/home_unitree/robotics40/
-rsync -a $R:robotics40/meta/{arrancar.sh,parar.sh,lanzar_teleop.py,enviar.py,prueba_gafas.py,instalar.sh,README.md} $D/home_unitree/robotics40/meta/
-rsync -a $R:robotics40/meta/certs/san.cnf $D/home_unitree/robotics40/meta/certs/
+T=utec/teleoperacion
+rsync -a $R:$T/{teleop_xr.sh,comun.sh,estado.sh,arrancar.sh,parar.sh,lanzar_teleop.py,enviar.py,prueba_gafas.py,instalar.sh,README.md} $D/home_unitree/$T/
+rsync -a $R:$T/certs/san.cnf $D/home_unitree/$T/certs/
+rsync -a $R:robotics40/comun.sh $D/home_unitree/robotics40/
 rsync -a --exclude=build --exclude=__pycache__ $R:robotics40/lectores_h1_2 $D/home_unitree/robotics40/
 rsync -a --exclude=experimental --exclude=__pycache__ $R:robotics40/manos $D/home_unitree/robotics40/
 rsync -a $R:inspire_ftp_dual_driver.py $D/home_unitree/
 rsync -a --exclude='*.egg-info' --exclude=__pycache__ $R:pc2_offline/src/{unitree_sdk2_python,inspire_hand_sdk} $D/home_unitree/pc2_offline/src/
-rsync -a $R:robotics40/meta/xr_teleoperate/teleop/teleimager/cam_config_server.yaml $D/xr_teleoperate_cambios/teleop/teleimager/
+rsync -a $R:$T/xr_teleoperate/teleop/teleimager/cam_config_server.yaml $D/xr_teleoperate_cambios/teleop/teleimager/
 ```
 
 Con `rsync -anc -i` en vez de `-a` se ve qué ha cambiado sin copiar nada.

@@ -58,7 +58,8 @@ class Control:
         self.reiniciar()
 
     def reiniciar(self):
-        self._arranque = True        # hasta alinearse por primera vez (girar_primero)
+        self._arranque = True        # primera orden tras reiniciar: decide si se gira en el sitio
+        self._girando = False
         self._t = None
         self._vx = 0.0
         self._vyaw = 0.0
@@ -78,15 +79,18 @@ class Control:
             return self._rampa(dt, 0.0, 0.0), {"alfa": math.nan, "vx_deseada": 0.0}
         Ld = max(0.3, math.hypot(ox + self.d_giro, oy))
         alfa = self.alfa(est)
-        if self._arranque and self.girar_primero > 0:
+        if self._arranque:
+            # salida muy girada (|alfa| > girar_primero al empezar): girar en el sitio hasta la mitad antes de
+            # andar; andando se abre hasta que el giro llega (16.7 cm saliendo girado a la izquierda, 2026-10-10)
+            self._girando = self.girar_primero > 0 and abs(alfa) > self.girar_primero
+            self._arranque = False
+        if self._girando:
             if abs(alfa) > self.girar_primero / 2:
-                # salida muy girada: girar en el sitio antes de andar (andando se abre ~10 cm hasta que el giro
-                # llega, 2026-10-10)
                 vyaw = _recortar(1.2 * alfa, self.vyaw_max)
-                if abs(vyaw) < 0.15:
+                if abs(vyaw) < 0.15:                 # en el sitio, por debajo de ~0.15 rad/s apenas gira
                     vyaw = math.copysign(0.15, alfa)
                 return self._rampa(dt, 0.0, vyaw), {"alfa": alfa, "vx_deseada": 0.0, "girando": True}
-            self._arranque = False
+            self._girando = False
 
         curv = self.ganancia * 2.0 * math.sin(alfa) / Ld
         h = min(1.0, max(0.0, (est.confianza - self.conf_min) / (self.conf_plena - self.conf_min)))

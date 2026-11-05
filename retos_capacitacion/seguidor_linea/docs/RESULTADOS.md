@@ -568,6 +568,38 @@ máximo). Métricas con `herramientas/metricas.py` (sección 9 del PDF); datos e
 
 ![Tirada 050643: línea, órdenes y barra](img/tirada_nivel1_050643.png)
 
+### Girar primero en el sitio (2026-11-05)
+
+`--girar-primero U`: si al empezar |α| > U, gira en el sitio (vx = 0) hasta |α| < U/2 y después anda. U es un
+umbral, no los grados que gira: esos salen de α, el ángulo entre la dirección de avance y el punto adelantado.
+Con la línea a y cm y ángulo θ, **α ≈ 0.77·θ + 0.95·y − 7.5°**. Con U = 12 y la línea centrada, gira con
+θ ≤ −6° o θ ≥ +25°: los 7.5° de avance en diagonal hacen que actúe sobre todo con el robot girado o
+desplazado a la izquierda.
+
+Lo que importa es cuánto se alejan los pies desde la salida, porque las salidas no son iguales:
+
+| Tirada | Salida | α al salir | Giro previo | Pies: salida → máximo | Se alejan |
+| --- | --- | --- | --- | --- | --- |
+| `015424` | −10.1 cm, −11.2° | −25.7° | no | −7.0 → −16.7 cm | **9.7 cm** |
+| `090629` | −6.0 cm, −10.9° | −21.6° | sí, U = 12 (1.85 s) | −3.5 → −5.5 cm | **2.0 cm** |
+| `050643` | −4.6 cm, −1.0° | −12.6° | no | −4.3 → −11.2 cm | **7.0 cm** |
+| `095105` | −4.9 cm, −2.7° | −14.6° | sí, U = 12 (1.14 s) | −4.5 → −5.1 cm | **0.6 cm** |
+| `100130`, **escala 1** | −8.1 cm, −13.8° | −25.7° | sí, U = 12 (1.74 s, hasta 0.5 rad/s) | −4.4 → −12.3 cm | **7.9 cm** |
+| `091003` | −6.7 cm, +7.5° | −8.1° | sí, U = 8 (1.25 s) | −8.3 → −16.7 cm | **8.4 cm** |
+
+- **Con el robot muy torcido ayuda:** en `090629` el giro es puro, alrededor del centro de giro (la cámara se
+  mueve 3.6 cm, 3.5 cm según el modelo con 14 cm), y anda ya orientado. El tiempo no empeora: 19.2 s frente a 19.05 s.
+- **Con poco que corregir empeora:** en `091003` el robot ya iba casi bien orientado. Durante el giro los pies
+  se fueron unos 7 cm a la izquierda, algo que no pasó en `090629`; **con estas dos tiradas no se sabe por qué**.
+  Además giró de más: la línea llegó a +23° (en régimen, +7.5°) y tardó hasta unos 5 s en corregirse.
+- **Queda por defecto con U = 12** (`girar_primero_deg`; `--girar-primero 0` lo apaga). `050643` y `095105` salen
+  casi igual y son la comparación más limpia: 7.0 cm sin giro y 0.6 cm con él. U = 8 es demasiado bajo.
+- **A escala 1 se pasa** (`100130`): gira a 0.5 rad/s y, con ~0.5 s de retardo, el ángulo de la línea llega a +19°
+  (en régimen, +7°). Se corrige hacia los 5 s y acaba en FIN en 13.2 s, sin intervención y casi orientado (+5.5°).
+  A media escala (0.25 rad/s) no hubo ese sobrepaso. Los pies volvieron a derivar ~6 cm a la izquierda durante el
+  giro, como en `091003`: sigue sin explicar. Las tablas del simulador de más arriba son sin giro previo.
+- Las dos acabaron en FIN sin intervención (parada prevista +9.8 cm); vyaw toca el tope de 0.25 rad/s solo durante el giro.
+
 ## 7. Hallazgos del entorno
 
 - **El DDS no arranca con sudo** (`fs.protected_regular=2`, `/tmp/cdds.LOG` es de `unitree`): la cámara,
@@ -585,7 +617,8 @@ máximo). Métricas con `herramientas/metricas.py` (sección 9 del PDF); datos e
 
 ## 8. Pendiente
 
-- Decidir si se activa girar primero en el sitio en las salidas muy giradas (y probarlo en el robot).
+- Valorar limitar el giro previo a 0.25 rad/s a cualquier escala (a 0.5 rad/s se pasa ~12°).
+- Explicar la deriva de los pies durante el giro en el sitio (`091003`, `100130`; no en `090629` ni `095105`).
 - 6.3.4: probar vy para que el cuerpo vaya alineado con la línea (y pare alineado).
 - Niveles 2–4 cuando estén las pistas.
 - Medir en la primera tirada el tiempo de frenado tras `StopMove` (0.5 s supuesto) y la parada con cinta.

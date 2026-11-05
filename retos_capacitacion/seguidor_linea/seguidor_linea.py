@@ -4,6 +4,7 @@
     ./seguidor_linea.sh --nivel 1 --simulacro     # Hito 3: todo el lazo sin Move; el operador lleva el robot
     ./seguidor_linea.sh --nivel 1                 # primeras tiradas de cada nivel, a la mitad (--escala 0.5)
     ./seguidor_linea.sh --nivel 1 --escala 1      # despues de una tirada limpia
+    ./seguidor_linea.sh --nivel 1 --girar-primero 0   # sin girar en el sitio al salir muy torcido
 
 Bloques (seccion 5 del PDF): fuente (camara_servidor.py por ZMQ) -> percepcion -> estimacion (con la
 IMU) -> control -> supervisor, el unico que llama a Move y StopMove (seguidor/*.py). Ordenes a 20 Hz,
@@ -69,10 +70,15 @@ def main():
                     help="fraccion de vx y vyaw maximas (las primeras tiradas de cada nivel, 0.5)")
     ap.add_argument("--simulacro", action="store_true", help="todo el lazo sin mandar ningun Move")
     ap.add_argument("--cada", type=int, default=2, help="guardar 1 de cada N fotogramas (0 = ninguno)")
+    ap.add_argument("--girar-primero", type=float, default=None, metavar="GRADOS",
+                    help="si al empezar |alfa| pasa de esto, girar en el sitio antes de andar (0 = no; por "
+                         "defecto el del YAML)")
     ap.add_argument("--nota", default="")
     args = ap.parse_args()
     if not 0.0 < args.escala <= 1.0:
         sys.exit("--escala tiene que estar en (0, 1]")
+    if args.girar_primero is not None:
+        cfg["control"]["girar_primero_deg"] = args.girar_primero
     sup_cfg = cfg["supervisor"]
     geo = cfg["geometria"]
     if not geo.get("calibrada"):
@@ -146,6 +152,9 @@ def main():
     # --- confirmacion --------------------------------------------------------------------------------------
     print(f"\nNivel {args.nivel} · escala {args.escala} (vx max {control.vx_max:.2f} m/s, vyaw max "
           f"{control.vyaw_max:.2f} rad/s) · ordenes a {sup_cfg['hz_ordenes']} Hz · datos en {carpeta}/")
+    if cfg["control"].get("girar_primero_deg", 0) > 0:
+        print(f"  Girar primero: si al empezar el robot va {cfg['control']['girar_primero_deg']:g} grados o mas torcido, "
+              f"gira en el sitio antes de andar.")
     if args.simulacro:
         print("  SIMULACRO: no se manda ningun Move. Lleva el robot con el joystick; tapar la camara debe acabar en PARADA.")
     else:
@@ -255,6 +264,8 @@ def main():
                               f"ang {deg(est.theta):+5.1f}")
                     if est.dist_fin is not None:
                         linea += f" · barra {est.dist_fin:+5.2f} m"
+                    if d.get("girando"):
+                        linea += " · girando en el sitio"
                 sys.stdout.write(linea + "   ")
                 sys.stdout.flush()
     except Exception as e:

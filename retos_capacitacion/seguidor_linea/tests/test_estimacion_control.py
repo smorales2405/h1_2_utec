@@ -13,6 +13,7 @@ from seguidor.estimacion import Estimador, HistorialImu  # noqa: E402
 from seguidor.mensajes import EstadoLinea, MedidaLinea  # noqa: E402
 
 CFG = config.cargar()
+CFG["control"]["girar_primero_deg"] = 0.0     # la ley de control, sin el giro previo (tiene su propia prueba)
 X_PUNTERA = -0.02
 
 
@@ -245,11 +246,17 @@ class TestControl(unittest.TestCase):
         self.assertEqual(orden.vx, 0.0)
         self.assertLess(orden.vyaw, 0.0)
         self.assertTrue(info.get("girando"))
-        orden, info = ctl.calcular(0.05, estado(self.objetivo(-3.0)))     # ya alineado: anda
+        orden, info = ctl.calcular(0.05, estado(self.objetivo(-8.0)))     # aun por encima de la mitad
+        self.assertTrue(info.get("girando"))
+        orden, info = ctl.calcular(0.10, estado(self.objetivo(-3.0)))     # ya alineado: anda
         self.assertFalse(info.get("girando", False))
-        orden, info = ctl.calcular(0.10, estado(self.objetivo(-25.0)))    # solo al empezar
+        orden, info = ctl.calcular(0.15, estado(self.objetivo(-25.0)))    # solo al empezar
         self.assertFalse(info.get("girando", False))
         self.assertGreater(orden.vx, 0.0)
+        # saliendo poco torcido no gira en el sitio
+        ctl = Control(cfg, 0.5)
+        orden, info = ctl.calcular(0.0, estado(self.objetivo(-8.0)))
+        self.assertFalse(info.get("girando", False))
 
     def test_velocidad_minima(self):
         import copy

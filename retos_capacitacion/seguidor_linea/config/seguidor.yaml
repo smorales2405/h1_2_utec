@@ -75,7 +75,9 @@ control:                # seguidor/control.py (Hito 3): pure pursuit sobre la di
   conf_minima: 0.3      # por debajo, vx = 0
   conf_plena: 0.5       # por encima, vx completa (con reflejos o sombras de patas la cinta da 0.5-0.6, 2026-10-06)
   frenar_alfa: true     # vx * cos(alfa): mas despacio cuanto mas torcido
-  girar_primero_deg: 0.0   # al empezar, si |alfa| pasa de esto, girar en el sitio antes de andar (0 = no)
+  girar_primero_deg: 12.0  # al empezar, si |alfa| pasa de esto, girar en el sitio hasta la mitad antes de andar
+                           # (0 = no; --girar-primero). Es un umbral: lo que gira sale de alfa. Alineado, |alfa| ~7.5
+                           # por el avance en diagonal. Los pies se alejan 0.6 y 2.0 cm con giro, 7.0 y 9.7 sin el
   dvx_max: 0.5          # m/s^2: rampa de vx (la de frenado es el doble)
   dvyaw_max: 1.0        # rad/s^2: cambio maximo del giro mandado
   cerca_barra_m: 1.0    # a menos de esto de la barra...

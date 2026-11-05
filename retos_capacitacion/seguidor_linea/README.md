@@ -67,6 +67,7 @@ python3 herramientas/reproducir.py datos/dataset_<fecha>_<nombre>
 # ESPACIO en el terminal del seguidor: parada (velocidad 0; el robot deja de andar y girar y queda de pie)
 ./seguidor_linea.sh --nivel 1                        # primeras tiradas, a la mitad (--escala 0.5)
 ./seguidor_linea.sh --nivel 1 --escala 1
+# Al salir muy torcido (|alfa| > 12 grados) gira solo en el sitio antes de andar; --girar-primero 0 lo apaga
 
 # pruebas: en la PC con pytest, en el robot con unittest
 python3 -m pytest tests/

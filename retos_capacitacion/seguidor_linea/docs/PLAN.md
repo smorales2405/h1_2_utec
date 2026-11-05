@@ -345,6 +345,7 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 
 - [x] Nivel 1 a media escala, dos tiradas con éxito (2026-10-08; salida casi alineada)
 - [x] Nivel 1 con salida girada ±10° y a escala 1 (0.4 m/s), 2026-10-10: tres tiradas más con éxito
+- [x] Giro previo en el sitio al salir muy torcido, por defecto con umbral de 12° (a escala 1 se pasa, pero se corrige)
 - [ ] Niveles 2, 3 y 4, en ese orden
 - [x] `metricas.py`: métricas de la sección 9 por tirada
 - [ ] El informe con las respuestas a 6.1–6.4

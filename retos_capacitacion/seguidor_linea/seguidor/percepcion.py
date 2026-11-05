@@ -9,7 +9,8 @@
 3. En cada fila, la columna de mas respuesta; vale si pasa el umbral: adaptativo (k veces el ruido
    robusto de su franja) o fijo (niveles de gris), para comparar (6.2.2).
 4. Ajuste robusto de y = a + b x (+ c x^2 si hay recorrido): desplazamiento a, angulo atan(b),
-   curvatura y el punto adelantado. Confianza = filas con linea x contraste x residuo.
+   curvatura y el punto adelantado. Confianza = filas con linea x contraste x residuo; el contraste, frente
+   al umbral y, si la linea viene de debajo del robot, tambien en niveles (`contraste_ref`).
 5. Barra de fin y esquina: filas cubiertas por cinta transversal alrededor del final de la linea, a
    los dos lados (barra) o a uno solo (esquina, nivel 4).
 
@@ -189,12 +190,13 @@ class Percepcion:
             cand = (smax > umbral_fila) & filas_ok
             xs, ys = self.x_filas[cand], self.y_cols[cols[cand]]
             pesos = smax[cand] / np.maximum(umbral_fila[cand], 1e-6)
+            crudo = smax[cand]
             a = b = c = math.nan
             dentro = np.zeros(len(xs), dtype=bool)
             if len(xs) >= 8:
                 a, b, c, dentro = self._ajustar(xs, ys)
         else:
-            xs, ys, pesos, dentro = previo["xs"], previo["ys"], previo["pesos"], previo["dentro"]
+            xs, ys, pesos, crudo, dentro = previo["xs"], previo["ys"], previo["pesos"], previo["crudo"], previo["dentro"]
             a, b, c = previo["coef"]
         x_fin = float(xs[dentro].max()) if (np.isfinite(a) and dentro.sum() >= 8) else math.nan
         x_lim = min(2.5, self.x_max) if x_hasta is None else min(2.5, self.x_max, x_hasta)
@@ -215,10 +217,16 @@ class Percepcion:
             res = yin - (a + b * xin + c * xin ** 2)
             c_filas = min(1.0, dentro.sum() / n_filas / 0.6)    # 60 % de las filas ya es una linea clara
             # la cinta da 6-7 veces el umbral; los bordes del fondo ~1.7 (2026-10-05)
-            c_contraste = float(np.clip(np.median(pesos[dentro]) / 4.0, 0.0, 1.0))
+            c_contraste = float(np.median(pesos[dentro])) / 4.0
+            # los reflejos de los focos inflan el umbral (de 6 a 37 niveles) y hunden `pesos` aunque la cinta
+            # se vea bien: en la curva simulada, 97 de 97 puntos con confianza 0.26 y linea perdida. Si la linea
+            # viene de debajo del robot, tambien vale el contraste en niveles (2026-11-05)
+            if xin.min() <= self.x_min + 0.4:
+                c_contraste = max(c_contraste, float(np.median(crudo[dentro])) / p["contraste_ref"])
+            c_contraste = float(np.clip(c_contraste, 0.0, 1.0))
             c_residuo = float(np.clip(1.0 - np.sqrt(np.mean(res ** 2)) / p["tolerancia_ajuste_m"], 0.0, 1.0))
             conf = c_filas * c_contraste * c_residuo
-        return {"xs": xs, "ys": ys, "pesos": pesos, "dentro": dentro, "coef": (a, b, c), "x_fin": x_fin,
+        return {"xs": xs, "ys": ys, "pesos": pesos, "crudo": crudo, "dentro": dentro, "coef": (a, b, c), "x_fin": x_fin,
                 "conf": conf, "n_franjas": n_franjas}
 
     def _x_salida(self, a, b, c):

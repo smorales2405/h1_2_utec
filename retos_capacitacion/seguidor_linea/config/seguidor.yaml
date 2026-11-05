@@ -37,6 +37,7 @@ percepcion:             # seguidor/percepcion.py (Hito 2)
   umbral_sigmas: 6.0
   umbral_minimo: 6.0    # niveles: por debajo nunca es linea, aunque el ruido sea muy bajo
   umbral_fijo: 15.0
+  contraste_ref: 40.0   # niveles de contraste pleno para la confianza: la cinta negra da 42-45 (p10 35-39), la blanca 68
   franjas_m: [[0.20, 0.8], [0.8, 1.5], [1.5, 2.5], [2.5, 3.0]]
   franja_vista: 0.3     # fraccion de filas con linea para dar la franja por vista
   tolerancia_ajuste_m: 0.04

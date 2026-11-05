@@ -3,7 +3,9 @@
 
 Pasa seguidor/percepcion.py por cada fotograma con la postura LENTA del torso (roll/pitch de la IMU
 con una media centrada de 1.5 s; en vivo sera un filtro causal) y lo compara con un detector
-independiente, el minimo de la calibracion (seguidor/calibracion.py), cuando este ve la linea.
+independiente, el minimo de la calibracion (seguidor/calibracion.py), cuando este ve la linea. La
+referencia es recta o parabola segun la linea (calibracion.ajustar_linea, sirve en curvas) y las dos se
+comparan a X_COMPARA m de la camara, donde se ven: en una curva, extrapolar hasta x = 0 no dice nada.
 
     python3 herramientas/evaluar_percepcion.py datos/dataset_<...> [mas datasets] [--umbral fijo] [--video]
 
@@ -30,6 +32,12 @@ from seguidor.percepcion import Percepcion  # noqa: E402
 
 CONF_DETECCION = 0.5     # confianza a partir de la que se cuenta como linea detectada
 POSTURA_S = 1.5          # media de la postura del torso
+X_COMPARA = 0.5          # m delante de la camara donde se compara con la referencia
+
+
+def en_x(a, b, c, x):
+    """(y, angulo) de y = a + b x + c x^2 en x."""
+    return a + b * x + c * x * x, math.atan(b + 2 * c * x)
 
 
 def dibujar(ir, m, per, roll, pitch):
@@ -96,27 +104,31 @@ def evaluar(carpeta, cfg, umbral, video, con_postura):
         ruta_v = os.path.join(carpeta, f"evaluacion_{umbral}.mp4")
     csvm = registro.CsvSimple(os.path.join(carpeta, f"medidas_{umbral}.csv"),
                               ["t", "n", "y", "theta_deg", "kappa", "obj_x", "obj_y", "confianza", "n_franjas",
-                               "barra", "esquina_x", "esquina_sentido", "ms", "polaridad", "andando", "y_ref", "theta_ref_deg"])
+                               "barra", "esquina_x", "esquina_sentido", "ms", "polaridad", "andando",
+                               "y_x", "theta_x_deg", "y_x_ref", "theta_x_ref_deg"])
     R = []
     for f in fuente:
         roll = float(np.interp(f.t_rx, tl, roll_l)) if con_postura else None
         pitch = float(np.interp(f.t_rx, tl, pitch_l)) if con_postura else None
         m = per.procesar(f, roll, pitch)
         pts = calibracion.puntos_de_linea(f.ir, ref, x_min=0.3, x_max=2.5)
-        y_ref = th_ref = math.nan
+        y_ref = th_ref = y_m = th_m = math.nan
         if len(pts) >= 60:
-            a0, b0, k = calibracion.ajustar_recta(pts)
+            a0, b0, c0, k = calibracion.ajustar_linea(pts)
             if k >= 30:
-                y_ref, th_ref = a0, math.atan(b0)
+                y_ref, th_ref = en_x(a0, b0, c0, X_COMPARA)
+        if np.isfinite(m.y):
+            y_m, th_m = en_x(*per.detalle.coef, X_COMPARA)
         anda = bool(np.interp(f.t_rx, tl, anda_l.astype(float)) > 0.5)
-        R.append((f.t_rx, m.confianza, m.y, m.theta, m.ms, m.barra_fin if m.barra_fin is not None else math.nan,
+        R.append((f.t_rx, m.confianza, y_m, th_m, m.ms, m.barra_fin if m.barra_fin is not None else math.nan,
                   anda, y_ref, th_ref, per.detalle.polaridad))
         csvm.escribir({"t": f.t_rx, "n": f.n, "y": m.y, "theta_deg": math.degrees(m.theta), "kappa": m.kappa,
                        "obj_x": m.objetivo[0], "obj_y": m.objetivo[1], "confianza": m.confianza, "n_franjas": m.n_franjas,
                        "barra": m.barra_fin if m.barra_fin is not None else "",
                        "esquina_x": m.esquina[0] if m.esquina else "", "esquina_sentido": m.esquina[1] if m.esquina else "",
                        "ms": m.ms, "polaridad": per.detalle.polaridad, "andando": anda,
-                       "y_ref": y_ref, "theta_ref_deg": math.degrees(th_ref)})
+                       "y_x": y_m, "theta_x_deg": math.degrees(th_m),
+                       "y_x_ref": y_ref, "theta_x_ref_deg": math.degrees(th_ref)})
         if video:
             cuadro = dibujar(f.ir, m, per, roll, pitch)
             if escritor is None:
@@ -170,7 +182,7 @@ def main():
         print(f"{o['dataset']} ({o['nota']}): {o['fotogramas']} fotogramas, {o['ms_mediana']:.1f} ms (p95 {o['ms_p95']:.1f}); "
               f"detectada {100 * o['deteccion']:.0f} % (de pie {100 * o['deteccion_de_pie']:.0f}, andando "
               f"{100 * o['deteccion_andando']:.0f}); donde la referencia ve la linea {100 * o['deteccion_donde_la_referencia_ve']:.0f} %, "
-              f"donde no {100 * o['deteccion_donde_la_referencia_no_ve']:.0f} %; frente a la referencia: y {o['dif_y_cm_mediana']:.1f} cm, "
+              f"donde no {100 * o['deteccion_donde_la_referencia_no_ve']:.0f} %; frente a la referencia a {X_COMPARA} m: y {o['dif_y_cm_mediana']:.1f} cm, "
               f"angulo {o['dif_theta_deg_mediana']:.2f} grados; polaridad {o['polaridad']:+d} ({100 * o['polaridad_estable']:.0f} %)"
               + (f"; barra de {o['barra_primera_m']:.2f} a {o['barra_ultima_m']:.2f} m"
                  + (f", se acerca a {o['barra_velocidad_acercamiento']:.3f} m/s" if "barra_velocidad_acercamiento" in o else "")

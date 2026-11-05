@@ -58,6 +58,27 @@ def ajustar_recta(puntos, tolerancia=0.03):
     return float(a), float(b), int(dentro.sum())
 
 
+def ajustar_linea(puntos, tolerancia=0.03, semilla=30):
+    """y = a + b x + c x^2: la recta de ajustar_recta y, si la linea curva, una parabola que crece desde
+    ella mientras recoja mas puntos. Referencia independiente para evaluar la percepcion en curvas. Solo
+    crece si la recta ya tiene `semilla` puntos: sin eso, la parabola se ajusta tambien a ruido de fondo."""
+    a, b, n = ajustar_recta(puntos, tolerancia)
+    c = 0.0
+    if n < semilla:
+        return float(a), float(b), c, n
+    p = np.array([(x, y) for x, y, _, _ in puntos])
+    dentro = np.abs(p[:, 1] - (a + b * p[:, 0])) < tolerancia
+    for _ in range(5):
+        if dentro.sum() < 15 or np.ptp(p[dentro, 0]) < 0.3:
+            break
+        c2, b2, a2 = np.polyfit(p[dentro, 0], p[dentro, 1], 2)
+        nuevo = np.abs(p[:, 1] - (a2 + b2 * p[:, 0] + c2 * p[:, 0] ** 2)) < tolerancia
+        if nuevo.sum() < dentro.sum() + 5:      # en una recta no gana puntos: se queda en recta
+            break
+        a, b, c, dentro = float(a2), float(b2), float(c2), nuevo
+    return float(a), float(b), float(c), int(dentro.sum())
+
+
 def buscar_tramos(ir, modelo, largo=(0.45, 0.75), grosor=(0.02, 0.15), y_max=0.6):
     """Tramos de cinta transversales (la barra de fin y las marcas de calibracion), del mas
     cercano al mas lejano. Se marcan los pixeles de `estrecho` en vertical (la linea y los reflejos

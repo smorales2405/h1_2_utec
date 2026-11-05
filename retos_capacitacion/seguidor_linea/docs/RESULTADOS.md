@@ -355,6 +355,7 @@ sombra, interrupción de 40 cm) y una de regresión sobre el recorrido alineado 
 | Esquina falsa con un lado fuera de la vista | Sin decidir hasta ver los dos lados |
 | En una curva de 1.2 m de radio salía una recta de 0.3–0.9 m con confianza 0.14–0.26: la línea se daría por perdida en plena curva (lo destapó el simulador del apartado 6) | Parábola que crece desde el tramo cercano, y la confianza no cuenta las filas por donde la curva ya salió de la vista si la línea viene de debajo del robot. Ahora 0.56–0.82, y el punto adelantado a 1–2 cm del real |
 | Tramos cortos junto al borde de la vista (cantos de muebles) con confianza 0.6–0.7 tras salir de la pista | La estimación descarta medidas a más de 25 cm o 25° de la línea predicha (apartado 6) |
+| Los reflejos de los focos inflan el umbral (de 6 a 37 niveles) y hunden la confianza de una línea que se ve bien (97 de 97 puntos con 0.26) | Si la línea viene de debajo del robot, el contraste también vale en niveles (`contraste_ref`: 40; la cinta negra da 42–45, la blanca 68). En la tirada real con 6 reflejos, de 0.54 a 0.93 de mediana |
 
 **Umbral fijo o adaptativo (6.2.2).** En los datasets (sin sombra) el fijo (15 niveles) detecta algo
 menos donde se ve la línea (98 % de media, con mínimos de 86–95 %) y admite más falsos en el suelo más
@@ -568,6 +569,31 @@ máximo). Métricas con `herramientas/metricas.py` (sección 9 del PDF); datos e
 
 ![Tirada 050643: línea, órdenes y barra](img/tirada_nivel1_050643.png)
 
+### Preparación del nivel 2 (2026-11-05)
+
+Hasta aquí las curvas solo se habían probado con la cámara simulada, que se salta parte de la percepción. Esta
+prueba renderiza las imágenes IR de la pista del PDF (recta de 2 m, curva de radio 2 m, recta de 2 m) y las pasa
+por la **percepción real**, en lazo cerrado y con el suelo de velocidad de la marcha. Es un script puntual, aún
+fuera del repo. Los reflejos son una aproximación: manchas fijas en el suelo con hasta un 85 % de blanqueo, que en
+recta dan confianzas parecidas a las reales. **No sustituye a una curva real.**
+
+| Luz | Tiradas con éxito | Pies, máximo | Parada |
+| --- | --- | --- | --- |
+| Limpia | 3/3 (y 4/4 antes del cambio) | 2.5 cm | +8…+10 cm |
+| Reflejos, antes del cambio de la confianza | 0/4: pierde la línea en la curva | — | — |
+| Reflejos, con el cambio | 3/6 | 9.7 cm en las que acaban (18.3 en las que no) | +7…+12 cm; las otras tres, +29…+46 cm |
+
+- **Los tres fallos son por la barra:** en ese sentido queda bajo un reflejo simulado (hasta un 79 % de blanqueo) y no
+  se detecta a ninguna distancia, así que el robot sigue hasta LÍNEA PERDIDA. En el otro sentido (hasta un 49 %) se
+  ve de 2 a 0.4 m. Al montar la pista: la barra, lejos de los reflejos, y comprobar en simulacro que aparece.
+- **Límite conocido:** si el reflejo es tan intenso que el umbral supera el contraste de la cinta (66 frente a 60
+  niveles en la prueba), la línea cercana se pierde de verdad; el cambio de la confianza no lo arregla. Haría falta
+  otra estimación del ruido, que afecta a la detección: solo si la curva real lo pide.
+- **`estimacion.v_minima` no hace falta:** la marcha simulada no baja de 0.18 m/s y las tiradas limpias salen igual.
+- **`evaluar_percepcion.py` sirve ya en curvas:** la referencia es recta o parábola (`calibracion.ajustar_linea`) y se
+  compara a 0.5 m de la cámara, no extrapolando a x = 0. Las diferencias de la tabla del apartado 5 son con el método
+  anterior.
+
 ### Girar primero en el sitio (2026-11-05)
 
 `--girar-primero U`: si al empezar |α| > U, gira en el sitio (vx = 0) hasta |α| < U/2 y después anda. U es un
@@ -620,7 +646,8 @@ Lo que importa es cuánto se alejan los pies desde la salida, porque las salidas
 - Valorar limitar el giro previo a 0.25 rad/s a cualquier escala (a 0.5 rad/s se pasa ~12°).
 - Explicar la deriva de los pies durante el giro en el sitio (`091003`, `100130`; no en `090629` ni `095105`).
 - 6.3.4: probar vy para que el cuerpo vaya alineado con la línea (y pare alineado).
-- Niveles 2–4 cuando estén las pistas.
+- Nivel 2: grabar la curva real con `wasd.sh` y evaluarla antes de que ande solo (es la primera curva real).
+- Niveles 3 y 4 cuando estén las pistas.
 - Medir en la primera tirada el tiempo de frenado tras `StopMove` (0.5 s supuesto) y la parada con cinta.
 
 - Grabar un recorrido con sombra (6.2.2), cuando esté.

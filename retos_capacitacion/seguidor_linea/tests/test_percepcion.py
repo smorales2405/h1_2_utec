@@ -10,7 +10,7 @@ import unittest
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from seguidor import config  # noqa: E402
+from seguidor import calibracion, config  # noqa: E402
 from seguidor.geometria import Intrinsecos, ModeloSuelo  # noqa: E402
 from seguidor.mensajes import Fotograma  # noqa: E402
 from seguidor.percepcion import Percepcion  # noqa: E402
@@ -94,6 +94,74 @@ class TestCurva(unittest.TestCase):
         a, b, c = per.detalle.coef
         for x in (0.4, 0.8):
             self.assertAlmostEqual(a + b * x + c * x * x, R - math.sqrt(R * R - x * x), delta=0.02)
+
+
+class TestReflejos(unittest.TestCase):
+    """Reflejos de los focos junto a la linea: inflan el umbral de su franja y no deben hundir la confianza de
+    una linea que se ve bien (2026-11-05: en una curva simulada, 97 de 97 puntos con confianza 0.26). Si son
+    tan intensos que el umbral supera el contraste de la cinta, la linea cercana se pierde: eso no lo arregla."""
+
+    @staticmethod
+    def reflejos(img):
+        img = img.astype(float)
+        ok = np.isfinite(X)
+        w = np.zeros(X.shape)
+        for cx, cy in ((0.5, -0.5), (0.5, 0.65), (1.15, -0.25), (1.15, 0.95)):
+            w = np.maximum(w, 0.7 * np.exp(-(((np.nan_to_num(X) - cx) ** 2 + (np.nan_to_num(Y) - cy) ** 2) / (2 * 0.22 ** 2))))
+        img[ok] = img[ok] * (1 - w[ok]) + 235.0 * w[ok]
+        return img
+
+    def test_no_hunden_la_confianza(self):
+        R = 2.0
+        img = imagen((np.abs(np.hypot(X, Y - R) - R) < 0.025) & (X > 0) & (Y < R), extra=self.reflejos)
+        m, per = medir(img)
+        sin, _ = medir(img, contraste_ref=1e9)                 # solo frente al umbral
+        self.assertLess(sin.confianza, 0.4)
+        self.assertGreater(m.confianza, 0.65)
+        a, b, c = per.detalle.coef
+        self.assertAlmostEqual(a + 0.5 * b + 0.25 * c, R - math.sqrt(R * R - 0.25), delta=0.015)
+
+    def test_un_tramo_lejano_no_se_beneficia(self):
+        # no viene de debajo del robot: sigue contando solo frente al umbral
+        img = imagen(linea(lambda x: 0.6 + 0 * x, x0=1.3, x1=2.2), extra=self.reflejos)
+        m, _ = medir(img)
+        sin, _ = medir(img, contraste_ref=1e9)
+        self.assertAlmostEqual(m.confianza, sin.confianza, places=6)
+
+    def test_sin_linea_sigue_baja(self):
+        m, _ = medir(imagen(extra=self.reflejos))
+        self.assertLess(m.confianza, 0.35)
+
+
+class TestReferenciaEnCurva(unittest.TestCase):
+    """calibracion.ajustar_linea, la referencia de evaluar_percepcion.py."""
+
+    def test_curva_y_percepcion_coinciden(self):
+        R = 2.0
+        img = imagen((np.abs(np.hypot(X, Y - R) - R) < 0.025) & (X > 0) & (Y < R))
+        pts = calibracion.puntos_de_linea(img, MODELO, x_min=0.3, x_max=2.5)
+        self.assertGreaterEqual(len(pts), 60)
+        a, b, c, n = calibracion.ajustar_linea(pts)
+        self.assertGreaterEqual(n, 30)
+        x = 0.5
+        real = R - math.sqrt(R * R - x * x)
+        self.assertAlmostEqual(a + b * x + c * x * x, real, delta=0.015)
+        m, per = medir(img)
+        a2, b2, c2 = per.detalle.coef
+        self.assertAlmostEqual(a2 + b2 * x + c2 * x * x, a + b * x + c * x * x, delta=0.02)
+        self.assertAlmostEqual(math.atan(b2 + 2 * c2 * x), math.atan(b + 2 * c * x), delta=math.radians(3))
+
+    def test_sin_semilla_no_crece(self):
+        pts = [(x, 0.3 * x * x, 0, 0) for x in np.linspace(0.3, 2.5, 25)]    # pocos puntos: no es referencia
+        _, _, c, n = calibracion.ajustar_linea(pts)
+        self.assertEqual(c, 0.0)
+        self.assertLess(n, 30)
+
+    def test_en_una_recta_se_queda_en_recta(self):
+        pts = calibracion.puntos_de_linea(imagen(linea(lambda x: -0.05 + 0.04 * x)), MODELO, x_min=0.3, x_max=2.5)
+        a, b, c, _ = calibracion.ajustar_linea(pts)
+        self.assertLess(abs(c), 0.02)
+        self.assertAlmostEqual(b, 0.04, delta=0.02)
 
 
 class TestBarraYEsquina(unittest.TestCase):

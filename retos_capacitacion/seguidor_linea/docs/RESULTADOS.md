@@ -620,6 +620,11 @@ Por espacio, la pista del nivel 2 quedó en recta de 2 m, **curva de 90° a la d
   `estimacion.v_minima: 0.18` baja a **3.5 cm**, sin empeorar el resto (nivel 1: 2.1 cm, 3: 7.0, 4: 5.3). A escala 1, 2.5 cm.
   **Queda activo por defecto**, y la marcha simulada también lo modela.
 - La cinta rayada se tapó con un tablero de MDF.
+- **Simulacro del nivel 2** (`tirada_20261106_100847`, llevado con el mando): sin LÍNEA PERDIDA en todo el recorrido;
+  confianza 0.74 en la recta, 0.85 en la curva y 0.92 en la recta final; giro total −90° y FIN en la barra (puntera
+  a +4 cm al mandarlo, con la velocidad medida de 0.27 m/s). La barra se ve de 2.37 a 0.77 m: a partir de ahí
+  **un reflejo del techo cae sobre la barra** (se mueve con la cámara) y los últimos 0.77 m se cuentan a ciegas.
+  Margen en la tirada a media escala (~0.19 m/s): unos 4 s a ciegas frente al tope de 6 s (`t_final_max_s`).
 
 
 `--girar-primero U`: si al empezar |α| > U, gira en el sitio (vx = 0) hasta |α| < U/2 y después anda. U es un
@@ -672,7 +677,12 @@ Lo que importa es cuánto se alejan los pies desde la salida, porque las salidas
 - Valorar limitar el giro previo a 0.25 rad/s a cualquier escala (a 0.5 rad/s se pasa ~12°).
 - Explicar la deriva de los pies durante el giro en el sitio (`091003`, `100130`; no en `090629` ni `095105`).
 - 6.3.4: probar vy para que el cuerpo vaya alineado con la línea (y pare alineado).
-- Nivel 2: simulacro (que no salga LINEA_PERDIDA antes de la curva y que aparezca la barra) y tiradas.
+- Nivel 2: repetir las tiradas con la parada corregida (`101807` y `101955` pararon 17–25 cm antes de la barra: la
+  velocidad se medía con la barra justo después de mandar frenar, y el robot tarda ~1–1.5 s en bajarla; ahora esa
+  velocidad solo cuenta pasados 1.5 s del cambio, y se frena desde 1.6 m).
+- Nivel 2: con la curva a ~1.3 m al salir, la parábola no ajusta recta + curva cerrada a la vez y sesga el ángulo
+  (+40° frente a ~+23° por la IMU): ajuste local cerca del robot, pendiente. La métrica de los pies no vale dentro
+  de la curva (prolonga la recta final).
 - Niveles 3 y 4 cuando estén las pistas.
 - Medir en la primera tirada el tiempo de frenado tras `StopMove` (0.5 s supuesto) y la parada con cinta.
 

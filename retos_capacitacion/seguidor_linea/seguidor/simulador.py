@@ -5,7 +5,7 @@
   7.5 grados a la izquierda del eje de la camara, gira alrededor de un punto 14 cm por detras de ella,
   responde a vyaw con un tiempo muerto mas un primer orden (retardo efectivo ~0.45 s, t90 ~0.85 s),
   deriva a la izquierda 0.026 rad/s andando y balancea el yaw ~1 grado con cada zancada. Cada Move dura
-  1 s; StopMove frena con la misma constante que el arranque.
+  1 s; arrancar y parar (StopMove) van con 0.4 s, y cambiar de velocidad andando con 1 s. No baja de 0.18 m/s.
 - Camara (SensorSimulado): la percepcion sin la imagen. Ve la cinta entre 0.2 y 3 m por delante y
   +-1 m a los lados, una deteccion por fila con ruido, y pasa por el mismo ajuste (recta, parabola que
   crece, cadena continua) y la misma confianza que la percepcion; da la barra (de 0.28 a 2.95 m) y la
@@ -111,6 +111,7 @@ def pista_nivel(nivel, atras=0.3, sentido=+1, radio=None):
 MARCHA = {
     "factor": 1.14, "direccion_avance_deg": 7.5, "centro_giro_m": 0.14, "x_puntera_m": -0.019,
     "retardo_s": 0.15, "tau_giro_s": 0.30, "tau_v_s": 0.40, "ganancia_giro": 0.95,
+    "tau_cambio_v_s": 1.0,   # cambiar de velocidad andando es mas lento que arrancar o parar (tiradas 2026-11-06)
     "deriva": 0.026, "balanceo_yaw_deg": 1.4, "zancada_hz": 0.7, "zona_muerta_sitio": 0.12,
     "v_minima": 0.18,     # andando no baja de esto (en el robot: con vx 0.116 va a 0.17-0.20 m/s)
 }
@@ -179,7 +180,8 @@ class RobotSimulado:
             w_obj = 0.0
         if anda and vx > 0:
             w_obj += p["deriva"]
-        self.v += (v_obj - self.v) * min(1.0, dt / p["tau_v_s"])
+        tau_v = p["tau_v_s"] if (v_obj == 0.0 or self.v < 0.05) else p["tau_cambio_v_s"]
+        self.v += (v_obj - self.v) * min(1.0, dt / tau_v)
         self.w += (w_obj - self.w) * min(1.0, dt / p["tau_giro_s"])
         self.psi += self.w * dt
         self.c = self.c + self.v * dt * np.array([math.cos(self.psi + self.phi), math.sin(self.psi + self.phi)])

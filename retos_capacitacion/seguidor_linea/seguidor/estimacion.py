@@ -134,6 +134,9 @@ class Estimador:
         self.puerta = math.radians(e.get("puerta_deg", 180.0))
         self.puerta_edad = e.get("puerta_edad_s", 0.0)
         self.readquirir = e.get("readquirir", 3)
+        self.asentar = e.get("asentar_s", 0.0)
+        self._vx_ref = None             # vx mandada de referencia, para saber cuando cambio
+        self._t_cambio_vx = -math.inf
         self.rechazadas = 0
         # estima de avance: centro de giro C en el marco del suelo
         self._t = None
@@ -162,6 +165,8 @@ class Estimador:
         """La vx que se acaba de mandar (en simulacro, la que se habria mandado)."""
         self.avanzar(t)
         self._vx_cmd = float(vx if self.velocidad_externa is None else self.velocidad_externa(t))
+        if self._vx_ref is None or abs(self._vx_cmd - self._vx_ref) > max(0.03, 0.15 * self._vx_ref):
+            self._vx_ref, self._t_cambio_vx = self._vx_cmd, t
 
     def avanzar(self, t):
         if self._t is None:
@@ -385,11 +390,13 @@ class Estimador:
 
     def v_barra(self, ventana_s=1.2):
         """Velocidad real de acercamiento a la barra: recta sobre los avistamientos del ultimo
-        `ventana_s` (al menos 8 en 0.5 s). None si no hay bastantes o sale fuera de lo razonable."""
+        `ventana_s` (al menos 8 en 0.5 s), y solo de pasados `asentar_s` desde que cambio la vx mandada:
+        antes, la marcha aun no ha llegado a la velocidad nueva. None si no hay bastantes o sale fuera de lo
+        razonable (entonces cuenta la estima de avance, factor x vx)."""
         if len(self._avist_barra) < 8:
             return None
         a = np.array(self._avist_barra)
-        a = a[a[:, 0] >= a[-1, 0] - ventana_s]
+        a = a[a[:, 0] >= max(a[-1, 0] - ventana_s, self._t_cambio_vx + self.asentar)]
         if len(a) < 8 or np.ptp(a[:, 0]) < 0.5:
             return None
         v = -float(np.polyfit(a[:, 0] - a[-1, 0], a[:, 1], 1)[0])

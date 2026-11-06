@@ -106,6 +106,25 @@ class TestEstimador(unittest.TestCase):
         self.assertAlmostEqual(e.dist_fin, 0.6 - 0.15 * 2.5 - X_PUNTERA, delta=0.01)
         self.assertAlmostEqual(e.v, 0.15, delta=0.01)
 
+    def test_velocidad_de_la_barra_tras_cambiar_la_orden(self):
+        # se manda frenar y la barra deja de verse enseguida (un reflejo): la velocidad medida es la de
+        # antes de frenar y no vale; cuenta la estima de avance con la vx nueva (2026-11-06)
+        est = Estimador(CFG, con_imu(), X_PUNTERA)
+        est.orden(0.0, 0.2)
+        t = 1.0
+        while t < 3.0:
+            est.medida(medida(t, alcance=(0.2, 2.0 - 0.23 * (t - 1.0)), barra=2.0 - 0.23 * (t - 1.0)))
+            t += 1 / 30
+        self.assertAlmostEqual(est.v_barra(), 0.23, delta=0.01)
+        est.orden(3.0, 0.11)                      # frenar
+        while t < 3.8:
+            est.medida(medida(t, alcance=(0.2, 2.0 - 0.23 * (t - 1.0)), barra=2.0 - 0.23 * (t - 1.0)))
+            t += 1 / 30
+        self.assertIsNone(est.v_barra())          # menos de asentar_s tras la orden
+        e = est.estado(5.0, 0.6)
+        self.assertLess(e.v, 0.2)                 # la estima de avance con vx 0.11 (y la velocidad minima)
+        self.assertGreater(e.v, 0.15)
+
     def test_barra_falsa_se_olvida(self):
         est = Estimador(CFG, con_imu(), X_PUNTERA)
         est.orden(0.0, 0.0)

@@ -253,6 +253,8 @@ class SensorSimulado:
             return nada
         x_ini, x_fin = float(xs[dentro].min()), float(xs[dentro].max())
         s_fin = float(pi.s[sel[dentro]].max())
+        coef_lejos, x_fin_salida = None, x_fin
+        local = per._local(xs, ys, (a, b, c))
 
         barra = esquina = None
         if pi.barra and pi.largo - s_fin < 0.1:
@@ -272,10 +274,18 @@ class SensorSimulado:
         c_filas = min(1.0, dentro.sum() / n_filas / 0.6)
         c_res = float(np.clip(1.0 - np.sqrt(np.mean(res ** 2)) / self.p["tolerancia_ajuste_m"], 0.0, 1.0))
         conf = c_filas * c_res
-        L = min(self.L, x_fin)
+        if local is not None:                     # la linea para el control, del ajuste cercano (como la percepcion)
+            coef_lejos = (float(a), float(b), float(c))
+            a, b, c = local
+            x_fin_salida = min(x_fin, self.p["ventana_local_m"])
+            n_tot = len(xs)
+            conf = max(conf, per._conf_cercana({"xs": xs, "ys": ys, "pesos": np.full(n_tot, 4.0),
+                                                "crudo": np.full(n_tot, self.p["contraste_ref"])},
+                                               local, np.ones(len(per.x_filas), dtype=bool)))
+        L = min(self.L, x_fin_salida)
         return MedidaLinea(t=t, y=float(a), theta=math.atan(b), kappa=2 * c / (1 + b * b) ** 1.5,
                            objetivo=(L, a + b * L + c * L * L), confianza=conf, n_franjas=4, barra_fin=barra,
-                           esquina=esquina, ms=4.0, alcance=(x_ini, x_fin))
+                           esquina=esquina, ms=4.0, alcance=(x_ini, x_fin_salida), coef_lejos=coef_lejos)
 
 
 # --- lazo -----------------------------------------------------------------------------------------------

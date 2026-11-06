@@ -44,6 +44,11 @@ percepcion:             # seguidor/percepcion.py (Hito 2)
   hueco_max_m: 0.5     # la linea se corta en el primer hueco mayor (la interrupcion del nivel 3 es de 0.4 m)
   hueco_salto_max_m: 1.0  # ...salvo que lo de mas alla siga la prolongacion (reflejos de focos: 50-60 cm)
   distancia_objetivo_m: 1.0   # punto adelantado del pure pursuit
+  ventana_local_m: 0.8  # la linea para el control se reajusta con lo que hay hasta aqui: con una recta y una curva
+                        # cerrada en la misma vista, la parabola entera sesgaba el angulo hasta +24-29 grados
+                        # (nivel 2, 2026-11-06); con 0.8 m, +1-4. 0 = sin reajuste
+  peso_cercana: 0.9     # la confianza tambien puede salir solo de esa linea cercana (x factor): en la S con el hueco
+                        # y la sombra seguidos, lo lejano no cabe en una parabola y la de toda la vista caia a 0.2-0.3
   barra_cobertura: 0.55       # fraccion de +-35 cm alrededor de la linea cubierta por cinta transversal
   barra_grosor_max_m: 0.12
   barra_sigmas: 4.0
@@ -104,7 +109,8 @@ supervisor:
   n_seguir: 5
   t_inicio_max_s: 5.0   # sin linea en este tiempo tras SEGUIR -> parada
   t_aviso_s: 0.3        # sin medida buena mas que esto -> LINEA_PERDIDA
-  t_perdida_s: 3.0      # y mas que esto -> parada: (0.4 m de hueco + 0.2 de zona ciega + margen) / ~0.2 m/s
+  t_perdida_s: 4.5      # y mas que esto -> parada: (0.4 m de hueco + 0.2 de zona ciega) / 0.18 m/s (la marcha no baja
+                        # de ahi) ya son 3.3 s; con 3 s la S del nivel 3 con sombra tras el hueco paraba (simulador)
   vx_perdida: 0.6       # factor de vx en LINEA_PERDIDA (se sigue la linea estimada, rumbo por la IMU)
   final_ciego_m: 0.6    # con la barra (o la esquina) a menos de esto, no ver la linea es lo normal (zona ciega)
   t_final_max_s: 6.0    # ...pero ese tramo a ciegas no dura mas de esto (a 0.14 m/s son ~2.5 s)

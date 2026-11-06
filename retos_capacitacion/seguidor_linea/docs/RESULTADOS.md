@@ -678,8 +678,46 @@ cuentan los últimos centímetros se medía justo después de mandar frenar, cua
 - Al salir, con la curva a la vista, el ángulo de la línea sale sesgado (+26…+31°) y el robot hace una "S" (pies a
   −12 cm): la parábola no ajusta recta y curva cerrada a la vez (pendiente: ajuste local cerca del robot).
 
-## 7. Hallazgos del entorno
+### La "S" de la salida: ajuste de la línea cercana (2026-11-07)
 
+Al salir con una recta y la curva de 1 m en la misma vista, una parábola no puede ajustar las dos y sesga el ángulo
+cerca del robot. Medido contra la IMU en la recta inicial de los tres recorridos del nivel 2 (la dirección de la
+recta en el mundo no cambia: el ángulo esperado es el del principio menos lo que gira el robot):
+
+| Ajuste | Error del ángulo al acercarse a la curva |
+| --- | --- |
+| Parábola de toda la vista (antes) | crece hasta **+24…+29°** |
+| Reajuste con la línea hasta 1.2 m | +18…+25° en el último tramo |
+| Reajuste hasta 1.0 m | +6…+13° |
+| **Reajuste hasta 0.8 m** (`ventana_local_m`) | **±1.5°** hasta que la curva llega bajo el robot |
+
+La línea que va al control (desplazamiento, ángulo y punto adelantado) sale del reajuste cercano; la barra y la esquina,
+del ajuste de toda la vista (`coef_lejos`), porque están lejos. En recta no cambia nada medible (12 datasets: 99 %, y
+a 1–2 cm y 0.1–0.3° de la referencia). El simulador no reproduce el sesgo (su sensor deja el arco fuera del ajuste):
+la prueba en el robot es la próxima tirada del nivel 2.
+
+### Preparación del nivel 3 (2026-11-07)
+
+Lazo cerrado con la percepción real sobre imágenes de la pista del PDF (S de radio 1.2 m, interrupción de 40 cm al
+principio de la segunda curva y, en el peor caso, 1 m de sombra justo después; script puntual, fuera del repo):
+
+| Luz en la sombra | Antes | Con los dos cambios |
+| --- | --- | --- |
+| Sin sombra | 2/2 (pies ≤ 5.8 cm) | 2/2 |
+| ×0.5 (la cinta, 32 niveles de contraste) | 2/4 | **4/4**, a las dos escalas |
+| ×0.3 (20 niveles) | 0/3 | 0/1: la cinta en sombra apenas se ve |
+
+1. **Confianza de la línea cercana** (`peso_cercana: 0.9`): junto a la interrupción, con la sombra detrás, lo lejano
+   no cabe en una parábola y la confianza de toda la vista caía a 0.2–0.3 con la línea de delante nítida. Ahora
+   cuenta también la de los primeros 0.8 m, si arranca al pie del robot. Comprobado: la caja delante de la cámara
+   sigue en 0.41 como máximo y las detecciones nuevas en los datasets son todas la línea real.
+2. **Tiempo sin línea, de 3 a 4.5 s** (`t_perdida_s`, pregunta 6.4.3): cruzar 40 cm de interrupción más la zona ciega
+   a la velocidad mínima de la marcha (0.18 m/s) ya son 3.3 s.
+
+Cada cambio solo no basta (con uno de los dos, la sombra ×0.5 falla en un sentido). La sombra real decide si hace
+falta más: con ×0.3 no basta.
+
+## 7. Hallazgos del entorno
 - **El DDS no arranca con sudo** (`fs.protected_regular=2`, `/tmp/cdds.LOG` es de `unitree`): la cámara,
   que exige sudo, va en un proceso aparte (`camara_servidor.py`) y pasa los fotogramas por ZMQ.
 - En el PC2, `sudo` pide contraseña: el servidor de cámara se arranca con `ssh -t` o, sin terminal,
@@ -698,9 +736,9 @@ cuentan los últimos centímetros se medía justo después de mandar frenar, cua
 - Valorar limitar el giro previo a 0.25 rad/s a cualquier escala (a 0.5 rad/s se pasa ~12°).
 - Explicar la deriva de los pies durante el giro en el sitio (`091003`, `100130`; no en `090629` ni `095105`).
 - 6.3.4: probar vy para que el cuerpo vaya alineado con la línea (y pare alineado).
-- Nivel 2: con la curva a ~1.3 m al salir, la parábola no ajusta recta + curva cerrada a la vez y sesga el ángulo
-  (+40° frente a ~+23° por la IMU): ajuste local cerca del robot, pendiente. La métrica de los pies no vale dentro
-  de la curva (prolonga la recta final).
+- Nivel 2: una tirada para comprobar en el robot el ajuste de la línea cercana (la "S" de la salida).
+- Nivel 3: montar la pista, grabar la sombra y la interrupción con `wasd.sh` y evaluarlas antes del simulacro.
+- La métrica de los pies no vale dentro de una curva cerrada (prolonga la recta final).
 - Niveles 3 y 4 cuando estén las pistas.
 - Medir en la primera tirada el tiempo de frenado tras `StopMove` (0.5 s supuesto) y la parada con cinta.
 

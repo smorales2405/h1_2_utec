@@ -66,6 +66,8 @@ class MedidaLinea:
     esquina: Optional[Tuple[float, int]] = None  # (m hasta la esquina, sentido +1 izq / -1 der)
     ms: float = 0.0             # tiempo de proceso del fotograma
     alcance: Tuple[float, float] = (float("nan"), float("nan"))  # x (m) del primer y el ultimo punto de linea
+    coef_lejos: Optional[Tuple[float, float, float]] = None   # (a, b, c) del ajuste de toda la linea, si y/theta/kappa
+                                                              # salen del ajuste cercano: para la barra y la esquina
 
 
 @dataclass

@@ -266,9 +266,12 @@ class Estimador:
         self._kappa = m.kappa
         self.racha += 1
 
+        # la barra y la esquina estan lejos: con la linea de toda la vista, no con la cercana
+        al, bl, cl = m.coef_lejos if m.coef_lejos is not None else (a, b, c)
+
         def en_linea(x):
-            p = np.array([[x, a + b * x + c * x ** 2]])
-            pend = b + 2 * c * x
+            p = np.array([[x, al + bl * x + cl * x ** 2]])
+            pend = bl + 2 * cl * x
             u = np.array([[1.0, pend]]) / math.hypot(1.0, pend)
             return self._a_suelo(pose, p)[0], self._a_suelo((0.0, 0.0, pose[2]), u)[0]
 

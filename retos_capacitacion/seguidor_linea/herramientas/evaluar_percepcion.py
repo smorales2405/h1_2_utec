@@ -118,7 +118,10 @@ def evaluar(carpeta, cfg, umbral, video, con_postura):
             if k >= 30:
                 y_ref, th_ref = en_x(a0, b0, c0, X_COMPARA)
         if np.isfinite(m.y):
-            y_m, th_m = en_x(*per.detalle.coef, X_COMPARA)
+            # la linea que sale de la percepcion (la cercana, la que usa el control), no la de toda la vista
+            b_m = math.tan(m.theta)
+            c_m = m.kappa * (1 + b_m * b_m) ** 1.5 / 2 if np.isfinite(m.kappa) else 0.0
+            y_m, th_m = en_x(m.y, b_m, c_m, X_COMPARA)
         anda = bool(np.interp(f.t_rx, tl, anda_l.astype(float)) > 0.5)
         R.append((f.t_rx, m.confianza, y_m, th_m, m.ms, m.barra_fin if m.barra_fin is not None else math.nan,
                   anda, y_ref, th_ref, per.detalle.polaridad))

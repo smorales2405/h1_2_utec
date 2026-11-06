@@ -9,7 +9,8 @@
 3. En cada fila, la columna de mas respuesta; vale si pasa el umbral: adaptativo (k veces el ruido
    robusto de su franja) o fijo (niveles de gris), para comparar (6.2.2).
 4. Ajuste robusto de y = a + b x (+ c x^2 si hay recorrido): desplazamiento a, angulo atan(b),
-   curvatura y el punto adelantado. Confianza = filas con linea x contraste x residuo; el contraste, frente
+   curvatura y el punto adelantado, del reajuste con la linea cercana (ventana_local_m): una recta y una
+   curva cerrada en la misma vista no caben en una parabola. Confianza = filas con linea x contraste x residuo; el contraste, frente
    al umbral y, si la linea viene de debajo del robot, tambien en niveles (`contraste_ref`).
 5. Barra de fin y esquina: filas cubiertas por cinta transversal alrededor del final de la linea, a
    los dos lados (barra) o a uno solo (esquina, nivel 4).
@@ -165,19 +166,71 @@ class Percepcion:
         conf, n_franjas = r["conf"], r["n_franjas"]
         self.detalle = detalle
 
+        # la linea para el control, del ajuste cercano; la de toda la vista queda para la barra y la esquina
+        coef_lejos = None
+        x_fin_salida = detalle.x_fin
         if np.isfinite(a):
-            L = min(p["distancia_objetivo_m"], detalle.x_fin if np.isfinite(detalle.x_fin) else p["distancia_objetivo_m"])
+            local = self._local(r["xs"], r["ys"], (a, b, c))
+            if local is not None:
+                coef_lejos = (float(a), float(b), float(c))
+                a, b, c = local
+                x_fin_salida = min(detalle.x_fin, p["ventana_local_m"])
+                conf = max(conf, self._conf_cercana(r, (a, b, c), filas_ok))
+        if np.isfinite(a):
+            L = min(p["distancia_objetivo_m"], x_fin_salida if np.isfinite(x_fin_salida) else p["distancia_objetivo_m"])
             objetivo = (L, a + b * L + c * L ** 2)
             kappa = 2 * c / (1 + b ** 2) ** 1.5
             theta = math.atan(b)
         else:
             objetivo, kappa, theta = (math.nan, math.nan), math.nan, math.nan
         dentro = r["dentro"]
-        alcance = (float(r["xs"][dentro].min()), float(detalle.x_fin)) if np.any(dentro) else (math.nan, math.nan)
+        alcance = (float(r["xs"][dentro].min()), float(x_fin_salida)) if np.any(dentro) else (math.nan, math.nan)
         ms = 1000 * (time.perf_counter() - t0)
         return MedidaLinea(t=f.t_rx, y=float(a), theta=float(theta), kappa=float(kappa), objetivo=objetivo,
                            confianza=float(conf), n_franjas=n_franjas, barra_fin=barra, esquina=esquina, ms=ms,
-                           alcance=alcance)
+                           alcance=alcance, coef_lejos=coef_lejos)
+
+    def _conf_cercana(self, r, coef, filas_ok):
+        """Confianza de la linea cercana sola (filas con linea x contraste x residuo, en x <= ventana_local_m),
+        por `peso_cercana`. Solo si arranca al pie del robot: un resto lejano no cuenta. Para el control basta
+        (su punto adelantado esta a ~0.5 m). En la S del nivel 3 con el hueco y la sombra seguidos, lo lejano
+        no cabe en una parabola y la confianza de toda la vista caia a 0.2-0.3 (simulador, 2026-11-06)."""
+        p = self.p
+        v = p.get("ventana_local_m", 0.0)
+        peso = p.get("peso_cercana", 0.0)
+        if not v or not peso:
+            return 0.0
+        a, b, c = coef
+        xs, ys = r["xs"], r["ys"]
+        sel = (xs <= v) & (np.abs(ys - (a + b * xs + c * xs ** 2)) < p["tolerancia_ajuste_m"])
+        if sel.sum() < 10 or xs[sel].min() > self.x_min + 0.2:
+            return 0.0
+        n_filas = max(1, int(np.sum((self.x_filas <= v) & filas_ok)))
+        c_filas = min(1.0, sel.sum() / n_filas / 0.6)
+        c_contraste = float(np.clip(max(np.median(r["pesos"][sel]) / 4.0,
+                                        np.median(r["crudo"][sel]) / p["contraste_ref"]), 0.0, 1.0))
+        res = ys[sel] - (a + b * xs[sel] + c * xs[sel] ** 2)
+        c_residuo = float(np.clip(1.0 - np.sqrt(np.mean(res ** 2)) / p["tolerancia_ajuste_m"], 0.0, 1.0))
+        return peso * c_filas * c_contraste * c_residuo
+
+    def _local(self, xs, ys, coef):
+        """(a, b, c) de la linea cerca de la camara (x <= ventana_local_m): se reajusta con los candidatos de esa
+        zona que caen a menos de tolerancia_ajuste_m, empezando por el ajuste de toda la vista. None si no hay
+        bastante linea cerca (entonces vale el de toda la vista)."""
+        v = self.p.get("ventana_local_m", 0.0)
+        if not v:
+            return None
+        a, b, c = coef
+        tol = self.p["tolerancia_ajuste_m"]
+        for _ in range(3):
+            sel = (xs <= v) & (np.abs(ys - (a + b * xs + c * xs ** 2)) < tol)
+            if sel.sum() < 10 or np.ptp(xs[sel]) < 0.25:
+                return None
+            grado = 2 if (np.ptp(xs[sel]) >= 0.5 and sel.sum() >= 25) else 1
+            co = np.polyfit(xs[sel], ys[sel], grado)
+            c = float(co[0]) if grado == 2 else 0.0
+            b, a = float(co[-2]), float(co[-1])
+        return a, b, c
 
     def _medir_signo(self, signo, resp, umbral_fila, filas_ok, x_hasta=None, previo=None):
         """Candidatos, ajuste y confianza para una polaridad. Con `previo` reutiliza su ajuste y solo

@@ -71,9 +71,10 @@ class TestRecta(unittest.TestCase):
 
     def test_objetivo_sobre_la_linea(self):
         m, _ = medir(imagen(linea(lambda x: -0.08 + 0.05 * x)))
-        x, y = m.objetivo
-        self.assertAlmostEqual(x, 1.0, delta=0.01)
-        self.assertAlmostEqual(y, -0.03, delta=0.015)
+        x, y = m.objetivo                          # sobre la linea cercana: a min(1.0, ventana_local_m)
+        L = min(1.0, config.cargar()["percepcion"]["ventana_local_m"] or 1.0)
+        self.assertAlmostEqual(x, L, delta=0.01)
+        self.assertAlmostEqual(y, -0.08 + 0.05 * L, delta=0.015)
 
 
 class TestCurva(unittest.TestCase):
@@ -94,6 +95,26 @@ class TestCurva(unittest.TestCase):
         a, b, c = per.detalle.coef
         for x in (0.4, 0.8):
             self.assertAlmostEqual(a + b * x + c * x * x, R - math.sqrt(R * R - x * x), delta=0.02)
+
+
+class TestRectaYCurvaCerrada(unittest.TestCase):
+    """Recta y, a 1.2 m, curva de radio 1 m a la derecha, en la misma vista (salida del nivel 2, 2026-11-06): la
+    parabola de toda la vista sesgaba el angulo cerca del robot; la linea cercana no."""
+
+    def test_angulo_cerca_del_robot(self):
+        R, x0, th = 1.0, 1.2, math.radians(8.0)
+        # en el marco de la recta (u a lo largo, w lateral) y luego girado `th` respecto de la camara
+        u = X * math.cos(th) + Y * math.sin(th)
+        w = -X * math.sin(th) + Y * math.cos(th)
+        recta = (np.abs(w) < 0.025) & (u < x0)
+        arco = (np.abs(np.hypot(u - x0, w + R) - R) < 0.025) & (u >= x0) & (w > -R)
+        img = imagen(recta | arco)
+        m, per = medir(img)
+        lejos, _ = medir(img, ventana_local_m=0.0)
+        self.assertGreater(m.confianza, 0.5)
+        self.assertAlmostEqual(math.degrees(m.theta), 8.0, delta=2.0)
+        self.assertGreater(abs(math.degrees(lejos.theta) - 8.0), 4.0)    # sin el reajuste, sesgado
+        self.assertIsNotNone(m.coef_lejos)
 
 
 class TestReflejos(unittest.TestCase):

@@ -627,6 +627,8 @@ Por espacio, la pista del nivel 2 quedó en recta de 2 m, **curva de 90° a la d
   Margen en la tirada a media escala (~0.19 m/s): unos 4 s a ciegas frente al tope de 6 s (`t_final_max_s`).
 
 
+### Girar primero en el sitio (2026-11-05)
+
 `--girar-primero U`: si al empezar |α| > U, gira en el sitio (vx = 0) hasta |α| < U/2 y después anda. U es un
 umbral, no los grados que gira: esos salen de α, el ángulo entre la dirección de avance y el punto adelantado.
 Con la línea a y cm y ángulo θ, **α ≈ 0.77·θ + 0.95·y − 7.5°**. Con U = 12 y la línea centrada, gira con

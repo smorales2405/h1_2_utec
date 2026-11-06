@@ -693,8 +693,13 @@ recta en el mundo no cambia: el ángulo esperado es el del principio menos lo qu
 
 La línea que va al control (desplazamiento, ángulo y punto adelantado) sale del reajuste cercano; la barra y la esquina,
 del ajuste de toda la vista (`coef_lejos`), porque están lejos. En recta no cambia nada medible (12 datasets: 99 %, y
-a 1–2 cm y 0.1–0.3° de la referencia). El simulador no reproduce el sesgo (su sensor deja el arco fuera del ajuste):
-la prueba en el robot es la próxima tirada del nivel 2.
+a 1–2 cm y 0.1–0.3° de la referencia). El simulador no reproduce el sesgo (su sensor deja el arco fuera del ajuste).
+
+**Comprobado en el robot** (`tirada_20261106_233201`, media escala, y `233334`, escala 1): en la recta de salida la
+dirección de la línea en el mundo (ángulo medido + yaw de la IMU) se queda estable (−2…−5° y −3…+4°; antes derivaba de
+0 a +26°) y los pies llegan a la línea antes de la curva (de −10 a 0…+2 cm a los 5–7 s, y de −12 a +2 cm a los 4 s;
+antes seguían a −12…−18 cm). Las dos acaban en FIN (prevista +9.8 y +9.3 cm), sin intervención y con la línea vista el
+94–96 % del tiempo. A media escala vyaw toca el tope (0.25 rad/s) el 21 % del tiempo en la curva de 1 m.
 
 ### Preparación del nivel 3 (2026-11-07)
 
@@ -736,7 +741,6 @@ falta más: con ×0.3 no basta.
 - Valorar limitar el giro previo a 0.25 rad/s a cualquier escala (a 0.5 rad/s se pasa ~12°).
 - Explicar la deriva de los pies durante el giro en el sitio (`091003`, `100130`; no en `090629` ni `095105`).
 - 6.3.4: probar vy para que el cuerpo vaya alineado con la línea (y pare alineado).
-- Nivel 2: una tirada para comprobar en el robot el ajuste de la línea cercana (la "S" de la salida).
 - Nivel 3: montar la pista, grabar la sombra y la interrupción con `wasd.sh` y evaluarlas antes del simulacro.
 - La métrica de los pies no vale dentro de una curva cerrada (prolonga la recta final).
 - Niveles 3 y 4 cuando estén las pistas.

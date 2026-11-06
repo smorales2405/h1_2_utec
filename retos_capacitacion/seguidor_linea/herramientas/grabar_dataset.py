@@ -7,7 +7,7 @@ con el mando) en otra terminal. El joystick queda en lowstate.csv; las teclas de
 
     ./camara_servidor.sh                      (IR sin emisor, como se va a andar)
     ./ejecutar.sh herramientas/grabar_dataset.py --nombre nivel1_a [--duracion 300] [--cada 1]
-    # en otra terminal:  ssh -t unitree@192.168.0.143 ~/robotics40/wasd.sh --vx 0.2 --vyaw 0.3
+    # en otra terminal:  ./wasd.sh --vx 0.2 --vyaw 0.3   (copia de ~/robotics40/wasd.sh)
 
 Para con Ctrl+C o al cumplir --duracion. Deja datos/dataset_<fecha>_<nombre>/ con el formato de
 seguidor/fuentes.py (fotogramas.csv, meta.json, ir/), lowstate.csv y resumen.json.

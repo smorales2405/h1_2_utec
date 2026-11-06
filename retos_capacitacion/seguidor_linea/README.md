@@ -94,6 +94,7 @@ python3 -m pytest tests/
 | `seguidor/control.py` | Pure pursuit desde el centro de giro sobre la dirección real de avance; vx según curvatura, confianza y barra |
 | `seguidor/supervisor.py` | Estados del PDF; único que llama a `Move` y `StopMove` (nunca en simulacro) |
 | `seguidor/simulador.py` | Marcha medida y cámara simulada para probar el lazo cerrado sin robot |
+| `wasd.sh` + `herramientas/wasd.py` | Llevar el robot con el teclado al grabar un dataset (copia de `~/robotics40/wasd.*`) |
 | `seguidor_linea.py` + `.sh` | Programa principal: `--nivel N [--escala 0.5] [--simulacro]`; ESPACIO para parar |
 | `seguidor/teclado.py` | Tecla ESPACIO de parada en el terminal (modo tecla a tecla, se restaura al salir) |
 | `seguidor/vigilante.py` | Paradas de la sección 10 que no dependen de la línea |

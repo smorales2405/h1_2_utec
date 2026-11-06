@@ -657,6 +657,25 @@ Lo que importa es cuánto se alejan los pies desde la salida, porque las salidas
   giro, como en `091003`: sigue sin explicar. Las tablas del simulador de más arriba son sin giro previo.
 - Las dos acabaron en FIN sin intervención (parada prevista +9.8 cm); vyaw toca el tope de 0.25 rad/s solo durante el giro.
 
+### Nivel 2: tiradas (2026-11-06)
+
+Pista con la curva de radio ~1 m a la derecha. Las dos primeras (`101807`, escala 0.5, y `101955`, escala 1) siguieron
+la línea pero **pararon 17–25 cm antes de la barra**: un reflejo la tapa a ~0.7 m y la velocidad con la que se
+cuentan los últimos centímetros se medía justo después de mandar frenar, cuando el robot aún iba deprisa (tarda
+~1–1.5 s en bajar la velocidad). Corregido (`asentar_s: 1.5`, se frena desde 1.6 m). Con el arreglo:
+
+| Tirada | Escala | Tiempo | FIN: puntera / velocidad | Parada prevista | Intervenciones |
+| --- | --- | --- | --- | --- | --- |
+| `104021` | 0.5 | 29.5 s | −0.2 cm / 0.18 m/s | +9.2 cm pasada | 0 |
+| `104152` | 1 | 18.5 s | +4.0 cm / 0.27 m/s | +9.6 cm | 0 |
+| `104456` | 1 | 20.3 s | +4.3 cm / 0.26 m/s | +8.9 cm | 0 (la más centrada sobre la barra) |
+
+- **Las tres paran en la barra**, y la velocidad medida ya es la de después de frenar (0.18 y 0.26–0.27 m/s).
+- La "línea perdida" de `104021` dura 0.3 s y es del final: la barra se tapa a 0.71 m y el tramo a ciegas empieza a
+  0.6 m. A escala 1 no se pierde nunca.
+- Al salir, con la curva a la vista, el ángulo de la línea sale sesgado (+26…+31°) y el robot hace una "S" (pies a
+  −12 cm): la parábola no ajusta recta y curva cerrada a la vez (pendiente: ajuste local cerca del robot).
+
 ## 7. Hallazgos del entorno
 
 - **El DDS no arranca con sudo** (`fs.protected_regular=2`, `/tmp/cdds.LOG` es de `unitree`): la cámara,
@@ -677,9 +696,6 @@ Lo que importa es cuánto se alejan los pies desde la salida, porque las salidas
 - Valorar limitar el giro previo a 0.25 rad/s a cualquier escala (a 0.5 rad/s se pasa ~12°).
 - Explicar la deriva de los pies durante el giro en el sitio (`091003`, `100130`; no en `090629` ni `095105`).
 - 6.3.4: probar vy para que el cuerpo vaya alineado con la línea (y pare alineado).
-- Nivel 2: repetir las tiradas con la parada corregida (`101807` y `101955` pararon 17–25 cm antes de la barra: la
-  velocidad se medía con la barra justo después de mandar frenar, y el robot tarda ~1–1.5 s en bajarla; ahora esa
-  velocidad solo cuenta pasados 1.5 s del cambio, y se frena desde 1.6 m).
 - Nivel 2: con la curva a ~1.3 m al salir, la parábola no ajusta recta + curva cerrada a la vez y sesga el ángulo
   (+40° frente a ~+23° por la IMU): ajuste local cerca del robot, pendiente. La métrica de los pies no vale dentro
   de la curva (prolonga la recta final).

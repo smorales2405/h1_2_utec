@@ -349,7 +349,8 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 - [x] Antes del nivel 2: confianza con reflejos y `evaluar_percepcion.py` para curvas
 - [x] Nivel 2: pista (curva de radio ~1 m por espacio) y tres recorridos grabados y evaluados (2026-11-06)
 - [x] Nivel 2: simulacro (2026-11-06)
-- [ ] Nivel 2: tiradas a media escala y a escala 1
+- [x] Nivel 2: tiradas a media escala y a escala 1 (2026-11-06; curva de radio ~1 m), paran en la barra sin intervención
+- [ ] Nivel 2: ajuste local de la línea para el sesgo de recta + curva cerrada a la vez
 - [ ] Niveles 3 y 4, en ese orden
 - [x] `metricas.py`: métricas de la sección 9 por tirada
 - [ ] El informe con las respuestas a 6.1–6.4

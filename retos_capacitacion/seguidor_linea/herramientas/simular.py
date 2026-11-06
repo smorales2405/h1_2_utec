@@ -29,6 +29,7 @@ def main():
     ap.add_argument("--sentido", type=int, nargs="+", default=[1, -1], help="curvas a la izquierda (+1) o derecha (-1)")
     ap.add_argument("--tapar", type=float, nargs=2, action="append", default=[], metavar=("T0", "T1"))
     ap.add_argument("--marcha", nargs="*", default=[], help="cambios del modelo de marcha, p. ej. deriva=0.05")
+    ap.add_argument("--radio", type=float, default=None, help="radio de las curvas de los niveles 2 y 3 (m; por defecto el del PDF)")
     ap.add_argument("--semillas", type=int, default=1)
     ap.add_argument("--figura", action="store_true", help="guardar datos/simulacion_nivel<N>.png")
     args = ap.parse_args()
@@ -41,7 +42,8 @@ def main():
         for sentido in sentidos:
             for des in args.desalineado:
                 for semilla in range(args.semillas):
-                    r = simular(cfg, nivel, args.escala, des, args.lateral, sentido, marcha, semilla, args.tapar)
+                    r = simular(cfg, nivel, args.escala, des, args.lateral, sentido, marcha, semilla, args.tapar,
+                                radio=args.radio)
                     resultados.append(r)
                     print(f"nivel {nivel} sentido {sentido:+d} salida {des:+5.1f} grados semilla {semilla}: "
                           f"{'EXITO' if r['exito'] else 'fallo'} · {r['estado_final']} ({r['motivo']}) · "

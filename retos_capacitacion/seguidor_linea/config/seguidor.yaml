@@ -55,7 +55,8 @@ estimacion:             # seguidor/estimacion.py (Hito 3); valores medidos en RE
   direccion_avance_deg: 7.5  # el robot avanza 7.5 grados a la izquierda del eje de la camara
   centro_giro_m: 0.14   # gira alrededor de un punto ~14 cm por detras de la camara (8-18 cm)
   tau_velocidad_s: 0.5  # la marcha tarda ~0.5 s en llegar a la vx mandada (como el giro: supuesto)
-  v_minima: 0.0         # andando no baja de esto: en las tiradas ~0.18 m/s (vx 0.116 -> 0.17-0.20). 0 = no se modela
+  v_minima: 0.18        # andando no baja de esto (tiradas: vx 0.116 -> 0.17-0.20 m/s). En la curva de 1 m a media
+                        # escala, sin esto el control pide menos giro del necesario: pies a 13.7 cm en vez de 3.5
   conf_usar: 0.35       # medidas con menos confianza no mueven la linea estimada
   paso_linea_m: 0.05
   confirmar: 5          # avistamientos seguidos para dar por buena la barra o la esquina

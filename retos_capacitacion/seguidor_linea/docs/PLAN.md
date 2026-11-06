@@ -347,7 +347,8 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 - [x] Nivel 1 con salida girada ±10° y a escala 1 (0.4 m/s), 2026-10-10: tres tiradas más con éxito
 - [x] Giro previo en el sitio al salir muy torcido, por defecto con umbral de 12° (a escala 1 se pasa, pero se corrige)
 - [x] Antes del nivel 2: confianza con reflejos y `evaluar_percepcion.py` para curvas
-- [ ] Nivel 2: pista (~7 × 7 m libres), dataset de la curva, simulacro y tiradas a media escala y a escala 1
+- [x] Nivel 2: pista (curva de radio ~1 m por espacio) y tres recorridos grabados y evaluados (2026-11-06)
+- [ ] Nivel 2: simulacro y tiradas a media escala y a escala 1
 - [ ] Niveles 3 y 4, en ese orden
 - [x] `metricas.py`: métricas de la sección 9 por tirada
 - [ ] El informe con las respuestas a 6.1–6.4

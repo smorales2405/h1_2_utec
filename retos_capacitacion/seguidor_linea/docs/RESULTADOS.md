@@ -594,7 +594,33 @@ recta dan confianzas parecidas a las reales. **No sustituye a una curva real.**
   compara a 0.5 m de la cámara, no extrapolando a x = 0. Las diferencias de la tabla del apartado 5 son con el método
   anterior.
 
-### Girar primero en el sitio (2026-11-05)
+### Nivel 2 con curva de radio 1 m: datasets (2026-11-06)
+
+Por espacio, la pista del nivel 2 quedó en recta de 2 m, **curva de 90° a la derecha de radio ~1 m** (el PDF pide
+2 m) y recta de 2 m con la barra. Tres recorridos llevados con `wasd.sh` (`dataset_20261106_085726`, `090006` y
+`090143`: centrado, desviado a la izquierda, y desviado con zigzag al final), evaluados con
+`evaluar_percepcion.py` y `reproducir.py --nivel 2`:
+
+| Tramo | Detección donde la referencia ve la línea | Confianza (mediana) |
+| --- | --- | --- |
+| Recta 1 | 90–96 % | 0.74–0.78 |
+| Curva | 100 % mientras la cinta está a la vista | 0.79 |
+| Recta 2 | 88–100 % | 0.67–0.84 |
+
+- **Cuando la curva está a la vista, se detecta bien:** confianza ~0.8 y la línea a 1–2 cm de la referencia a 0.5 m.
+- **La cinta rayada de peligro junto a la curva engaña a la percepción:** la percepción busca un punto de línea por
+  fila, y el rayado blanco y negro tiene más contraste que la cinta, así que se queda con esas filas. Con el robot
+  mirando a la izquierda antes de la curva, la toma por la línea (a +27…+51 cm, con confianza < 0.35) durante 2.3 y
+  3.4 s seguidos: reproduciendo `090143`, el supervisor llega a **PARADA por línea perdida antes de la curva**. El PDF
+  pide 1.5 m libres a cada lado de la línea.
+- **Con radio 1 m la curva sale pronto de la vista** si el robot gira tarde (en `090006` y `090143`, a mano, 2 s sin línea).
+- **Simulador con radio 1 m** (`simular.py --radio 1`, marcha que no baja de 0.18 m/s): las 12 tiradas llegan a la
+  barra, pero a media escala los pies se separan hasta **13.7 cm**: el control pide poca vx en la curva y cuenta con
+  1.14 × vx (~0.13 m/s) cuando el robot no baja de 0.18, así que pide menos giro del necesario. Con
+  `estimacion.v_minima: 0.18` baja a **3.5 cm**, sin empeorar el resto (nivel 1: 2.1 cm, 3: 7.0, 4: 5.3). A escala 1, 2.5 cm.
+  **Queda activo por defecto**, y la marcha simulada también lo modela.
+- La cinta rayada se tapó con un tablero de MDF.
+
 
 `--girar-primero U`: si al empezar |α| > U, gira en el sitio (vx = 0) hasta |α| < U/2 y después anda. U es un
 umbral, no los grados que gira: esos salen de α, el ángulo entre la dirección de avance y el punto adelantado.
@@ -646,7 +672,7 @@ Lo que importa es cuánto se alejan los pies desde la salida, porque las salidas
 - Valorar limitar el giro previo a 0.25 rad/s a cualquier escala (a 0.5 rad/s se pasa ~12°).
 - Explicar la deriva de los pies durante el giro en el sitio (`091003`, `100130`; no en `090629` ni `095105`).
 - 6.3.4: probar vy para que el cuerpo vaya alineado con la línea (y pare alineado).
-- Nivel 2: grabar la curva real con `wasd.sh` y evaluarla antes de que ande solo (es la primera curva real).
+- Nivel 2: simulacro (que no salga LINEA_PERDIDA antes de la curva y que aparezca la barra) y tiradas.
 - Niveles 3 y 4 cuando estén las pistas.
 - Medir en la primera tirada el tiempo de frenado tras `StopMove` (0.5 s supuesto) y la parada con cinta.
 

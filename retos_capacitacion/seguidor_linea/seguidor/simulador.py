@@ -83,20 +83,23 @@ def _trazar(tramos, inicio=(0.0, 0.0), rumbo=0.0, paso=0.01):
     return np.array(p)
 
 
-def pista_nivel(nivel, atras=0.3, sentido=+1):
+def pista_nivel(nivel, atras=0.3, sentido=+1, radio=None):
     """Las pistas del PDF (seccion 4). El robot sale con la puntera en s = `atras`; la recta del nivel 1
-    mide 4 m desde la puntera hasta la barra. `sentido` +1 gira a la izquierda, -1 a la derecha."""
+    mide 4 m desde la puntera hasta la barra. `sentido` +1 gira a la izquierda, -1 a la derecha. `radio`
+    cambia el de las curvas (por defecto, el del PDF: 2 m en el nivel 2 y 1.2 m en el 3)."""
     g = sentido
     if nivel == 1:
         return Pista(_trazar([("recta", atras + 4.0)]), nombre="nivel 1: recta de 4 m")
     if nivel == 2:
-        return Pista(_trazar([("recta", atras + 2.0), ("arco", 2.0, 90 * g), ("recta", 2.0)]),
-                     nombre="nivel 2: recta, curva de 90 grados con radio 2 m, recta")
+        r = radio or 2.0
+        return Pista(_trazar([("recta", atras + 2.0), ("arco", r, 90 * g), ("recta", 2.0)]),
+                     nombre=f"nivel 2: recta, curva de 90 grados con radio {r:g} m, recta")
     if nivel == 3:
-        p = _trazar([("recta", atras + 1.0), ("arco", 1.2, 90 * g), ("arco", 1.2, -90 * g), ("recta", 1.0)])
-        s_hueco = atras + 1.0 + 1.2 * math.pi / 2 + 0.3     # al principio de la segunda curva
+        r = radio or 1.2
+        p = _trazar([("recta", atras + 1.0), ("arco", r, 90 * g), ("arco", r, -90 * g), ("recta", 1.0)])
+        s_hueco = atras + 1.0 + r * math.pi / 2 + 0.3       # al principio de la segunda curva
         return Pista(p, huecos=[(s_hueco, s_hueco + 0.4)],
-                     nombre="nivel 3: S con radios de 1.2 m e interrupcion de 40 cm")
+                     nombre=f"nivel 3: S con radios de {r:g} m e interrupcion de 40 cm")
     if nivel == 4:
         return Pista(_trazar([("recta", atras + 2.0), ("esquina", 90 * g), ("recta", 2.0)]),
                      nombre="nivel 4: esquina de 90 grados y 2 m de recta")
@@ -109,7 +112,7 @@ MARCHA = {
     "factor": 1.14, "direccion_avance_deg": 7.5, "centro_giro_m": 0.14, "x_puntera_m": -0.019,
     "retardo_s": 0.15, "tau_giro_s": 0.30, "tau_v_s": 0.40, "ganancia_giro": 0.95,
     "deriva": 0.026, "balanceo_yaw_deg": 1.4, "zancada_hz": 0.7, "zona_muerta_sitio": 0.12,
-    "v_minima": 0.0,      # andando no baja de esto (en el robot ~0.18 m/s: con vx 0.116 va a 0.17-0.20)
+    "v_minima": 0.18,     # andando no baja de esto (en el robot: con vx 0.116 va a 0.17-0.20 m/s)
 }
 
 
@@ -290,10 +293,10 @@ def salida(pista, desalineado_deg=10.0, lateral=0.0):
 
 
 def simular(cfg, nivel, escala=0.5, desalineado_deg=10.0, lateral=0.0, sentido=+1, marcha=None, semilla=0,
-            tapar=(), duracion=None, hz_fisica=500):
+            tapar=(), duracion=None, hz_fisica=500, radio=None):
     """Una tirada simulada. Devuelve un dict con el resultado y las series para dibujarlo."""
     rng = np.random.default_rng(semilla)
-    pista = pista_nivel(nivel, sentido=sentido)
+    pista = pista_nivel(nivel, sentido=sentido, radio=radio)
     x, y, rumbo = salida(pista, desalineado_deg, lateral)
     robot = RobotSimulado(x, y, rumbo, marcha)
     imu = HistorialImu()

@@ -15,6 +15,10 @@ from seguidor.mensajes import EstadoLinea, MedidaLinea  # noqa: E402
 CFG = config.cargar()
 CFG["control"]["girar_primero_deg"] = 0.0     # la ley de control, sin el giro previo ni la pausa para girar
 CFG["control"]["pausa_giro_deg"] = 0.0        # (cada uno tiene su propia prueba)
+CFG["control"]["pausa_perdida_deg"] = 0.0
+CFG["control"]["pausa_perdida_rumbo_deg"] = 0.0
+CFG["control"]["vx_tras_pausa"] = 0.0
+CFG["control"]["vyaw_busqueda"] = 0.0
 X_PUNTERA = -0.02
 
 
@@ -65,6 +69,21 @@ class TestEstimador(unittest.TestCase):
         self.assertAlmostEqual(oy, 0.10, delta=0.002)
         self.assertAlmostEqual(math.hypot(ox + 0.14, oy), 0.6, delta=0.002)
         self.assertLess(e.edad_s, 0.1)
+
+    def test_linea_corta_se_prolonga_hacia_delante(self):
+        # alcance multiplo del paso (0.22-0.52 con 0.05): el ultimo punto salia repetido 1e-16 por detras y la
+        # prolongacion iba hacia atras; andando a ciegas el objetivo acababa detras (2026-11-07)
+        for x0, x1 in ((0.22, 0.52), (0.26, 0.61), (0.22, 0.57), (0.2, 0.2005)):
+            est = Estimador(CFG, con_imu(), X_PUNTERA)
+            est.orden(0.0, 0.0)
+            self.assertTrue(est.medida(medida(1.0, y=0.0, theta_deg=30.0, alcance=(x0, x1))))
+            est.orden(1.0, 0.2)
+            for t in (1.05, 2.0, 3.0, 4.0):
+                e = est.estado(t, 0.6)
+                ox, oy = e.objetivo
+                self.assertGreater(ox, 0.2, (x0, x1, t))
+                self.assertGreater(oy, 0.0, (x0, x1, t))
+                self.assertAlmostEqual(math.hypot(ox + 0.14, oy), 0.6, delta=0.01)
 
     def test_el_yaw_gira_la_linea(self):
         # el robot gira 10 grados a la izquierda sin medir: la linea se ve 10 grados a la derecha
@@ -298,6 +317,116 @@ class TestControl(unittest.TestCase):
         ctl = Control(cfg, 1.0)
         orden, info = ctl.calcular(0.0, estado(self.objetivo(-35.0)))
         self.assertFalse(info.get("pausa", False))
+
+    def test_pausa_con_la_linea_perdida(self):
+        # con la linea perdida y la estimada hacia un lado, andar la aleja: para y gira en el sitio hacia ella
+        import copy
+        cfg = copy.deepcopy(CFG)
+        cfg["control"]["pausa_perdida_deg"] = 15.0
+        cfg["estimacion"]["v_minima"] = 0.18
+        ctl = Control(cfg, 1.0)
+        orden, info = ctl.calcular(0.0, estado(self.objetivo(20.0)))               # vista: anda aunque se tuerza
+        self.assertFalse(info.get("pausa", False))
+        orden, info = ctl.calcular(0.05, estado(self.objetivo(10.0)), perdida=True)  # perdida pero casi recta: anda
+        self.assertFalse(info.get("pausa", False))
+        orden, info = ctl.calcular(0.10, estado(self.objetivo(20.0)), perdida=True)  # perdida y hacia un lado
+        self.assertTrue(info.get("pausa"))
+        self.assertEqual(orden.vx, 0.0)
+        self.assertGreater(orden.vyaw, 0.0)
+        orden, info = ctl.calcular(0.15, estado(self.objetivo(10.0)))              # recuperada: sigue hasta la mitad
+        self.assertTrue(info.get("pausa"))
+        orden, info = ctl.calcular(0.20, estado(self.objetivo(5.0)))
+        self.assertFalse(info.get("pausa", False))
+        self.assertGreater(orden.vx, 0.0)
+
+    def test_pausa_con_la_linea_perdida_de_lado(self):
+        # perdida, el objetivo casi delante (alfa 5) pero la cinta estimada a +35 de la marcha: para y gira hasta
+        # alinearse tambien con ella; luego anda despacio un rato
+        import copy
+        cfg = copy.deepcopy(CFG)
+        cfg["control"]["pausa_perdida_deg"] = 15.0
+        cfg["control"]["pausa_perdida_rumbo_deg"] = 20.0
+        cfg["control"]["pausa_perdida_rumbo_edad_s"] = 0.8
+        cfg["control"]["vx_tras_pausa"] = 0.16
+        cfg["control"]["t_tras_pausa_s"] = 2.0
+        ctl = Control(cfg, 1.0)
+
+        def est_(alfa_deg, rumbo_deg, edad=1.0):
+            e = estado(self.objetivo(alfa_deg))
+            return EstadoLinea(**dict(e.__dict__, theta=self.phi + math.radians(rumbo_deg), edad_s=edad))
+        orden, info = ctl.calcular(0.0, est_(5.0, 35.0))                     # vista: anda
+        self.assertFalse(info.get("pausa", False))
+        orden, info = ctl.calcular(0.05, est_(5.0, 15.0), perdida=True)       # perdida y casi recta: anda
+        self.assertFalse(info.get("pausa", False))
+        orden, info = ctl.calcular(0.10, est_(-5.0, 35.0), perdida=True)      # signos opuestos: alfa manda, anda
+        self.assertFalse(info.get("pausa", False))
+        orden, info = ctl.calcular(0.12, est_(5.0, 35.0, edad=0.4), perdida=True)  # recien perdida: aun anda
+        self.assertFalse(info.get("pausa", False))
+        orden, info = ctl.calcular(0.15, est_(5.0, 35.0), perdida=True)       # de lado: pausa hacia la izquierda
+        self.assertTrue(info.get("pausa"))
+        self.assertEqual(info["vx_deseada"], 0.0)
+        self.assertGreater(orden.vyaw, 0.0)
+        orden, info = ctl.calcular(0.20, est_(3.0, 12.0), perdida=True)       # alfa ya pequeno, la cinta aun no
+        self.assertTrue(info.get("pausa"))
+        orden, info = ctl.calcular(0.25, est_(2.0, 6.0))                     # alineado: anda, despacio
+        self.assertFalse(info.get("pausa", False))
+        for k in range(30):
+            orden, info = ctl.calcular(0.30 + 0.05 * k, est_(0.0, 0.0))
+        self.assertLessEqual(info["vx_deseada"], 0.16 + 1e-9)
+        for k in range(30):
+            orden, info = ctl.calcular(2.5 + 0.05 * k, est_(0.0, 0.0))
+        self.assertGreater(info["vx_deseada"], 0.3)
+
+    def test_busqueda_si_sigue_perdida(self):
+        # la pausa con la linea perdida acaba alineada con la estimada pero sigue sin verse: gira despacio hacia el
+        # mismo lado (no anda) hasta verla
+        import copy
+        cfg = copy.deepcopy(CFG)
+        cfg["control"]["pausa_perdida_deg"] = 15.0
+        cfg["control"]["vyaw_busqueda"] = 0.25
+        cfg["control"]["vx_busqueda"] = 0.0
+        ctl = Control(cfg, 1.0)
+        orden, info = ctl.calcular(0.0, estado(self.objetivo(20.0)), perdida=True)
+        self.assertTrue(info.get("pausa"))
+        self.assertFalse(info.get("busqueda"))
+        orden, info = ctl.calcular(0.05, estado(self.objetivo(3.0)), perdida=True)    # alineado, aun perdida
+        self.assertTrue(info.get("busqueda"))
+        self.assertEqual(info["vx_deseada"], 0.0)
+        orden, info = ctl.calcular(0.10, estado(self.objetivo(-6.0)), perdida=True)   # pasado: sigue al mismo lado
+        self.assertTrue(info.get("busqueda"))
+        for k in range(20):
+            orden, info = ctl.calcular(0.15 + 0.05 * k, estado(self.objetivo(-6.0)), perdida=True)
+        self.assertAlmostEqual(orden.vyaw, 0.25, places=6)
+        orden, info = ctl.calcular(1.5, estado(self.objetivo(2.0)))                   # vista otra vez: anda
+        self.assertFalse(info.get("pausa", False))
+        # andando en arco hacia el mismo lado
+        cfg["control"]["vx_busqueda"] = 0.16
+        ctl = Control(cfg, 1.0)
+        ctl.calcular(0.0, estado(self.objetivo(20.0)), perdida=True)
+        for k in range(40):
+            orden, info = ctl.calcular(0.05 * (k + 1), estado(self.objetivo(3.0)), perdida=True)
+        self.assertTrue(info.get("busqueda"))
+        self.assertAlmostEqual(orden.vx, 0.16, places=6)
+        self.assertAlmostEqual(orden.vyaw, 0.25 + cfg["control"]["vyaw_sesgo"], places=6)
+        # sin vyaw_busqueda, como antes: anda al alinearse
+        cfg["control"]["vyaw_busqueda"] = 0.0
+        ctl = Control(cfg, 1.0)
+        ctl.calcular(0.0, estado(self.objetivo(20.0)), perdida=True)
+        orden, info = ctl.calcular(0.05, estado(self.objetivo(3.0)), perdida=True)
+        self.assertFalse(info.get("pausa", False))
+
+    def test_objetivo_detras_usa_el_rumbo(self):
+        # linea estimada agotada: el objetivo detras del centro de giro no debe hacer girar 170 grados
+        import copy
+        cfg = copy.deepcopy(CFG)
+        cfg["control"]["pausa_perdida_deg"] = 15.0
+        cfg["control"]["pausa_perdida_rumbo_deg"] = 20.0
+        ctl = Control(cfg, 1.0)
+        e = EstadoLinea(t=0.0, y=0.0, theta=self.phi + math.radians(25.0), kappa=0.0, confianza=0.5, edad_s=2.0,
+                        rumbo_ref=0.0, objetivo=(-0.2, -0.01), hay_linea=True)
+        orden, info = ctl.calcular(0.0, e, perdida=True)
+        self.assertAlmostEqual(math.degrees(info["alfa"]), 25.0, delta=0.5)
+        self.assertGreater(orden.vyaw, 0.0)
 
     def test_velocidad_minima(self):
         import copy

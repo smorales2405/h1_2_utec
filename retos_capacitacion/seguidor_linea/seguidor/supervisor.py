@@ -182,7 +182,7 @@ class Supervisor:
             self._cambiar(t, PARADA, f"linea perdida mas de {s['t_perdida_s']:.1f} s")
             return None, {}
         factor = s["vx_perdida"] if self.estado == LINEA_PERDIDA else 1.0
-        orden, extra = self.control.calcular(t, est, factor_vx=factor)
+        orden, extra = self.control.calcular(t, est, factor_vx=factor, perdida=self.estado == LINEA_PERDIDA)
         return orden, extra
 
     def _esquina(self, t, est):

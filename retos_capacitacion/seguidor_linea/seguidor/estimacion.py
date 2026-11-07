@@ -234,7 +234,9 @@ class Estimador:
         a, b = m.y, math.tan(m.theta)
         c = (m.kappa * (1 + b * b) ** 1.5 / 2) if np.isfinite(m.kappa) else 0.0
         x0, x1 = m.alcance
-        xs = np.append(np.arange(x0, x1, self.paso), x1)
+        # linspace: con arange + x1, si x1 - x0 era multiplo del paso el ultimo punto salia repetido (o 1e-16 por
+        # detras) y la prolongacion iba hacia atras: objetivo detras y giro en el sitio al reves (2026-11-07)
+        xs = np.linspace(x0, x1, max(2, int(math.ceil((x1 - x0) / self.paso - 1e-6)) + 1))
         cam = np.column_stack([xs, a + b * xs + c * xs ** 2])
         nueva = self._a_suelo(pose, cam)
         # puerta: una medida lejos de la linea predicha no se usa. Si esa linea es vieja o poco respaldada,
@@ -328,11 +330,17 @@ class Estimador:
                                rumbo_ref=math.nan, v=self._v, racha=self.racha, hay_linea=False)
         pts = self._a_camara(pose, self._linea)
         # prolongar en recta por los dos extremos
+        u_ini = u_fin = np.array([1.0, 0.0])
         if len(pts) >= 2:
-            u_ini = pts[1] - pts[0]
-            u_fin = pts[-1] - pts[-2]
-        else:
-            u_ini = u_fin = np.array([1.0, 0.0])
+            # direccion en cada extremo con el primer punto a mas de 1 cm (no con un segmento degenerado)
+            d = np.hypot(*(pts - pts[0]).T)
+            j = int(np.argmax(d > 0.01)) if np.any(d > 0.01) else len(pts) - 1
+            u_ini = pts[j] - pts[0]
+            d = np.hypot(*(pts - pts[-1]).T)
+            j = len(pts) - 1 - int(np.argmax(d[::-1] > 0.01)) if np.any(d > 0.01) else 0
+            u_fin = pts[-1] - pts[j]
+            if np.hypot(*u_ini) < 1e-6:
+                u_ini = u_fin = np.array([1.0, 0.0])
         u_ini = u_ini / max(1e-9, np.linalg.norm(u_ini))
         u_fin = u_fin / max(1e-9, np.linalg.norm(u_fin))
         atras = pts[0] - EXTENSION_ATRAS_M * u_ini

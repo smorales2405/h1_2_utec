@@ -787,6 +787,69 @@ vuelve a perder. **El simulador no lo reproduce** (ni con el giro el doble de le
 real no está en el modelo. Opciones: tirada a escala 1 (el doble de tope de giro; en el simulador aguanta), radio de
 1.2 m como en el PDF, o, con la línea perdida y torcida, parar y girar en el sitio hacia ella (sin poder validarlo).
 
+**Tiradas a escala 1** (`tirada_20261107_100628` y `100742`): el primer semicírculo, bien (vyaw −0.30…−0.36, sin
+tope; la línea a menos de ±12 cm). Paran a mitad del segundo (línea perdida 4.5 s, a los 26.0 y 24.4 s), con el
+robot ~100° girado de los 180° de la curva. Al cambiar de curva la línea pasa de +7° a +37…+50° en 0.3 s y solo se
+ven 0.22–0.55 m de ella: la línea cercana sale **recta** (κ = 0) y el objetivo cae a 0.35–0.45 m, no a 0.6. Con α de
++20…+28° el control pide vyaw +0.25…+0.33 andando a 0.2–0.25 m/s: es casi lo que pide la curva de 1 m por sí sola,
+así que el error de rumbo de ~40° no se corrige. Se pierde, sigue andando sobre la prolongación recta (vx 0.05–0.24,
+la marcha a ≥ 0.18 m/s), la recupera torcida y la vuelve a perder; al final se alinea con una recta estimada que ya
+no es la cinta. En las curvas a la derecha del nivel 2 también hay cinta a −40° y α ≈ −21°, pero allí **no se
+pierde nunca**: la diferencia está en perderla.
+
+**Con la línea perdida, parar y girar hacia ella** (`pausa_perdida_deg: 15`): si el supervisor está en
+LINEA_PERDIDA y la línea estimada queda a más de 15° (α), el robot para (vx = 0) y gira en el sitio hacia ella
+hasta 7.5°; si la recupera mientras gira, termina el giro antes de andar. En las tiradas reales se habría activado
+en las cinco del nivel 3, justo al perderla en el segundo semicírculo (α +16…+28°), y **en ninguna** de los niveles
+1 y 2 (ahí, perdida, |α| < 15°). Simulado sin cambios: niveles 1–4 y curvas de 1 m 88/88 con y sin ella; con la
+línea tapada 1–2 s a mitad de curva, 160/160 con y sin; con la percepción real sobre la S del equipo y sobre el
+nivel 3 del PDF con hueco de 40 cm y sombra, todo OK con y sin (en el hueco, recto, |α| es pequeño y no se para).
+El simulador no reproduce el fallo, así que falta verlo en el robot.
+
+**Tiradas con la pausa en línea perdida, escala 1** (`tirada_20261107_103954` y `104116`): la pausa actúa (al
+perderla, vx 0 y vyaw +0.35…+0.5 hacia la cinta; la recupera y, a veces, con la curva bien medida, κ ≈ 1.8). La
+primera pasa la mitad del segundo semicírculo y la segunda para antes; las dos, por línea perdida 4.5 s. Las
+imágenes enseñan la causa de fondo: **la cinta del segundo semicírculo se ve entera y nítida** (abajo a la
+izquierda, casi horizontal en la imagen), pero el detector, que busca un punto por fila de la vista desde arriba,
+no sigue cinta a más de ~65° y solo coge 0.2–0.6 m de ella. Además:
+
+- **Fallo de muestreo**: la línea medida se muestreaba con `arange(x0, x1, 0.05)` + `x1`; si `x1 − x0` era
+  múltiplo del paso (0.22–0.52, 0.26–0.61 m) el último punto salía repetido 1e-16 por detrás y la línea se
+  prolongaba **hacia atrás**. Andando a ciegas, el objetivo quedó fijo en el suelo, acabó detrás del robot
+  (α ±170°) y el robot giró en el sitio a 0.5 rad/s: en 104116 hacia la derecha, alejándose de la cinta. Pasaba en
+  0–21 medidas por tirada; en 104116 fue la última buena antes de perderla. Arreglado (`linspace`, y la dirección
+  de cada extremo con un punto a más de 1 cm); y si aun así el objetivo cae detrás del centro de giro, vale el
+  rumbo de la línea, no α.
+- **Perdida con α pequeño**: la última pérdida fue con α 4–12° (no llega a 15) y la cinta estimada a +21…+26° de la
+  marcha: anduvo a ciegas 2–4 s sobre la prolongación recta de la curva. Ahora (`pausa_perdida_rumbo_deg: 18`), con
+  la línea perdida desde hace ≥ 0.8 s (`pausa_perdida_rumbo_edad_s`) y la cinta estimada a más de 18° de la marcha
+  (mismo lado que α), también para y gira hasta alinearse con ella. En las pérdidas reales del nivel 3 la cinta iba
+  a ≥ 21.5° de la marcha; en las del nivel 2, a ≤ 11.5° del mismo lado. Con 15° o con 0.5 s, en el simulador paraba
+  en pérdidas breves que se recuperaban andando (pies hasta 17 cm o una PARADA en el hueco).
+- **Acelera en la curva tras la pausa**: alineado con el objetivo, α ≈ 0 y la línea cercana recta: vx 0.35 m/s con
+  la curva medida κ 1.8; a los 0.6 s la cinta otra vez de lado. Ahora, tras una pausa, vx ≤ 0.16 durante 2 s
+  (`vx_tras_pausa`, `t_tras_pausa_s`).
+
+Simulado con todo: niveles 1–4 y curvas de 1 m 88/88; línea tapada a mitad de curva 160/160; S del equipo (los dos
+sentidos, salida 0 y ±8°) y nivel 3 del PDF con hueco y sombra (salida 0 y +10°) OK. Con la salida girada ±8° y
+sombra ×0.35, el nivel 3 del PDF para en el hueco, **también con el código anterior** (pendiente). La solución de
+fondo sería que el detector siga la cinta a cualquier ángulo (buscar también por columnas o seguir el contorno),
+que es un cambio grande de la percepción.
+
+**Primera S completa** (`tirada_20261107_113050`, escala 1, con lo anterior): recta, los dos semicírculos y
+**parada en la barra** (FIN, −0.00 m de la puntera, 42 s). En el segundo semicírculo, seis ciclos de pausa: pierde la
+cinta, para, gira hacia ella, se alinea y sigue; dos veces anduvo a ciegas tras alinearse y la reencontró a los
+0.3–0.8 s. Las otras dos (`113222`, `113528`) paran a mitad del segundo semicírculo: tras la pausa, alineado con la
+prolongación recta, anda a ciegas 3 s y no la vuelve a ver. En las imágenes el robot queda por fuera de la curva con
+la cinta a los pies yendo casi de lado (abajo a la izquierda): la cinta real dobla 30–40° más que la estimada.
+
+**Búsqueda en arco** (`vyaw_busqueda: 0.25`, `vx_busqueda: 0.16`): si la pausa con la línea perdida acaba
+(alineado con la estimada) y sigue sin verse, no anda recto: sigue a vx 0.16 (~0.18 m/s reales) girando 0.25 rad/s
+hacia el mismo lado (arco de ~0.7–1 m, como si la curva siguiera) hasta verla; lo acota la parada por 4.5 s sin
+línea. Girando en el sitio (sin avanzar) el nivel 3 del PDF simulado paraba en el hueco, que está justo después
+de la inflexión; en arco lo cruza. Simulado: niveles 1–4 88/88, línea tapada 160/160, S del equipo OK, nivel 3 del
+PDF OK salvo los dos casos que ya fallaban antes.
+
 ## 7. Hallazgos del entorno
 
 - **El DDS no arranca con sudo** (`fs.protected_regular=2`, `/tmp/cdds.LOG` es de `unitree`): la cámara,
@@ -809,6 +872,9 @@ real no está en el modelo. Opciones: tirada a escala 1 (el doble de tope de gir
 - 6.3.4: probar vy para que el cuerpo vaya alineado con la línea (y pare alineado).
 - Nivel 3: montar la pista, grabar la sombra y la interrupción con `wasd.sh` y evaluarlas antes del simulacro.
 - La métrica de los pies no vale dentro de una curva cerrada (prolonga la recta final).
+- Nivel 3 del PDF simulado: con la salida girada ±8° y sombra ×0.35 para en el hueco (ya con el código anterior a
+  la pausa en línea perdida).
+- Detector por filas: no sigue cinta a más de ~65° (segundo semicírculo de 1 m). Valorar buscar también por columnas.
 - Niveles 3 y 4 cuando estén las pistas.
 - Medir en la primera tirada el tiempo de frenado tras `StopMove` (0.5 s supuesto) y la parada con cinta.
 

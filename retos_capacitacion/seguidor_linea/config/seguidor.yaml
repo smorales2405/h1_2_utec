@@ -87,6 +87,18 @@ control:                # seguidor/control.py (Hito 3): pure pursuit sobre la di
   frenar_alfa: true     # vx * cos(alfa): mas despacio cuanto mas torcido
   pausa_giro_deg: 25.0  # si el giro no cabe ni a la velocidad minima de la marcha y |alfa| pasa de esto, para y gira
                         # en el sitio hasta la mitad (0 = no). Media escala en la S de 1 m: vyaw al tope 13 s, 20 cm fuera
+  pausa_perdida_deg: 15.0  # con la linea perdida, si la estimada va a un lado mas que esto, para y gira hacia ella
+                           # hasta la mitad (0 = no): en la S de 1 m seguia andando recto mientras la cinta se curvaba
+  pausa_perdida_rumbo_deg: 18.0  # ...o si la cinta estimada va a mas de esto de la marcha (alfa pequeno: el objetivo
+                                 # en la prolongacion recta de la curva); gira hasta alinearse con ella (0 = no)
+  pausa_perdida_rumbo_edad_s: 0.8  # ...pero solo con la linea perdida desde hace esto: las perdidas breves se
+                                   # recuperan andando (simulado: parar en cada una aparta el robot hasta 17 cm)
+  vyaw_busqueda: 0.25   # si la pausa con la linea perdida acaba (alineado con la estimada) y sigue sin verse, sigue
+                        # girando a esto hacia el mismo lado hasta verla (0 = anda): la cinta de la curva sigue doblando
+  vx_busqueda: 0.16     # ...andando a esto (arco de ~0.7-1 m, como si la curva siguiera; 0 = en el sitio, que no
+                        # cruza un hueco en curva: nivel 3 del PDF simulado)
+  vx_tras_pausa: 0.16   # tras una pausa, no mas de esto durante t_tras_pausa_s (0 = no): sin acelerar en la curva
+  t_tras_pausa_s: 2.0
   girar_primero_deg: 12.0  # al empezar, si |alfa| pasa de esto, girar en el sitio hasta la mitad antes de andar
                            # (0 = no; --girar-primero). Es un umbral: lo que gira sale de alfa. Alineado, |alfa| ~7.5
                            # por el avance en diagonal. Los pies se alejan 0.6 y 2.0 cm con giro, 7.0 y 9.7 sin el

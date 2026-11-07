@@ -745,7 +745,25 @@ confianza baja a 0 entre 0.9 y 1.6 m. Tras la interrupción de 40 cm la línea e
 Sin cambios en los datos reales: los 15 datasets dan la misma detección, y en las curvas del nivel 2 no se pierde
 ninguna medida útil. A media escala vyaw va al tope (0.25 rad/s) en los semicírculos: poco margen en las curvas a la derecha.
 
-## 7. Hallazgos del entorno- **El DDS no arranca con sudo** (`fs.protected_regular=2`, `/tmp/cdds.LOG` es de `unitree`): la cámara,
+**Datasets de la pista del equipo** (2026-11-07, `dataset_20261107_084441`, `084713`, `084949`, `085152`, llevados con
+`wasd.sh`; el primer semicírculo, a la derecha; aún sin interrupción ni sombra):
+
+| Tramo | Medidas útiles (conf ≥ 0.35) | Confianza (mediana) | Hueco más largo sin línea |
+| --- | --- | --- | --- |
+| Recta 1 | 100 % | 0.83–0.90 | 0 s |
+| Semicírculo 1 (derecha) | 71–92 % | 0.63–0.80 | 0.9–3.7 s |
+| Semicírculo 2 (izquierda) | 33–57 % | 0.07–0.59 | 2.6–14 s |
+
+En el segundo semicírculo, a mano, el robot iba muy por detrás de la curva: la cinta quedaba abajo a la izquierda de la
+imagen, cruzando de lado o fuera de la vista, y la percepción (un punto por fila) no sigue una línea a más de ~65° del eje.
+En autónomo el control mantiene la línea delante (7/7 en el lazo simulado); el riesgo es no girar lo bastante: a media
+escala vyaw está limitado a 0.25 rad/s y el semicírculo derecho pide ~0.22 a 0.18 m/s. Con la percepción real sobre la
+pista: OK si la marcha no baja de 0.21 m/s (pies ≤ 13.5 cm); falla si no baja de 0.23 y gira un 10 % peor. A escala 1
+aguanta eso (pies ≤ 10.5 cm). Lo medido en las tiradas (0.17–0.20 m/s) está dentro, cerca del borde.
+
+## 7. Hallazgos del entorno
+
+- **El DDS no arranca con sudo** (`fs.protected_regular=2`, `/tmp/cdds.LOG` es de `unitree`): la cámara,
   que exige sudo, va en un proceso aparte (`camara_servidor.py`) y pasa los fotogramas por ZMQ.
 - En el PC2, `sudo` pide contraseña: el servidor de cámara se arranca con `ssh -t` o, sin terminal,
   con `SUDO_STDIN=1` y la contraseña por la entrada estándar (`camara_servidor.sh`).

@@ -97,6 +97,19 @@ class TestCurva(unittest.TestCase):
             self.assertAlmostEqual(a + b * x + c * x * x, R - math.sqrt(R * R - x * x), delta=0.02)
 
 
+class TestInicioLejano(unittest.TestCase):
+    """Un tramo recto que solo empieza lejos (la barra de fin alineada con el robot en la S de dos semicirculos,
+    2026-11-07) no es la linea a seguir; la linea tras la interrupcion de 40 cm (empieza a ~0.6 m) si."""
+
+    def test_tramo_lejano(self):
+        m, _ = medir(imagen(linea(lambda x: 0.05 + 0 * x, x0=2.2, x1=2.8)))
+        self.assertLess(m.confianza, 0.1)
+
+    def test_tras_la_interrupcion(self):
+        m, _ = medir(imagen(linea(lambda x: 0.02 + 0 * x, x0=0.6)))
+        self.assertGreater(m.confianza, 0.5)
+
+
 class TestRectaYCurvaCerrada(unittest.TestCase):
     """Recta y, a 1.2 m, curva de radio 1 m a la derecha, en la misma vista (salida del nivel 2, 2026-11-06): la
     parabola de toda la vista sesgaba el angulo cerca del robot; la linea cercana no."""

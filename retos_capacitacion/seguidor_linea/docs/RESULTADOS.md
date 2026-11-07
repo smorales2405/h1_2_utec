@@ -722,8 +722,30 @@ principio de la segunda curva y, en el peor caso, 1 m de sombra justo después; 
 Cada cambio solo no basta (con uno de los dos, la sombra ×0.5 falla en un sentido). La sombra real decide si hace
 falta más: con ×0.3 no basta.
 
-## 7. Hallazgos del entorno
-- **El DDS no arranca con sudo** (`fs.protected_regular=2`, `/tmp/cdds.LOG` es de `unitree`): la cámara,
+### Nivel 3 del equipo: dos semicírculos de radio 1 m (2026-11-07)
+
+Por espacio, la pista del nivel 3 quedó así: recta de 1 m, semicírculo de radio 1 m, otro semicírculo de radio 1 m al
+otro lado (la S), recta final de 1 m y barra. Ocupa ~2.3 × 4 m y lleva 8.6 m de cinta. Es más exigente que la del PDF
+(dos cuartos de circunferencia de 1.2 m): gira 180° a cada lado y cambia de curvatura de golpe.
+
+Con la percepción real sobre imágenes de esa pista, **la S que empieza a la izquierda fallaba** (0/3): en lo alto del
+primer semicírculo el robot mira hacia la barra de fin, que queda alineada con él a ~2.5 m, y la percepción la tomaba
+por la línea (60 cm de cinta recta frente a una curva cercana muy torcida; confianza 0.40). La estimación no la
+rechazaba porque la comparaba con la prolongación recta de la línea, que pasaba por allí.
+
+**Corrección** (`inicio_lejano_m: [0.9, 1.6]`): la línea a seguir sale de debajo del robot; si solo empieza lejos, su
+confianza baja a 0 entre 0.9 y 1.6 m. Tras la interrupción de 40 cm la línea empieza a ~0.6 m y no se ve afectada.
+
+| Pista (percepción real, lazo cerrado) | Antes | Ahora |
+| --- | --- | --- |
+| La del equipo, S empezando a la izquierda | 0/3 | **3/3** (pies ≤ 5.5 cm) |
+| La del equipo, S empezando a la derecha | 3/3 | 4/4 (pies ≤ 6.1 cm) |
+| Nivel 3 del PDF, sin sombra y con sombra ×0.5 | 3/3 | 3/3 |
+
+Sin cambios en los datos reales: los 15 datasets dan la misma detección, y en las curvas del nivel 2 no se pierde
+ninguna medida útil. A media escala vyaw va al tope (0.25 rad/s) en los semicírculos: poco margen en las curvas a la derecha.
+
+## 7. Hallazgos del entorno- **El DDS no arranca con sudo** (`fs.protected_regular=2`, `/tmp/cdds.LOG` es de `unitree`): la cámara,
   que exige sudo, va en un proceso aparte (`camara_servidor.py`) y pasa los fotogramas por ZMQ.
 - En el PC2, `sudo` pide contraseña: el servidor de cámara se arranca con `ssh -t` o, sin terminal,
   con `SUDO_STDIN=1` y la contraseña por la entrada estándar (`camara_servidor.sh`).

@@ -352,7 +352,8 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 - [x] Nivel 2: tiradas a media escala y a escala 1 (2026-11-06; curva de radio ~1 m), paran en la barra sin intervención
 - [x] Nivel 2: ajuste de la línea cercana para el sesgo de recta + curva cerrada, comprobado en el robot (2026-11-06)
 - [x] Nivel 3 preparado en el simulador con la percepción real: confianza de la línea cercana y 4.5 s sin línea
-- [ ] Nivel 3: pista, dataset de la sombra y la interrupción, simulacro y tiradas
+- [x] Nivel 3: pista del equipo (dos semicírculos de 1 m) simulada con la percepción real; la barra alineada ya no se toma por la línea
+- [ ] Nivel 3: interrupción y sombra en la pista, dataset, simulacro y tiradas
 - [ ] Nivel 4
 - [x] `metricas.py`: métricas de la sección 9 por tirada
 - [ ] El informe con las respuestas a 6.1–6.4

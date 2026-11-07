@@ -43,6 +43,7 @@ percepcion:             # seguidor/percepcion.py (Hito 2)
   tolerancia_ajuste_m: 0.04
   hueco_max_m: 0.5     # la linea se corta en el primer hueco mayor (la interrupcion del nivel 3 es de 0.4 m)
   hueco_salto_max_m: 1.0  # ...salvo que lo de mas alla siga la prolongacion (reflejos de focos: 50-60 cm)
+  inicio_lejano_m: [0.9, 1.6]   # una linea que empieza mas lejos que esto pierde la confianza (de 1 a 0 entre los dos)
   distancia_objetivo_m: 1.0   # punto adelantado del pure pursuit
   ventana_local_m: 0.8  # la linea para el control se reajusta con lo que hay hasta aqui: con una recta y una curva
                         # cerrada en la misma vista, la parabola entera sesgaba el angulo hasta +24-29 grados

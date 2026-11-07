@@ -278,7 +278,12 @@ class Percepcion:
                 c_contraste = max(c_contraste, float(np.median(crudo[dentro])) / p["contraste_ref"])
             c_contraste = float(np.clip(c_contraste, 0.0, 1.0))
             c_residuo = float(np.clip(1.0 - np.sqrt(np.mean(res ** 2)) / p["tolerancia_ajuste_m"], 0.0, 1.0))
-            conf = c_filas * c_contraste * c_residuo
+            # la linea a seguir sale de debajo del robot (tras la interrupcion de 40 cm, a ~0.6 m): un tramo que solo
+            # empieza lejos no lo es. En la S de dos semicirculos, la barra de fin queda alineada con el robot a
+            # ~2.5 m en lo alto de la primera curva y se tomaba por la linea con confianza 0.40 (2026-11-07)
+            ini = p.get("inicio_lejano_m", (math.inf, math.inf))
+            c_inicio = float(np.clip((ini[1] - xin.min()) / max(1e-6, ini[1] - ini[0]), 0.0, 1.0))
+            conf = c_filas * c_contraste * c_residuo * c_inicio
         return {"xs": xs, "ys": ys, "pesos": pesos, "crudo": crudo, "dentro": dentro, "coef": (a, b, c), "x_fin": x_fin,
                 "conf": conf, "n_franjas": n_franjas}
 

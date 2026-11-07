@@ -13,7 +13,8 @@ from seguidor.estimacion import Estimador, HistorialImu  # noqa: E402
 from seguidor.mensajes import EstadoLinea, MedidaLinea  # noqa: E402
 
 CFG = config.cargar()
-CFG["control"]["girar_primero_deg"] = 0.0     # la ley de control, sin el giro previo (tiene su propia prueba)
+CFG["control"]["girar_primero_deg"] = 0.0     # la ley de control, sin el giro previo ni la pausa para girar
+CFG["control"]["pausa_giro_deg"] = 0.0        # (cada uno tiene su propia prueba)
 X_PUNTERA = -0.02
 
 
@@ -276,6 +277,27 @@ class TestControl(unittest.TestCase):
         ctl = Control(cfg, 0.5)
         orden, info = ctl.calcular(0.0, estado(self.objetivo(-8.0)))
         self.assertFalse(info.get("girando", False))
+
+    def test_pausa_para_girar(self):
+        # a media escala el giro no cabe ni a la velocidad minima: para y gira en el sitio hasta la mitad
+        import copy
+        cfg = copy.deepcopy(CFG)
+        cfg["control"]["pausa_giro_deg"] = 25.0
+        cfg["estimacion"]["v_minima"] = 0.18
+        ctl = Control(cfg, 0.5)
+        orden, info = ctl.calcular(0.0, estado(self.objetivo(-15.0)))     # cabe: anda
+        self.assertFalse(info.get("pausa", False))
+        orden, info = ctl.calcular(0.05, estado(self.objetivo(-35.0)))    # no cabe: pausa
+        self.assertTrue(info.get("pausa"))
+        self.assertLess(orden.vyaw, 0.0)
+        orden, info = ctl.calcular(0.10, estado(self.objetivo(-20.0)))    # aun por encima de la mitad
+        self.assertTrue(info.get("pausa"))
+        orden, info = ctl.calcular(0.15, estado(self.objetivo(-10.0)))    # alineado: vuelve a andar
+        self.assertFalse(info.get("pausa", False))
+        # a escala 1 el mismo angulo cabe y no se para
+        ctl = Control(cfg, 1.0)
+        orden, info = ctl.calcular(0.0, estado(self.objetivo(-35.0)))
+        self.assertFalse(info.get("pausa", False))
 
     def test_velocidad_minima(self):
         import copy

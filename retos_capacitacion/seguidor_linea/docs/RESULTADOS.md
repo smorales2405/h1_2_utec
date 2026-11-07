@@ -761,6 +761,24 @@ escala vyaw está limitado a 0.25 rad/s y el semicírculo derecho pide ~0.22 a 0
 pista: OK si la marcha no baja de 0.21 m/s (pies ≤ 13.5 cm); falla si no baja de 0.23 y gira un 10 % peor. A escala 1
 aguanta eso (pies ≤ 10.5 cm). Lo medido en las tiradas (0.17–0.20 m/s) está dentro, cerca del borde.
 
+**Primeras tiradas, media escala** (`tirada_20261107_091703` y `092003`): las dos siguieron la recta y el primer
+semicírculo y pararon al empezar el segundo (línea perdida 4.5 s). En el primero (a la derecha) vyaw estuvo **al tope
+(0.25 rad/s) de los 8 a los 21 s** y el robot giraba 0.17–0.22 rad/s: acabó la curva 12–22 cm por fuera, y desde ahí
+la segunda curva se pone de lado enseguida y la percepción la pierde. Ir más despacio no sirve: la marcha no baja de
+~0.18 m/s y a esa velocidad la curva de 1 m pide más giro que el tope de media escala.
+
+**Pausa para girar** (`pausa_giro_deg: 25`): si el giro no cabe ni a la velocidad mínima y |α| pasa de 25°, el robot
+para y gira en el sitio hasta 12.5°, y sigue andando. Con la percepción real sobre la pista, a media escala:
+
+| Marcha simulada | Sin pausa | Con pausa |
+| --- | --- | --- |
+| No baja de 0.21 m/s | OK, pies ≤ 13.5 cm | OK, pies ≤ 6.9 cm |
+| No baja de 0.23 y gira un 10 % peor | falla | OK, pies ≤ 6.6 cm |
+| No baja de 0.23, gira un 20 % peor y deriva el doble | falla | OK, pies ≤ 7.1 cm |
+
+Cuesta ~6 s más y, con la marcha peor, la parada se va a +23…+26 cm. En los niveles 1–4 simulados (y la curva de 1 m
+del nivel 2) los resultados no cambian: solo actúa cuando el giro de verdad no cabe.
+
 ## 7. Hallazgos del entorno
 
 - **El DDS no arranca con sudo** (`fs.protected_regular=2`, `/tmp/cdds.LOG` es de `unitree`): la cámara,

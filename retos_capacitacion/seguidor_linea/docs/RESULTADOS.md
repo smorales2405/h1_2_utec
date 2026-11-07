@@ -779,6 +779,14 @@ para y gira en el sitio hasta 12.5°, y sigue andando. Con la percepción real s
 Cuesta ~6 s más y, con la marcha peor, la parada se va a +23…+26 cm. En los niveles 1–4 simulados (y la curva de 1 m
 del nivel 2) los resultados no cambian: solo actúa cuando el giro de verdad no cabe.
 
+**Tirada con la pausa** (`tirada_20261107_094454`, media escala): el primer semicírculo, mejor (dos pausas, la línea a
+menos de ±13 cm); para a mitad del segundo. Al cambiar de curva el robot sigue girando a la derecha ~1 s más y la cinta
+del segundo semicírculo se va abajo a la izquierda; perdida la línea, sigue andando (no baja de 0.18 m/s) sobre la
+prolongación recta; al recuperarla solo ve 0.2–0.45 m torcidos, la línea cercana sale recta, el control gira poco y la
+vuelve a perder. **El simulador no lo reproduce** (ni con el giro el doble de lento): algo de la marcha o de la imagen
+real no está en el modelo. Opciones: tirada a escala 1 (el doble de tope de giro; en el simulador aguanta), radio de
+1.2 m como en el PDF, o, con la línea perdida y torcida, parar y girar en el sitio hacia ella (sin poder validarlo).
+
 ## 7. Hallazgos del entorno
 
 - **El DDS no arranca con sudo** (`fs.protected_regular=2`, `/tmp/cdds.LOG` es de `unitree`): la cámara,

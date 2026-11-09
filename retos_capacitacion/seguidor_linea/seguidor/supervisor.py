@@ -16,7 +16,8 @@ quedaria `fin_objetivo_m` mas alla del borde cercano de la barra. El PDF admite 
 Con la barra (o la esquina del nivel 4) a menos de `final_ciego_m`, no ver la linea es lo esperado y no
 cuenta como perdida.
 
-Esquina (6.4.5, nivel 4): cuando el centro de giro llega a la esquina (contando el frenado), StopMove,
+Esquina (6.4.5, nivel 4): cuando el centro de giro llega a `esquina_adelanto_m` de la esquina (contando el
+frenado; el giro en el sitio desplaza el robot hacia donde andaba), StopMove,
 espera a que pare, gira 90 grados en el sitio sobre la IMU, olvida la linea vieja y vuelve a
 SEGUIMIENTO cuando ve la nueva; si no la ve en `t_perdida_s`, PARADA.
 """
@@ -164,7 +165,7 @@ class Supervisor:
         # esquina (nivel 4): el centro de giro, sobre la esquina tras frenar
         if self.nivel == 4 and est.esquina is not None:
             d_centro = est.esquina[0] + self.estimador.x_puntera + self.estimador.d_giro
-            if est.v * s["t_frenado_s"] >= d_centro:
+            if est.v * s["t_frenado_s"] >= d_centro - s.get("esquina_adelanto_m", 0.0):
                 self._giro = {"fase": "frenando", "t": t, "sentido": est.esquina[1]}
                 self._cambiar(t, GIRO_ESQUINA, f"esquina a {est.esquina[0]:+.2f} m, sentido {est.esquina[1]:+d}")
                 return None, {}
@@ -203,7 +204,8 @@ class Supervisor:
                     return None, {"giro": "hecho", "error_deg": math.degrees(err)}
                 return None, {"giro": "estable", "error_deg": math.degrees(err)}
             g["t_estable"] = None
-            orden = self.control.girar(t, err, s["giro_esquina_kp"], s["giro_esquina_min"])
+            orden = self.control.girar(t, err, s["giro_esquina_kp"], s["giro_esquina_min"],
+                                       s.get("giro_esquina_vyaw_max"))
             return orden, {"giro": "girando", "error_deg": math.degrees(err)}
         # buscando la linea nueva
         if est.hay_linea and est.racha >= s["n_seguir"] and est.confianza >= s["conf_seguir"]:

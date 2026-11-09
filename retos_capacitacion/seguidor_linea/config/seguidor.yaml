@@ -135,6 +135,10 @@ supervisor:
   giro_esquina_min: 0.15   # en el sitio, por debajo de ~0.15 rad/s apenas gira
   giro_esquina_tol_deg: 3.0
   giro_esquina_estable_s: 0.6
+  giro_esquina_vyaw_max: 0.25  # rad/s, a cualquier escala: el desplazamiento del giro se midio a 0.25 (2026-11-10)
+  esquina_adelanto_m: 0.3      # para con el centro de giro esto antes de la esquina: girando 90 grados en el sitio
+                               # el robot se fue ~0.4 m hacia donde andaba (tirada 050558). Simulado: pies <= 18 cm con
+                               # arrastre 0-0.055 m/s (0.2: 39 cm con 0.055; 0.4: 21 cm sin arrastre)
   t_parado_s: 1.0       # espera tras StopMove antes de girar en el sitio
   duracion_max_s: 120.0
   fsm_cada_s: 2.0       # lee la FSM en segundo plano; distinta de 201/204 -> parada

@@ -114,6 +114,9 @@ MARCHA = {
     "tau_cambio_v_s": 1.0,   # cambiar de velocidad andando es mas lento que arrancar o parar (tiradas 2026-11-06)
     "deriva": 0.026, "balanceo_yaw_deg": 1.4, "zancada_hz": 0.7, "zona_muerta_sitio": 0.12,
     "v_minima": 0.18,     # andando no baja de esto (en el robot: con vx 0.116 va a 0.17-0.20 m/s)
+    "arrastre_sitio": 0.0,    # m/s: girando en el sitio, desplazamiento en la direccion en la que andaba. Solo para
+                              # pruebas: en la esquina del nivel 4 (2026-11-10) el robot acabo ~0.4 m pasado tras el giro
+                              # de 90 grados a 0.25 rad/s (0.055 lo reproduce), pero no es un modelo validado
 }
 
 
@@ -129,6 +132,7 @@ class RobotSimulado:
         self.c = np.array([x, y]) - d * np.array([math.cos(rumbo), math.sin(rumbo)])   # centro de giro
         self.v = 0.0
         self.w = 0.0
+        self._dir_marcha = rumbo + self.phi    # direccion en la que andaba por ultima vez (arrastre en el sitio)
         self._ordenes = deque()                # (t, vx, vy, vyaw)
         self._orden = (-10.0, 0.0, 0.0, 0.0)
         self.marcha_habilitada = True
@@ -185,6 +189,10 @@ class RobotSimulado:
         self.w += (w_obj - self.w) * min(1.0, dt / p["tau_giro_s"])
         self.psi += self.w * dt
         self.c = self.c + self.v * dt * np.array([math.cos(self.psi + self.phi), math.sin(self.psi + self.phi)])
+        if self.v > 0.03:
+            self._dir_marcha = self.psi + self.phi
+        elif abs(self.w) > 0.05:
+            self.c = self.c + p["arrastre_sitio"] * dt * np.array([math.cos(self._dir_marcha), math.sin(self._dir_marcha)])
         self.t += dt
 
     def pose_camara(self):

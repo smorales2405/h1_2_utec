@@ -895,6 +895,51 @@ sobre imágenes sintéticas, con todo lo añadido en el nivel 3 (pausas, búsque
   −0.13…+0.54 m de ella, gira y ve la línea nueva); lo que falla es la parada en la barra, que ya funciona en el
   robot con 0.5.
 
+### Nivel 4: primera tirada (2026-11-10)
+
+`tirada_20261110_050558_nivel4_escala0.5` (la esquina gira a la derecha; la nota dice "izquierda" por error):
+**FIN en la barra** (−0.02 m de la puntera; el operador vio el centro de los pies más o menos en el centro de la barra),
+32 s, sin intervención. La esquina se ve desde la salida; el robot para con la puntera a −0.02 m de ella según la
+estima (a −0.115 m tras frenar), gira 88° en el sitio (12.0–19.3 s, a 0.25 rad/s) y sigue con la línea nueva.
+
+**Pero tras el giro la línea nueva quedó ~0.40 m a la derecha** (paralela, θ +4…+6°): el operador vio el pie
+derecho junto al borde exterior de la cinta. El robot giró otros ~25° en el sitio hacia ella (girar primero), anduvo
+en diagonal y la alcanzó a los ~26 s. La distancia de los pies a la línea nueva, con lo que mide la cámara
+(|y₀| cos θ + 0.13 sin θ), **crece mientras gira**: 0.30 m a 66° de giro, 0.34 a 77°, 0.40 a 92°, y queda en
+0.38–0.43 al acabar. Es decir, girando en el sitio el robot se desplazó unos 5–6 cm/s **hacia donde andaba**.
+Antes de los ~35° no se puede medir así (la línea nueva sale a más de 50° y el ajuste no vale); con la línea vieja,
+hasta 31° no hubo desplazamiento lateral. El frenado sí cuadra: en la barra la parada prevista coincidió con la vista.
+
+**Cambios** (`supervisor`):
+- `esquina_adelanto_m: 0.3`: para con el centro de giro 0.3 m antes de la esquina (contando el frenado), para que
+  el desplazamiento del giro lo deje encima. Simulado con un desplazamiento de 0–0.055 m/s (el simulador tiene ahora
+  `arrastre_sitio`, que con 0.055 reproduce los ~0.4 m; no es un modelo validado): pies ≤ 18 cm en todos los casos
+  rápidos, ≤ 24 cm con la percepción real. Con 0.2 llega a 39 cm si el desplazamiento se repite; con 0.4, 21 cm si no.
+- `giro_esquina_vyaw_max: 0.25`: el giro de la esquina va a 0.25 rad/s a cualquier escala, que es como se midió el
+  desplazamiento (a escala 1 iba a 0.5 y habría que medirlo otra vez).
+
+Simulado: niveles 1–4 14/14 a escala 0.5 y 1, curvas de 1 m 8/8, nivel 4 con la percepción real 11/12 (el otro,
+pies 24 cm). Pruebas: 107 (nuevas: la parada adelantada, el tope del giro y el nivel 4 con arrastre).
+
+**Con la parada adelantada** (`tirada_20261110_052855` y `053202`, escala 0.5, esquina a la derecha): las dos **FIN
+en la barra** (−0.01 m), 29–30 s, sin intervención. Paran con la esquina a +0.27/+0.28 m de la puntera (+0.19 tras
+frenar: el centro de los pies ~0.31 m antes del centro de la cinta), giran 88.7° y 89.9° y **acaban encima de la
+línea**: pies a −3…+2 cm de ella al terminar el giro (en `050558`, −39 cm). El desplazamiento del giro fue, por
+tanto, de ~0.31 m (0.41 en `050558`). Al echar a andar, la línea pasa a +4…+7 cm (a la izquierda): el operador vio la
+cinta a ~5 cm del centro del pie izquierdo.
+
+| Tirada | Adelanto | Pies → centro de la esquina al girar | Pies → línea nueva tras el giro | Desplazamiento |
+|---|---|---|---|---|
+| `050558` | 0 | 0.02 m antes | 0.39 m pasado | 0.41 m |
+| `052855` | 0.3 m | 0.31 m antes | 0.03 m pasado | 0.34 m |
+| `053202` | 0.3 m | 0.31 m antes | 0.00–0.02 m | 0.30–0.33 m |
+| `053907` (escala 1) | 0.3 m | 0.31 m antes | 0.00–0.04 m | ~0.31 m |
+
+**Escala 1** (`tirada_20261110_053907`): **FIN en la barra** (+0.02 m de la puntera a 0.25 m/s), 25 s, sin
+intervención. Con más velocidad la parada se manda antes (esquina a +0.38 m de la puntera), pero tras frenar queda
+igual que a media escala (+0.19 m); gira 89.8° a 0.25 rad/s y acaba con los pies a 0…−4 cm de la línea nueva
+(+2…+5 cm al echar a andar). **Nivel 4 superado.**
+
 ## 7. Hallazgos del entorno
 
 - **El DDS no arranca con sudo** (`fs.protected_regular=2`, `/tmp/cdds.LOG` es de `unitree`): la cámara,
@@ -913,13 +958,15 @@ sobre imágenes sintéticas, con todo lo añadido en el nivel 3 (pausas, búsque
 ## 8. Pendiente
 
 - Valorar limitar el giro previo a 0.25 rad/s a cualquier escala (a 0.5 rad/s se pasa ~12°).
-- Explicar la deriva de los pies durante el giro en el sitio (`091003`, `100130`; no en `090629` ni `095105`).
+- Explicar la deriva de los pies durante el giro en el sitio (`091003`, `100130`; no en `090629` ni `095105`; en la
+  esquina `050558`, ~0.4 m hacia donde andaba).
 - 6.3.4: probar vy para que el cuerpo vaya alineado con la línea (y pare alineado).
 - La métrica de los pies no vale dentro de una curva cerrada (prolonga la recta final).
 - Nivel 3 del PDF simulado: con la salida girada ±8° y sombra ×0.35 para en el hueco (ya con el código anterior a
   la pausa en línea perdida).
 - Detector por filas: no sigue cinta a más de ~65° (segundo semicírculo de 1 m). Valorar buscar también por columnas.
-- Nivel 4 en el robot (simulado OK).
+- Sesión de evaluación: los niveles son acumulativos (hay que superar el anterior en la misma sesión). El nivel 3
+  del PDF (radios de 1.2 m, cuartos de circunferencia) es más suave que el del equipo, pero no se ha probado en el robot.
 - 6.2.2: comparar umbral fijo y adaptativo sobre las tiradas con sombra (`043803`, `044157`).
 - Medir en la primera tirada el tiempo de frenado tras `StopMove` (0.5 s supuesto) y la parada con cinta.
 

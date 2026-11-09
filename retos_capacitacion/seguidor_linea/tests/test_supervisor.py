@@ -11,8 +11,8 @@ from seguidor import config  # noqa: E402
 from seguidor.control import Control  # noqa: E402
 from seguidor.mensajes import EstadoLinea, Imu, Mando  # noqa: E402
 from seguidor.simulador import simular  # noqa: E402
-from seguidor.supervisor import (ESPERA, FIN, LINEA_PERDIDA, PARADA, SEGUIMIENTO,  # noqa: E402
-                                 Supervisor)
+from seguidor.supervisor import (ESPERA, FIN, GIRO_ESQUINA, LINEA_PERDIDA, PARADA,  # noqa: E402
+                                 SEGUIMIENTO, Supervisor)
 from seguidor.vigilante import Vigilante  # noqa: E402
 
 CFG = config.cargar()
@@ -52,11 +52,13 @@ class EstimadorFalso:
 
     def __init__(self):
         self.edad, self.racha, self.conf, self.dist_fin, self.v = 0.0, 10, 0.9, None, 0.2
+        self.esquina = None
         self.vx = []
 
     def estado(self, t, L):
         return EstadoLinea(t=t, y=0.0, theta=0.0, kappa=0.0, confianza=self.conf, edad_s=self.edad, rumbo_ref=0.0,
-                           dist_fin=self.dist_fin, objetivo=(0.5, 0.0), v=self.v, racha=self.racha, hay_linea=True)
+                           dist_fin=self.dist_fin, esquina=self.esquina, objetivo=(0.5, 0.0), v=self.v,
+                           racha=self.racha, hay_linea=True)
 
     def orden(self, t, vx):
         self.vx.append(vx)
@@ -65,9 +67,9 @@ class EstimadorFalso:
         pass
 
 
-def montar(simulacro=False):
+def montar(simulacro=False, nivel=1, cfg=CFG):
     robot, est = RobotFalso(), EstimadorFalso()
-    sup = Supervisor(CFG, robot, Vigilante(robot, CFG), Control(CFG, 0.5), est, nivel=1, simulacro=simulacro)
+    sup = Supervisor(cfg, robot, Vigilante(robot, cfg), Control(cfg, 0.5), est, nivel=nivel, simulacro=simulacro)
     sup.empezar(0.0)
     return sup, robot, est
 
@@ -148,6 +150,32 @@ class TestSupervisor(unittest.TestCase):
         correr(sup, 1.4, 2.0)
         self.assertEqual(len(robot.moves), n)        # despues de FIN no se manda nada
 
+    def test_esquina_con_adelanto(self):
+        """Para con el centro de giro `esquina_adelanto_m` antes de la esquina (contando el frenado)."""
+        cfg = config.cargar()
+        cfg["supervisor"]["esquina_adelanto_m"] = 0.3
+        sup, robot, est = montar(nivel=4, cfg=cfg)
+        correr(sup, 0.0, 1.0)
+        s = cfg["supervisor"]
+        # centro de giro a la esquina = esquina + x_puntera + d_giro; para cuando v * t_frenado >= eso - adelanto
+        limite = est.v * s["t_frenado_s"] + 0.3 - est.x_puntera - est.d_giro
+        est.esquina = (limite + 0.03, -1)
+        correr(sup, 1.0, 1.2)
+        self.assertEqual(sup.estado, SEGUIMIENTO)
+        est.esquina = (limite - 0.03, -1)
+        correr(sup, 1.2, 1.4)
+        self.assertEqual(sup.estado, GIRO_ESQUINA)
+        self.assertEqual(robot.llamadas[-1], "StopMove")
+
+    def test_giro_de_esquina_con_tope_fijo(self):
+        """El giro de la esquina no pasa de giro_esquina_vyaw_max a ninguna escala (sin el, el tope de la escala)."""
+        for escala, maximo, tope in ((1.0, 0.25, 0.25), (1.0, None, 0.5), (0.5, 0.25, 0.25), (0.5, None, 0.25)):
+            c = Control(CFG, escala)
+            for k in range(40):
+                o = c.girar(0.05 * k, -1.0, 1.2, 0.15, maximo)
+            self.assertAlmostEqual(o.vyaw, -tope, places=6)
+            self.assertEqual(o.vx, 0.0)
+
     def test_vigilante_para(self):
         sup, robot, est = montar()
         correr(sup, 0.0, 1.0)
@@ -206,6 +234,11 @@ class TestLazoSimulado(unittest.TestCase):
     def test_nivel_4(self):
         self.comprobar(4, +1)
         self.comprobar(4, -1)
+
+    def test_nivel_4_con_arrastre_en_el_sitio(self):
+        # girando en el sitio el robot se desplaza hacia donde andaba (esquina real, 2026-11-10: ~0.4 m)
+        self.comprobar(4, +1, marcha={"arrastre_sitio": 0.055})
+        self.comprobar(4, -1, marcha={"arrastre_sitio": 0.055})
 
     def test_nivel_1_con_la_marcha_peor(self):
         self.comprobar(1, marcha={"retardo_s": 0.30, "tau_giro_s": 0.45, "deriva": 0.052, "ganancia_giro": 0.8,

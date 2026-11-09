@@ -203,13 +203,15 @@ class Control:
         self._vyaw = _recortar(self._vyaw, self.vyaw_max)
         return Orden(vx=self._vx, vy=self.vy if self._vx > 0 else 0.0, vyaw=self._vyaw)
 
-    def girar(self, t, error, kp, minimo):
-        """Giro en el sitio hacia un rumbo (esquina del nivel 4), como cuadrado.py."""
+    def girar(self, t, error, kp, minimo, maximo=None):
+        """Giro en el sitio hacia un rumbo (esquina del nivel 4), como cuadrado.py. `maximo` (rad/s) acota el giro
+        sin depender de la escala."""
         dt = 0.05 if self._t is None else min(0.2, max(0.0, t - self._t))
         self._t = t
+        tope = self.vyaw_max if maximo is None else min(maximo, self.vyaw_max / self.escala)
         vyaw = kp * error
         if abs(vyaw) < minimo:
             vyaw = math.copysign(minimo, error)
         self._vx = 0.0
-        self._vyaw += _recortar(_recortar(vyaw, self.vyaw_max) - self._vyaw, 2 * self.dvyaw * dt)
-        return Orden(vx=0.0, vy=0.0, vyaw=_recortar(self._vyaw, self.vyaw_max))
+        self._vyaw += _recortar(_recortar(vyaw, tope) - self._vyaw, 2 * self.dvyaw * dt)
+        return Orden(vx=0.0, vy=0.0, vyaw=_recortar(self._vyaw, tope))

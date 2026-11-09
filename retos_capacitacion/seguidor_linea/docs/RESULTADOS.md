@@ -850,6 +850,51 @@ línea. Girando en el sitio (sin avanzar) el nivel 3 del PDF simulado paraba en 
 de la inflexión; en arco lo cruza. Simulado: niveles 1–4 88/88, línea tapada 160/160, S del equipo OK, nivel 3 del
 PDF OK salvo los dos casos que ya fallaban antes.
 
+**Tiradas con la búsqueda en arco** (2026-11-10, escala 1, `tirada_20261110_041348` y `041539`): **las dos
+completan la S y paran en la barra** (FIN, +0.01 y +0.02 m de la puntera; 38 s andando frente a 42 s en `113050`).
+En el segundo semicírculo, tres pausas en cada una (seis en `113050`) y 2.6–3.5 s con la línea perdida (5.5 s).
+La búsqueda en arco se usó una vez (`041539`, 26.9–27.5 s): tras la pausa por rumbo, alineado con la estimada y
+sin verla, anduvo 0.6 s a vx 0.16 y vyaw +0.22 y la reencontró, a ~40° de la marcha; siguió girando en el sitio
+hasta alinearse con ella y continuó. En `041348` las pérdidas se recuperaron en la pausa o andando.
+
+**Preparación del hueco de 40 cm en la S del equipo** (simulado, sin cambios en el código): hueco que empieza 0.4 m
+antes de la unión de los semicírculos, centrado en ella, empezando en ella o 0.3 m después (como en el PDF).
+Simulador rápido y percepción real sobre imágenes sintéticas, escala 1, salida 0 y ±8°, los dos sentidos: todo
+FIN OK. Lo peor, el hueco 0.3 m dentro del segundo semicírculo (pies hasta 15 cm, 1.6 s perdida). El simulador no
+reproduce las pérdidas reales del segundo semicírculo, así que falta verlo en el robot.
+
+**S con el hueco de 40 cm centrado en la unión** (2026-11-10, escala 1, `tirada_20261110_042852` y `043054`):
+**las dos completan la S y paran en la barra** (FIN, −0.01 y +0.03 m de la puntera; 40 s andando). Tres pausas en
+cada una, en el segundo semicírculo, y 2.0–2.5 s con la línea perdida en total, como sin hueco (`041348`, `041539`).
+El hueco apenas se nota: al acabar el primer semicírculo el detector ya coge el principio del segundo (θ +40…+48°)
+y pierde la línea en la unión, a los ~18 s, con y sin hueco. La pausa la reencuentra en 0.4–0.75 s. No se usó la
+búsqueda en arco.
+
+**S con hueco y sombra** (2026-11-10, escala 1, hueco centrado): con parte de las luces del laboratorio apagadas
+sobre el tramo final (`tirada_20261110_043803`) y con todas las de la zona apagadas (`044157`), **las dos completan
+la S y paran en la barra** (FIN, −0.00 m las dos; 41–42 s andando, 2.3–3.3 s perdida, tres pérdidas en el segundo
+semicírculo, como sin sombra). La cámara IR ajusta sola la exposición: el brillo del suelo (mediana de la mitad
+inferior) baja de ~80 a 53–66 niveles. La confianza mediana baja algo a oscuras: 0.79 / 0.60 / 0.41 / 0.56 en
+0–8 / 8–16 / 16–30 / 30–45 s, frente a 0.82 / 0.76 / 0.55 / 0.90 con luz (`042852`); el porcentaje de medidas
+usadas no cambia (100 / 100 / 67 / 83 %). Estas dos tiradas son el conjunto de datos con sombra para 6.2.2.
+**Nivel 3 superado** en la pista del equipo (radios de 1 m en vez de 1.2 m, más cerrada que la del PDF).
+
+### Preparación del nivel 4 (2026-11-10)
+
+El código de la esquina ya estaba (6.4.5): la percepción marca esquina cuando, donde acaba la línea, hay cinta
+transversal a un solo lado; confirmada 5 veces, el supervisor para (`StopMove`) cuando el centro de giro llega a
+ella contando el frenado, espera 1 s, gira 90° en el sitio sobre la IMU (tolerancia 3°, estable 0.6 s), olvida la
+línea vieja y sigue cuando ve la nueva (5 medidas buenas en 4.5 s; si no, PARADA). Simulado con la percepción real
+sobre imágenes sintéticas, con todo lo añadido en el nivel 3 (pausas, búsqueda en arco):
+
+- Escala 0.5 y 1, los dos sentidos, salida 0 y ±10°: 8/8 FIN OK; la esquina se ve desde la salida (1.93–1.96 m),
+  el robot para con ella a −0.03…+0.09 m de la puntera y el giro con la readquisición dura 5.7–8.8 s.
+- Marcha lenta y con más retardo (`v_minima` 0.19, retardo 0.3 s, τ giro 0.45 s): 3/3 OK (pies hasta 14 cm).
+- Cinta de 4 y 6 cm: OK.
+- Frenado mal supuesto (`t_frenado_s` 0 / 0.2 / 1.0 / 1.5 en vez de 0.5): **la esquina se pasa siempre** (para a
+  −0.13…+0.54 m de ella, gira y ve la línea nueva); lo que falla es la parada en la barra, que ya funciona en el
+  robot con 0.5.
+
 ## 7. Hallazgos del entorno
 
 - **El DDS no arranca con sudo** (`fs.protected_regular=2`, `/tmp/cdds.LOG` es de `unitree`): la cámara,
@@ -870,15 +915,14 @@ PDF OK salvo los dos casos que ya fallaban antes.
 - Valorar limitar el giro previo a 0.25 rad/s a cualquier escala (a 0.5 rad/s se pasa ~12°).
 - Explicar la deriva de los pies durante el giro en el sitio (`091003`, `100130`; no en `090629` ni `095105`).
 - 6.3.4: probar vy para que el cuerpo vaya alineado con la línea (y pare alineado).
-- Nivel 3: montar la pista, grabar la sombra y la interrupción con `wasd.sh` y evaluarlas antes del simulacro.
 - La métrica de los pies no vale dentro de una curva cerrada (prolonga la recta final).
 - Nivel 3 del PDF simulado: con la salida girada ±8° y sombra ×0.35 para en el hueco (ya con el código anterior a
   la pausa en línea perdida).
 - Detector por filas: no sigue cinta a más de ~65° (segundo semicírculo de 1 m). Valorar buscar también por columnas.
-- Niveles 3 y 4 cuando estén las pistas.
+- Nivel 4 en el robot (simulado OK).
+- 6.2.2: comparar umbral fijo y adaptativo sobre las tiradas con sombra (`043803`, `044157`).
 - Medir en la primera tirada el tiempo de frenado tras `StopMove` (0.5 s supuesto) y la parada con cinta.
 
-- Grabar un recorrido con sombra (6.2.2), cuando esté.
 - Explicar el error residual de las distancias (−2 a −4 %): no es la altura (con 1.66 m sale igual). Puede que la cámara se incline algo más que el pitch de la IMU (~1.3 veces en estos datos): verificarlo con más recorridos con dos marcas.
 - Probar si vy ≈ −0.03 m/s corrige el avance en diagonal (6.3.4): `escalon_vyaw.py` aún no hace vy.
 - Parada por software: hecha con la tecla ESPACIO en el terminal del seguidor (velocidad 0 repetida

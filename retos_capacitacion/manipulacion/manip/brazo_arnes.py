@@ -32,7 +32,8 @@ _N = itertools.count(1)
 
 class BrazoArnes:
     def __init__(self, robot, cfg, escala_tiempo=1.0, puerto=None, recuperar=False, dormir=time.sleep,
-                 reloj=time.monotonic, cada_s=0.02, latido_s=0.25, timeout_s=1.0, sin_respuesta_s=1.5):
+                 reloj=time.monotonic, cada_s=0.02, latido_s=0.25, timeout_s=1.0, sin_respuesta_s=1.5,
+                 nombre="manipulacion.py"):
         b = cfg["brazo"]
         self.robot, self.cfg = robot, cfg
         self.hz = float(b["hz"])
@@ -46,7 +47,7 @@ class BrazoArnes:
         self.puerto = int(puerto or cfg["red"]["puerto_brazos"])
         self.recuperar = recuperar
         n = next(_N)
-        self.id = f"manipulacion.py (pid {os.getpid()}" + (f", {n})" if n > 1 else ")")
+        self.id = f"{nombre} (pid {os.getpid()}" + (f", {n})" if n > 1 else ")")
         self._dormir, self.reloj, self.cada, self.latido = dormir, reloj, cada_s, latido_s
         self.timeout, self.sin_respuesta = timeout_s, sin_respuesta_s
         self.peso = 0.0
@@ -107,6 +108,11 @@ class BrazoArnes:
         if self.reloj() - self._t_estado > max_edad:
             self._pedir({"op": "estado"})
         return self._estado
+
+    def medir(self):
+        """El estado de arnes.py con lo medido del cuerpo (`cuerpo`: IMU, pies, q y par de las 27), o None si no
+        contesta. Del que tiene el control cuenta como latido."""
+        return self._pedir({"op": "estado", "cuerpo": True})
 
     # --- lo que obliga a parar ---------------------------------------------------------------------------
     def motivo_parada(self):

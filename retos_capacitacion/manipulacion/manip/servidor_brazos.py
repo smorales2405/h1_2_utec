@@ -5,7 +5,9 @@ servidor, en un hilo de arnes.py, deja que manipulacion.py (manip/brazo_arnes.py
 pone de pie una vez y se hacen varias tiradas, y si manipulacion.py falla las piernas siguen sostenidas.
 
 TCP en 127.0.0.1 (red.puerto_brazos), una linea JSON por peticion y otra por respuesta. Peticiones {"op", "id"}:
-  estado                         fase, listo, controlado (y si es suyo), moviendo, consigna (27), parada, amortiguado
+  estado {cuerpo}                fase, listo, controlado (y si es suyo), moviendo, consigna (27), parada, amortiguado;
+                                 con cuerpo, lo medido en el ultimo ciclo de 500 Hz: IMU (rpy, giroscopo), carga y
+                                 fuerza de los pies, integral del estabilizador y q y par de las 27 (curva_pasos.py)
   tomar {recuperar}              el control de los brazos: de pie, nivelado, con el estabilizador, sin parada ni
                                  movimiento, y con los brazos a 0 (recuperar: desde donde esten, para que la salida
                                  segura de manipulacion.py saque unos brazos que se quedaron sobre la mesa)
@@ -140,7 +142,7 @@ class ServidorBrazos:
             if suyo:
                 self.t_latido = self.reloj()
         if op == "estado":
-            return self._estado(suyo)
+            return self._estado(suyo, cuerpo=bool(req.get("cuerpo")))
         if op == "tomar":
             return self._tomar(quien, bool(req.get("recuperar")))
         if not suyo:
@@ -162,13 +164,27 @@ class ServidorBrazos:
     def _lejos_de_cero(self):
         return float(np.abs(self.cu.consigna()[BRAZOS] - self.brazos_cero).max())
 
-    def _estado(self, suyo):
+    def _estado(self, suyo, cuerpo=False):
         listo, porque = self.listo()
         with self.cerrojo:
             controlado, parada = self.controlador is not None, self.parada
-        return {"ok": True, "listo": bool(listo), "porque": porque, "controlado": controlado, "tuyo": suyo,
-                "moviendo": self.cu.moviendo(), "consigna": [round(float(v), 6) for v in self.cu.consigna()],
-                "parada": parada, "amortiguado": bool(self.cu.amortiguado), "motivo_amortiguado": self.cu.motivo}
+        r = {"ok": True, "listo": bool(listo), "porque": porque, "controlado": controlado, "tuyo": suyo,
+             "moviendo": self.cu.moviendo(), "consigna": [round(float(v), 6) for v in self.cu.consigna()],
+             "parada": parada, "amortiguado": bool(self.cu.amortiguado), "motivo_amortiguado": self.cu.motivo}
+        if cuerpo:
+            r["cuerpo"] = self._cuerpo()
+        return r
+
+    def _cuerpo(self):
+        e = self.cu.estado                          # el dict del ultimo ciclo (se sustituye entero en cada uno)
+        if not e:
+            return None
+        return {"t": round(float(e["t"]), 4),
+                "rpy": [round(float(e[k]), 6) for k in ("roll", "pitch", "yaw")],
+                "gyro": [round(float(v), 5) for v in e["gyro"]],
+                "carga": round(float(e["carga"]), 4), "fz": {k: round(float(v), 1) for k, v in e["fz"].items()},
+                "integral": [round(float(v), 3) for v in e["integral"]],
+                "q": [round(float(v), 6) for v in e["q"]], "tau": [round(float(v), 3) for v in e["tau"]]}
 
     def _tomar(self, quien, recuperar):
         if not quien:

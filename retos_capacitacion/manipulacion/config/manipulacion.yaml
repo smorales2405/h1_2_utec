@@ -151,7 +151,9 @@ planificacion:          # manip/planificacion.py; alturas del punto de agarre so
   altura_aproximacion_m: 0.06   # donde empieza el descenso final
   holgura_m: 0.02           # distancia minima del robot a mesa, bandejas y cuerpo en el gemelo
   holgura_agarre_m: 0.005   # en el descenso final y el agarre, los dedos pueden acercarse mas a la mesa
-  muestras_tramo: 8         # puntos por tramo en la comprobacion contra el gemelo
+  muestras_tramo: 8         # puntos por tramo en la comprobacion contra el gemelo (como minimo)
+  paso_comprobacion_rad: 0.03  # y uno cada esto de la junta que mas se mueve: con 8 en el tramo de 1.8 rad
+                            # a la observacion, el menique a 13 mm de la mesa caia entre dos muestras (2026-11-11)
   entrada_lado_m: 0.08      # agarre de lado: se baja a esta distancia del objeto y se entra en horizontal
   tol_pos_m: 0.003          # IK
   palma_abajo_tol_deg: 35

@@ -226,8 +226,8 @@ class Cuerpo:
         q = np.array([ms[i].q for i in range(N)])
         tau = np.array([ms[i].tau_est for i in range(N)])
         imu = msg.imu_state
-        roll, pitch = float(imu.rpy[0]), float(imu.rpy[1])
-        gx, gy = float(imu.gyroscope[0]), float(imu.gyroscope[1])
+        roll, pitch, yaw = float(imu.rpy[0]), float(imu.rpy[1]), float(imu.rpy[2])
+        gx, gy, gz = float(imu.gyroscope[0]), float(imu.gyroscope[1]), float(imu.gyroscope[2])
         with self.cerrojo:
             self.n += 1
             # vigilancia
@@ -305,7 +305,8 @@ class Cuerpo:
                         self.tau_estab[j] = t - ff
             cmd = {"q": self.q_des.copy(), "dq": np.zeros(N), "kp": self.kp * f_kp, "kd": self.kd.copy(),
                    "tau": self.tau_ff * f_ff + self.tau_estab}
-            self.estado = {"t": ahora, "q": q, "tau": tau, "roll": roll, "pitch": pitch, "edad": edad, "temp": temp,
+            self.estado = {"t": ahora, "q": q, "tau": tau, "roll": roll, "pitch": pitch, "yaw": yaw,
+                           "gyro": (gx, gy, gz), "edad": edad, "temp": temp,
                            "carga": self.carga, "fz": dict(self.fz), "fz_crudo": dict(self.fz_crudo),
                            "f_kp": f_kp, "f_estab": f_e, "integral": self.integral.copy(),
                            "apoyo": self.apoyo.valor}

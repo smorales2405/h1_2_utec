@@ -202,8 +202,10 @@ def armar(a, cfg=None, montaje=None, objetos=None, log=print):
     from sim.escena import Estado, construir
     m, info = construir(montaje=montaje, objetos=objetos, cal=cal, cfg=cfg, postura=list(q), con_camaras=False)
     est = Estado(m, info)
+    # el punto de paso de config/poses_brazos.yaml es para salir de los brazos a 0 (arnes), no del reposo de la marcha
+    paso = {l: np.array(poses["paso_inicio"][l]) for l in LADOS} if getattr(a, "arnes", False) and "paso_inicio" in poses else None
     pl = Planificador(cfg, montaje, objetos, cin, (est, Colisiones(m, est, cfg["planificacion"]["holgura_m"])),
-                      reposo, observacion, a.escala_tiempo)
+                      reposo, observacion, a.escala_tiempo, paso_inicio=paso)
     per = Percepcion(cfg, montaje, objetos, cal, cin)
     vig = Vigilante(robot, cfg, brazo, manos, lector_fsm, edad_fotograma=edad)
     if a.simulacro or a.sim:

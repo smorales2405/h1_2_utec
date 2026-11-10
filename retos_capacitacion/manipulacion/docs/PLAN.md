@@ -354,7 +354,7 @@ DDS.
 | `herramientas/grabar_calibracion.py` | 6.1.3 | En el arnés, mientras `arnes.py` [k] recorre `poses_calibracion.yaml` (cada brazo desde 0 y de vuelta): una muestra (color, profundidad, q medida y mandada) cada vez que un brazo se queda quieto 1 s en una pose nueva; solo lee | Robot | 2 | hecho, sin probar en el robot (el recorrido, con física en `arnes.py --sim`) |
 | `herramientas/calibrar_camara_torso.py` | 6.1.3–4 | Calibración y su residuo; con la q medida y con la consigna | PC | 2 | pendiente |
 | `herramientas/vibracion_camara.py` | 6.1.5 | ArUco fijo durante 60 s con el robot quieto | Robot | 2 | pendiente |
-| `herramientas/curva_pasos.py` + `analizar_pasos.py` | 6.3.1–2 | Un mismo movimiento a 8, 10, 20 y 30 s; inclinación y deslizamiento (antes: pasos y giro) | Robot y PC | 2 | pendiente |
+| `herramientas/curva_pasos.py` + `analizar_pasos.py` | 6.3.1–2 | Cliente de `arnes.py` (como `manipulacion.py --arnes`): la observación (centro de masas 4 cm atrás) y un alcance de un brazo (casi quieto) a 30, 20, 10 y 8 s, ida y vuelta; caminos comprobados en el gemelo y parada por la IMU. El análisis da pico, lo que queda y el exceso dinámico de pitch y roll, el giro (yaw), la carga y los tobillos, frente a la velocidad, la aceleración y el desplazamiento del centro de masas, y la duración mínima | Robot y PC | 2 | hecho, probado en simulación (falta en el robot) |
 | `herramientas/fuerza_mano.py` | 6.4.2–4 | Fuerza real frente a FORCE_SET y SPEED con la báscula, apertura tras cerrar por fuerza y contacto de la yema | Robot | 2 | pendiente |
 | `herramientas/grabar_dataset.py` | 6.2 | Objetos en posiciones medidas con regla, con y sin mano delante | Robot | 2 | pendiente |
 | `herramientas/generar_sintetico.py` | 6.2 | Dataset de la cámara virtual con la verdad del simulador | PC | 0–2 | pendiente |
@@ -379,6 +379,8 @@ rsync -av unitree@192.168.0.143:~/utec/manipulacion/datos/ datos/
 python3 -m pytest tests/
 python3 herramientas/arnes.py --sim --visor                               # Hito 0 en la PC: [u]/[j] polipasto
 python3 herramientas/arnes.py --sim --operador-auto                       # ensayo completo sin teclear
+python3 herramientas/arnes.py --sim --operador-auto --esperar-cliente     # y en otra terminal:
+python3 herramientas/curva_pasos.py --sim --rapido                        # la curva de pasos con fisica
 python3 herramientas/generar_sintetico.py --n 200                         # Fase 0
 python3 herramientas/mapa_alcance.py --montaje config/montaje.yaml        # Hito 1
 python3 herramientas/calibrar_camara_torso.py datos/calib_<fecha>         # Hito 2
@@ -403,7 +405,7 @@ fase en la terminal 2.
 | `herramientas/comprobar.py` | `unitree`, terminal 2 | Robot, manos y cámara, solo lectura | Antes de cada tirada |
 | `herramientas/medir_montaje.py`, `marcar_montaje.py` | `unitree`, terminal 2 | Mesa, bandejas y zona → `montaje.yaml` | Hito 1 |
 | `herramientas/grabar_calibracion.py` (y [k] en `arnes.py`) | `unitree`, terminal 2 | Muestras de calibración mientras `arnes.py` recorre las poses | Hito 2 |
-| `herramientas/vibracion_camara.py`, `curva_pasos.py --duraciones 30 20 10 8` | `unitree`, terminal 2 | Cámara quieta; pasos frente a duración | Hito 2 |
+| `herramientas/vibracion_camara.py`, `curva_pasos.py` (con `arnes.py` de pie en la terminal 1) | `unitree`, terminal 2 | Cámara quieta; inclinación y giro frente a la duración | Hito 2 |
 | `herramientas/fuerza_mano.py --mano izq --force-set 250 350 450` | `unitree`, terminal 2 | Con la báscula | Hito 2 |
 | `herramientas/grabar_dataset.py --nombre objetos_a` | `unitree`, terminal 2 | Dataset de percepción | Antes del Hito 3 |
 | `manipulacion.sh --nivel 1 --simulacro` | `unitree`, terminal 2 | Todo el lazo sin publicar en `arm_sdk` | Hito 3 |
@@ -498,7 +500,7 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 - [x] En el robot: el orden nuevo (2026-10-17, tres tiradas): nivela de +3.4° a +0.7° en ~20 s sin oscilar (tobillos ≤ 30 N m); con el pórtico centrado +0.5°; con la cuerda tensa y los brazos moviéndose +0.7…+1.0°, tobillos ≤ 16 N m. Una `[n]` pulsada mientras se encendía el estabilizador se perdía (y adelantaba el par de pie): corregido, y el siguiente paso en la línea de estado
 - [x] Integrar `Cuerpo` en `manipulacion.py` (2026-11-10, opción B del usuario): `arnes.py` sigue sosteniendo al robot y presta los brazos por `manip/servidor_brazos.py`; `manipulacion.py --arnes` los mueve con `manip/brazo_arnes.py` sin publicar nada (latido, parada de `arnes.py` → salida segura de `manipulacion.py` y luego colgar, `--recuperar`); en el gemelo, nivel 2 4/4 a través del servidor (RESULTADOS §28). En el robot (2026-11-11): observación y vuelta (RESULTADOS §29)
 - [x] kp de los brazos en `arnes.py` (`tuned_gff`, el hombro derecho en pitch a 280, por encima del tope de 150 de la sección 10 que `manipulacion.py` aplicaba con `rt/arm_sdk`): decisión del usuario (2026-11-10), se quedan como se probaron en el Hito 0
-- [ ] Nueva pose de observación alcanzable desde los brazos a 0 sin tapar la vista; regenerar `secuencia_ganancias.yaml`
+- [x] Camino a la observación desde los brazos a 0 (2026-11-11): en recta pasaba a 13 mm de la mesa (y tocaba con 3° de error); el planificador muestrea cada 0.03 rad y la entrada y la salida van por `paso_inicio` (el hombro, roll, primero): > 5 cm también con ±3°; nivel 2 en el gemelo 4/4 (RESULTADOS §30). Una pose nueva desde 0 con esos criterios no sale (la zona); `secuencia_ganancias.yaml` sin regenerar (las ganancias son las de `arnes.py`)
 - [x] Mesa medida con el robot de pie en el arnés (2026-10-17): borde cercano a 0.282 m, 2.1 cm a la derecha, yaw −0.7° (solo con los ArUco lejanos y el fondo de la mesa); bandejas de la guía, zona 40 × 16 y cruz en `montaje.yaml`; el gemelo coincide con la imagen real con la calibración del URDF (RESULTADOS §20)
 - [ ] `mapa_alcance.py` con colisiones (asas a la altura de los codos, a ±0.48 m)
 
@@ -524,7 +526,7 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 - [ ] Profundidad: ~2 % de más a 1 m sobre papel mate y ~1 % más con el plano del tablero negro; medir en la zona (poses de calibración más bajas, 5–12 cm sobre la mesa, o tocar dianas del nivel 1) y, si hace falta, corregir la profundidad con la distancia
 - [ ] Superposición del gemelo calibrado sobre la imagen real
 - [ ] `vibracion_camara.py`
-- [ ] `curva_pasos.py` a 8, 10, 20 y 30 s; duración mínima al YAML
+- [ ] `curva_pasos.py` a 8, 10, 20 y 30 s; duración mínima al YAML (herramienta y análisis hechos el 2026-11-11 y probados con física en la PC, RESULTADOS §30; falta en el robot)
 - [ ] `fuerza_mano.py` con la báscula: fuerza real, sobreimpulso por SPEED, apertura tras cerrar por fuerza y contacto de la yema
 - [ ] `objetos.yaml`: peso, medidas, agarre y FORCE_SET por objeto
 

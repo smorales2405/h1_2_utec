@@ -1,7 +1,8 @@
 # Pose de observacion de cada brazo (q de 7 juntas, orden de arm_sdk): las manos fuera de la
-# mesa y de la vista. Cada tirada va del reposo a ella con los dos brazos en espejo, trabaja
-# desde ella y vuelve por ella al reposo antes de bajar el peso. La genera
-# herramientas/poses_brazos.py con el gemelo; se prueba en el robot en el hito 3.
+# mesa y de la vista. La genera herramientas/poses_brazos.py con el gemelo. paso_inicio: el punto
+# de paso desde los brazos a 0 (arnes.py): en recta, el menique izquierdo pasaba a 13 mm de la
+# mesa y con 3 grados de error la tocaba (2026-11-11); primero van paso_inicio_juntas y luego el
+# resto (poses_brazos.py --solo-paso). manipulacion.py --arnes y curva_pasos.py pasan por el.
 generadas: herramientas/poses_brazos.py
 semilla: 0
 reposo_medido:
@@ -16,3 +17,8 @@ alternativas_izq:
 - [1.0286, 0.2624, 1.4864, -0.6148, -1.3648, -0.2037, -0.6399]
 - [0.7932, 0.9168, 1.3198, -0.5146, -0.8392, 0.0712, -0.0169]
 - [1.2523, 0.0816, 1.4051, -0.8505, -1.5896, 0.2069, -0.2884]
+paso_inicio:
+  izq: [0.0, 0.4589, 0.0, 0.0, 0.0, 0.0, 0.0]
+  der: [0.0, -0.4589, -0.0, 0.0, -0.0, 0.0, -0.0]
+paso_inicio_juntas: [hombro roll]
+paso_inicio_montaje: 2026-11-10 09:36

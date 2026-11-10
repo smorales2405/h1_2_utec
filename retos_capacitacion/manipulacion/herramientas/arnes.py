@@ -78,9 +78,12 @@ def argumentos():
     ap.add_argument("--con-remoto", action="store_true",
                     help="--operador-auto: despues de [m], un cliente como manipulacion.py --arnes toma los brazos, va a "
                          "la observacion y vuelve; otra vez, con ESPACIO a mitad (su salida y despues colgar)")
+    ap.add_argument("--esperar-cliente", action="store_true",
+                    help="--operador-auto: despues de [m], espera (hasta 1 h) a que un programa de fuera "
+                         "(herramientas/curva_pasos.py --sim) tome los brazos y los suelte, y luego cuelga")
     ap.add_argument("--solo-colgado", action="store_true", help="solo el paso 1 (no deja apoyar)")
     a = ap.parse_args()
-    if (a.visor or a.operador_auto or a.con_calibracion or a.con_remoto) and not a.sim:
+    if (a.visor or a.operador_auto or a.con_calibracion or a.con_remoto or a.esperar_cliente) and not a.sim:
         sys.exit("--visor y --operador-auto son de la simulacion: con --sim")
     return a
 
@@ -125,7 +128,7 @@ class Arnes:
 
     def _abrir_ciclo(self):
         cab = ["t", "fase", "f_kp", "apoyo", "f_estab", "roll", "pitch", "ref_roll", "ref_pitch", "gx", "gy",
-               "carga", "fz_izq", "fz_der", "fzc_izq", "fzc_der", "int_roll", "int_pitch", "edad", "temp"]
+               "carga", "fz_izq", "fz_der", "fzc_izq", "fzc_der", "int_roll", "int_pitch", "edad", "temp", "yaw", "gz"]
         cab += [f"{n}_{k}" for n in NOMBRES for k in ("q", "dq", "tau", "qd", "tauc")]
         if self.sim is not None:
             cab += ["sim_cuerda_n", "sim_carga"]
@@ -145,7 +148,7 @@ class Arnes:
                 f"{imu.gyroscope[0]:.4f}", f"{imu.gyroscope[1]:.4f}", f"{e['carga']:.3f}",
                 f"{e['fz']['izq']:.1f}", f"{e['fz']['der']:.1f}", f"{e['fz_crudo']['izq']:.1f}",
                 f"{e['fz_crudo']['der']:.1f}", f"{e['integral'][0]:.2f}", f"{e['integral'][1]:.2f}",
-                f"{e['edad']:.4f}", e["temp"]]
+                f"{e['edad']:.4f}", e["temp"], f"{e['yaw']:.5f}", f"{imu.gyroscope[2]:.4f}"]
         ms = msg.motor_state
         for i in range(27):
             fila += [f"{ms[i].q:.5f}", f"{ms[i].dq:.4f}", f"{ms[i].tau_est:.3f}", f"{c['q'][i]:.5f}", f"{c['tau'][i]:.3f}"]
@@ -475,6 +478,14 @@ def operador_auto(arnes, cu, sim):
     if arnes.a.con_remoto:
         remoto_auto(arnes, sim)                                 # acaba con una parada: arnes.py pasa a colgar
         hasta(lambda: arnes.fase == "COLGAR", 300)
+    elif arnes.a.esperar_cliente:
+        srv = arnes.servidor
+        arnes.evento("(operador simulado) esperando a que un cliente tome y suelte los brazos")
+        hasta(lambda: srv.controlado is not None or arnes.fase != "DE_PIE", 3600)
+        hasta(lambda: srv.controlado is None or arnes.fase != "DE_PIE", 3600)
+        time.sleep(3.0)
+        if arnes.fase == "DE_PIE":
+            arnes.al_teclear("c")
     else:
         arnes.al_teclear("c")
     hasta(lambda: arnes.fase == "COLGAR")

@@ -815,3 +815,52 @@ Desplegado `74682be`; `arnes.py` de pie y nivelado; `[g]` de la mesa vacía en `
   distinto): con las bandejas donde estaban, C y D quedan ~1.2 cm más cerca del robot de lo que toca. Para los
   niveles con bandejas: `herramientas/distancias_bandejas.py` y la fase de bandejas de `marcar_montaje.py`.
 - Pruebas: 85 de 85 (`tests/test_teclado.py`, nueva).
+
+## 30. Camino a la observación desde los brazos a 0 y curva de pasos (2026-11-11, en la PC)
+
+**El camino de los brazos a 0 a la observación pasaba a 13 mm de la mesa.** Al preparar la curva de pasos, el
+gemelo (con la mesa del 10-nov y con la del `[g]` de las 02:44) dio el meñique izquierdo a 13–15 mm del tablero
+hacia el 30 % de la recta articular, el mismo movimiento de la tirada del §29. Con ±3° en el hombro (pitch) o el
+codo (en el robot hubo hasta 3.7° de error de seguimiento) baja a 4–8 mm con un brazo, y con los dos en espejo
+llega a tocar (−13 mm). La comprobación del planificador no lo veía: 8 muestras por tramo (0.22 rad entre muestras
+en un tramo de 1.8 rad) y el mínimo caía entre la del 25 % y la del 37 %. La pose se había elegido en octubre desde
+el reposo de la marcha, no desde los brazos a 0.
+
+- **Planificador:** además de `muestras_tramo` (8, como mínimo), una muestra cada `paso_comprobacion_rad` (0.03)
+  de la junta que más se mueve. Con eso la recta a la observación ya no pasa (18 mm < 20).
+- **Punto de paso** (`poses_brazos.py --solo-paso`, `paso_inicio` en `config/poses_brazos.yaml`): se mantiene la
+  pose de observación (zona, vista y niveles ya probados) y se busca qué juntas mover primero. Con **el hombro
+  (roll) primero** y luego el resto, los dos tramos quedan a más de 5 cm de todo (el tope de la medida), también
+  con ±3° en hombro y codo; es lo que hace `arnes.py` al colgar ("hombros fuera"). La entrada y la salida pasan a
+  dos movimientos (16 + 16 s a escala 2). Solo con `--arnes` (el reposo de la marcha no es 0).
+- **Supervisor:** `_ambos` recorre los puntos de paso de los dos brazos uno a uno (antes iba directo al último:
+  un punto de paso se habría saltado), también en la salida segura "observación → reposo".
+- **Nueva pose desde 0 (lo que pedía el PLAN):** con el inicio en 0 y el camino exigido con ±3° no salió ninguna
+  en 8 × 750 + 3000 intentos; el criterio que las tumba es la recta de la observación a la esquina lejana del otro
+  lado de la zona (la pose actual tampoco lo cumple con la mesa de ahora, y el planificador lo resuelve con otras
+  soluciones de la IK). `poses_brazos.py` queda con `--desde cero` por defecto, el camino desde el inicio robusto
+  a ±3° y el otro brazo en su observación al probar la zona.
+- **Gemelo:** nivel 2 con `--sim --arnes`, 4/4 al primer intento por el punto de paso.
+- **`desplegar.sh`** ya no pisa un `config/montaje.yaml` del robot más nuevo que el de la PC (el `[g]` de las 02:44
+  se perdió así): lo deja y lo trae a `datos/montaje_robot_<fecha>.yaml`.
+
+**Curva de pasos (6.3.1–2)**, `herramientas/curva_pasos.py` y `analizar_pasos.py`:
+
+- Cliente de `arnes.py` como `manipulacion.py --arnes`. `arnes.py` le da lo que mide en su ciclo de 500 Hz
+  (`estado` con `cuerpo`: IMU con yaw, carga y fuerza de los pies, integral, q y par de las 27), así que no hace
+  falta DDS y funciona igual contra `arnes.py --sim`. `ciclo.csv` de `arnes.py` lleva ahora también yaw y gz.
+- Movimientos: `observacion` (por el punto de paso; centro de masas 4.0 cm atrás y 2.9 arriba, lo que explica el
+  −0.4° de pitch del §29) y `alcance_izq`/`alcance_der` (el `[m]`; centro de masas +0.3 cm): parecida velocidad
+  articular con desplazamientos del centro de masas muy distintos. A 30, 20, 10 y 8 s, de la más lenta a la más
+  rápida, con 8 s quietos antes, en la pose y al volver.
+- Antes de mover: caminos limpios en el gemelo (holgura del plan y ±3° a 1 cm) y la palabra. Para con ESPACIO,
+  Ctrl+C, parada de `arnes.py` o la IMU a más de 3° (roll/pitch) o 3° de yaw del inicio: deshace el camino (al
+  principio del tramo cortado y por los puntos de antes) y suelta.
+- Análisis por movimiento, duración y sentido: pico, lo que queda y el exceso dinámico de pitch y roll, giro,
+  carga y tobillos; velocidad y aceleración articulares y desplazamiento, velocidad y aceleración del centro de
+  masas (Dinámica con las masas identificadas); r² de cada candidato; duración mínima (exceso ≤ 0.2°, giro ≤ 0.5°);
+  `curva.png`. Pasos: 0 (de pie por `rt/lowcmd` no hay marcha).
+- **Con física** (`arnes.py --sim --operador-auto --esperar-cliente` y `curva_pasos.py --sim --rapido`, los dos
+  alcances a 20/10/8 s): completada; pitch ≤ 0.13°, exceso ≈ 0, yaw ≤ 0.1°, lo que más explica es el
+  desplazamiento del centro de masas, duración mínima 8 s. Falta en el robot.
+- Pruebas: `tests/test_curva_pasos.py` (5, con el banco ×40 de la opción B).

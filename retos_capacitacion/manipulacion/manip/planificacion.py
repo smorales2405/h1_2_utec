@@ -30,11 +30,14 @@ DESCENSO = {"aproximar", "entrar", "agarrar", "levantar", "bajar_a_bandeja", "re
 
 
 class Planificador:
-    def __init__(self, cfg, montaje, objetos, cin, gemelo=None, reposo=None, observacion=None, escala_tiempo=1.0):
+    def __init__(self, cfg, montaje, objetos, cin, gemelo=None, reposo=None, observacion=None, escala_tiempo=1.0,
+                 paso_inicio=None):
         """gemelo: (sim.escena.Estado, sim.colisiones.Colisiones) o None (sin comprobar colisiones).
         reposo: {lado: q7} con los brazos colgando (la postura de la marcha, peso 0).
         observacion: {lado: q7} con las manos fuera de la mesa y de la vista (config/poses_brazos.yaml): cada
-        plan de trabajo empieza y acaba en ella; reposo <-> observacion son planes aparte."""
+        plan de trabajo empieza y acaba en ella; reposo <-> observacion son planes aparte.
+        paso_inicio: {lado: q7}, el punto de paso entre el reposo (los brazos a 0) y la observacion
+        (config/poses_brazos.yaml): en recta, la mano pasaba a 13 mm de la mesa (2026-11-11)."""
         self.cfg, self.p, self.c = cfg, cfg["planificacion"], cfg["contacto"]
         self.montaje, self.objetos = montaje, objetos
         self.cin = cin
@@ -43,6 +46,7 @@ class Planificador:
         self.plano = Plano(pl["n"], pl["d"])
         self.reposo = {k: np.asarray(v, float) for k, v in (reposo or {}).items()}
         self.observacion = {k: np.asarray(v, float) for k, v in (observacion or {}).items()}
+        self.paso_inicio = {k: np.asarray(v, float) for k, v in (paso_inicio or {}).items()}
         b = cfg["brazo"]
         self.t_min, self.vel_max = b["t_min_mov_s"], b["vel_max_rad_s"]
         self.escala = escala_tiempo     # solo para informar de lo que tardara el plan (la aplica brazo.py)
@@ -246,8 +250,13 @@ class Planificador:
     def entre_reposo_y_observacion(self, lado, a_observacion=True):
         """El plan reposo -> observacion (o al reves), comprobado como cualquier otro."""
         qa, qb = (self.reposo[lado], self.observacion[lado]) if a_observacion else (self.observacion[lado], self.reposo[lado])
-        plan = Plan(objeto=None, mano=lado, tarea="observacion" if a_observacion else "reposo",
-                    puntos_de_paso=[PuntoPaso(q=qb, duracion=self.duracion(qa, qb), nombre="observacion" if a_observacion else "reposo")])
+        puntos, q_prev = [], qa
+        if lado in self.paso_inicio:
+            puntos.append(PuntoPaso(q=self.paso_inicio[lado], duracion=self.duracion(qa, self.paso_inicio[lado]),
+                                    nombre="paso_inicio"))
+            q_prev = self.paso_inicio[lado]
+        puntos.append(PuntoPaso(q=qb, duracion=self.duracion(q_prev, qb), nombre="observacion" if a_observacion else "reposo"))
+        plan = Plan(objeto=None, mano=lado, tarea="observacion" if a_observacion else "reposo", puntos_de_paso=puntos)
         return self.comprobar(plan, q_inicio=qa)
 
     # --- comprobacion contra el modelo ------------------------------------------------------------------
@@ -278,7 +287,8 @@ class Planificador:
                 continue
             descenso = p.nombre in DESCENSO or (k > 0 and puntos[k - 1].nombre in DESCENSO and p.nombre in DESCENSO)
             sujeto = k_desde is not None and k_hasta is not None and k_desde <= k <= k_hasta
-            for s in np.linspace(0, 1, n + 1)[1:]:
+            n_t = max(n, int(math.ceil(float(np.abs(p.q - q_prev).max()) / self.p.get("paso_comprobacion_rad", np.inf))))
+            for s in np.linspace(0, 1, n_t + 1)[1:]:
                 q = q_prev + (p.q - q_prev) * s
                 M = self.cin.fk(lado, q, "yema" if marco == "yema" else "mano")
                 pt = M[:3, 3] if marco == "yema" else aplicar(M, punto_ag if punto_ag is not None else np.zeros(3))

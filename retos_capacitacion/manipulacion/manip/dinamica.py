@@ -92,6 +92,10 @@ class Dinamica:
         q[self.iq] = np.asarray(q27, float)
         return q
 
+    def centro_de_masas(self, q27):
+        """El centro de masas del robot entero en el marco de la pelvis (sin giro): lo que mueven los brazos."""
+        return np.array(self.pin.centerOfMass(self.model, self.data, self._q(q27)), float)
+
     def gravedad(self, q27, roll=0.0, pitch=0.0):
         """Par de gravedad de las 27 juntas con la base sujeta (robot colgado)."""
         g = self.pin.computeGeneralizedGravity(self.model, self.data, self._q(q27, roll, pitch))

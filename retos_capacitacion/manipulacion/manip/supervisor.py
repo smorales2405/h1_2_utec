@@ -77,13 +77,16 @@ class Supervisor:
                 extra()
         self.brazo.ir_a(self.brazo.pose_brazo(lado, punto.q), punto.duracion, chequeo)
 
-    def _ambos(self, planes):
-        """Mueve los dos brazos a la vez a sus puntos finales (entrada y salida en espejo)."""
-        pose, dur = {}, 0.0
-        for p in planes:
-            pose.update(self.brazo.pose_brazo(p.mano, p.puntos_de_paso[-1].q))
-            dur = max(dur, sum(x.duracion for x in p.puntos_de_paso))
-        self.brazo.ir_a(pose, dur, self.comprobar)
+    def _ambos(self, planes, comprobar=None):
+        """Mueve los dos brazos a la vez por sus puntos de paso, uno a uno (entrada y salida en espejo: los planes
+        tienen los mismos puntos; el reposo <-> observacion, el de paso_inicio si lo hay)."""
+        for k in range(max(len(p.puntos_de_paso) for p in planes)):
+            pose, dur = {}, 0.0
+            for p in planes:
+                if k < len(p.puntos_de_paso):
+                    pose.update(self.brazo.pose_brazo(p.mano, p.puntos_de_paso[k].q))
+                    dur = max(dur, p.puntos_de_paso[k].duracion)
+            self.brazo.ir_a(pose, dur, comprobar or self.comprobar)
 
     # --- percepcion -----------------------------------------------------------------------------------
     def observar(self):
@@ -357,18 +360,17 @@ class Supervisor:
                 for lado in LADOS:
                     self._mover_seguro(lado, self.pl.observacion[lado], grave)
                 # al reposo solo los brazos que llegaron a la observacion: desde otro sitio barrerian la mesa
-                pose, dur = {}, 0.0
+                planes = []
                 for lado in LADOS:
                     if np.abs(self.q(lado) - self.pl.observacion[lado]).max() < 0.1:
                         p = self.pl.entre_reposo_y_observacion(lado, False)
                         if p.comprobado:
-                            pose.update(self.brazo.pose_brazo(lado, p.puntos_de_paso[-1].q))
-                            dur = max(dur, p.puntos_de_paso[-1].duracion)
+                            planes.append(p)
                     else:
                         self._a("SALIDA_SEGURA", f"brazo {lado} fuera de la observacion: no va al reposo")
-                if pose:
-                    self._a("SALIDA_SEGURA", f"observacion -> reposo ({', '.join(sorted({l for l in LADOS if self.brazo.pose_brazo(l, self.q(l)).keys() & pose.keys()}))})")
-                    self.brazo.ir_a(pose, dur, grave)
+                if planes:
+                    self._a("SALIDA_SEGURA", f"observacion -> reposo ({', '.join(sorted(p.mano for p in planes))})")
+                    self._ambos(planes, grave)
         except Parada as e:
             self._a("SALIDA_SEGURA", f"{e}: directo a bajar el peso")
         self._a("SALIDA_SEGURA", f"peso -> 0 en {self.brazo.t_salida:.0f} s")

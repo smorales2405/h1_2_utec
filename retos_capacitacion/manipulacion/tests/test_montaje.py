@@ -176,3 +176,36 @@ def test_comprobar_el_montaje_antes_de_la_tirada():
     problemas, _ = mt.comprobar([fs.siguiente() for _ in range(3)], fs.cal, ref, det, hsv)
     assert any("mesa se ha movido" in p for p in problemas), problemas
     assert any("bandeja D" in p and "de donde se midio" in p for p in problemas), problemas
+
+
+def test_distancias_bandejas_con_regla():
+    """Donde va cada bandeja con regla (herramientas/distancias_bandejas.py y el [g] de la mesa de marcar_montaje):
+    una mesa recta 1 cm a la izquierda que la camara ve un 2 % grande, y la del [g] del 2026-11-10 09:36 (las
+    distancias que se dieron al usuario; la camara vio B y D a 0.5 y 0.9 cm de su sitio)."""
+    esc = 1.02
+    bandejas = {k: {"hueco_m": 0.12, "pared_m": 0.003, "color": c, "centro": xy} for k, c, xy in
+                (("A", "azul", [0.40, 0.28]), ("B", "roja", [0.56, 0.28]), ("C", "blanca", [0.40, -0.28]),
+                 ("D", "naranja", [0.56, -0.28]))}
+    fis = {"ancho_interior_m": 0.778, "fondo_interior_m": 0.488, "aruco_al_labio_m": 0.031}
+    mon = {"mesa_fisica": fis, "bandejas": bandejas,
+           "mesa": {"plano": {"n": [0.0, 0.0, 1.0], "d": 0.118},
+                    "T_torso_mesa": [[1, 0, 0, 0.29], [0, 1, 0, 0.01], [0, 0, 1, -0.118], [0, 0, 0, 1]],
+                    "aruco_torso": {2: [0.75, 0.01 + 0.358 * esc, -0.118], 3: [0.75, 0.01 - 0.358 * esc, -0.118]}}}
+    d = mt.distancias_bandejas(mon)
+    assert [d[k]["lado"] for k in "ABCD"] == ["izq", "izq", "der", "der"]
+    assert abs(d["A"]["cercana"] - (0.11 / esc - 0.063)) < 1e-6
+    assert abs(d["A"]["exterior"] - (0.389 - 0.27 / esc - 0.063)) < 1e-6
+    assert abs(d["D"]["lejana"] - (0.488 - 0.27 / esc - 0.063)) < 1e-6
+    assert abs(d["D"]["exterior"] - (0.389 - 0.29 / esc - 0.063)) < 1e-6
+    # la mesa del 2026-11-10 09:36, girada -0.68 grados
+    mon["mesa"] = {"plano": {"n": [-0.046095, -0.02334, 0.998664], "d": 0.11934},
+                   "T_torso_mesa": [[0.998879, 0.010772, -0.046095, 0.292236], [-0.011858, 0.999657, -0.02334, 0.010223],
+                                    [0.045828, 0.02386, 0.998664, -0.105768], [0.0, 0.0, 0.0, 1.0]],
+                   "yaw_deg": -0.68, "aruco_torso": {2: [0.7578, 0.3667, -0.0759], 3: [0.75, -0.3572, -0.0932]}}
+    d = mt.distancias_bandejas(mon)
+    dado = {"A": ("exterior", 5.8, "cercana", 4.1), "B": ("exterior", 5.6, "lejana", 16.3),
+            "C": ("exterior", 4.0, "cercana", 4.7), "D": ("exterior", 4.2, "lejana", 15.7)}
+    for k, (c1, v1, c2, v2) in dado.items():
+        assert abs(d[k][c1] * 100 - v1) < 0.06 and abs(d[k][c2] * 100 - v2) < 0.06, (k, d[k])
+    texto = "\n".join(mt.texto_distancias(mon))
+    assert "B roja" in texto and "izquierda (a tu dcha.)" in texto and "izquierda 3.2 cm, derecha 3.2 cm" in texto

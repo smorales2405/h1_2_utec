@@ -18,7 +18,9 @@ Solo lee la camara: no mueve el robot. Dos fases:
             y esa se coloca con regla. Colocadas, [g] guarda donde esta cada una (mediana de los ultimos 15
             fotogramas) en montaje.yaml (`medida`) y en datos/dataset_<fecha>_bandejas_marcar/: el robot suelta
             ahi y no en el objetivo. Las que no se ven enteras (la C con los brazos a 0) o estan fuera de
-            tolerancia no se guardan: se usa su objetivo. [m] vuelve a MESA.
+            tolerancia no se guardan: se usa su objetivo. [m] vuelve a MESA. Al guardar la mesa se imprime
+            donde va cada bandeja con regla (lo mismo que herramientas/distancias_bandejas.py). Ojo: el
+            programa arranca en MESA; para guardar solo las bandejas, --fase bandejas.
 La imagen de la camara con el objetivo pintado (mesa, zona, cruz y bandejas) se ve en http://<robot>:5001 (en la
 PC: --salida guarda las imagenes). [q] o Ctrl+C: salir. En --sim: [w]/[s] alejan/acercan el carrito 5 mm,
 [a]/[d] lo llevan a la izquierda/derecha del robot, [z]/[x] lo giran 0.5 grados.
@@ -428,6 +430,7 @@ def main():
                               + ". Ahora las bandejas; colocadas, [g] las guarda.",
                               *([f"lo medido de las bandejas {', '.join(informe['bandejas_borradas'])} se ha borrado "
                                  "(mesa nueva): vuelve a guardarlas"] if informe.get("bandejas_borradas") else []))
+                        decir(*mt.texto_distancias(montaje))     # donde van las bandejas, con regla
                         fase = "BANDEJAS"
                         hist_band.clear()
                         fotos_band.clear()

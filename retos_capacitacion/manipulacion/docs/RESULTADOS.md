@@ -738,5 +738,9 @@ Robot de pie con `arnes.py` y el montaje colocado con `marcar_montaje.py`, en cu
   `sim/editor_observacion/nucleo.py` sigue con 0.215). La calibración cámara–torso no cambia: los marcadores están
   ajustados en `*_wrist_yaw_link`. En el gemelo la mano derecha tapa la bandeja C a medias o entera según el
   modelo: la prueba lo acepta (se coloca con regla).
+- **`herramientas/distancias_bandejas.py`**: la tabla con regla de cada bandeja desde el montaje guardado (pared
+  exterior → labio lateral, pared cercana → labio cercano y pared lejana → labio lejano, con la más corta
+  marcada, y el hueco entre las dos de cada lado); `marcar_montaje.py` la imprime al guardar la mesa. Las
+  cuentas, en `montaje.distancias_bandejas()`; reproducen las que se dieron a mano el 10-nov.
 - Pruebas: `test_montaje` mide los desvíos de las bandejas respecto de su objetivo aunque el montaje traiga
-  medidas. 69 de 69.
+  medidas, y comprueba la tabla de distancias. 70 de 70.

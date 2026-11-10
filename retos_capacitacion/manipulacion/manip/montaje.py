@@ -444,6 +444,64 @@ def punto_en_mesa(montaje, xy, altura=0.0):
     return np.array([p[0], p[1], z]) + altura * pl.n
 
 
+def distancias_bandejas(montaje):
+    """Donde colocar cada bandeja con regla, desde la mesa guardada con [g]: {nombre: dict} con las distancias (m,
+    de wincha) de sus paredes a la cara interior de los labios, con su centro en el objetivo (`centro`, marco del
+    torso) y la bandeja recta respecto del tablero. Claves: lado ("izq"/"der" del robot), exterior (pared exterior
+    -> labio de su lado), cercana (pared cercana -> labio cercano), lejana (pared lejana -> labio lejano),
+    centro_mesa ((x, y) en la mesa, de wincha) y lado_m (lado exterior de la bandeja).
+    El marco de la mesa esta escalado con lo que ve la camara (escala_mesa): se divide por la escala para pasar a
+    wincha. Sin mesa_fisica, el ancho y el fondo de la superficie medida, sin escalar."""
+    fis = fisica(montaje)
+    mesa = montaje["mesa"]
+    if fis is not None:
+        ancho, fondo = fis["ancho"], fis["fondo"]
+        esc = escala_mesa({int(k): v for k, v in (mesa.get("aruco_torso") or {}).items()}, fis)
+    else:
+        ancho, fondo = mesa["superficie"]["y"][1] - mesa["superficie"]["y"][0], mesa["superficie"]["x"][1]
+        esc = 1.0
+    Ti = inv(T_torso_mesa(montaje))
+    sal = {}
+    for nombre, b in montaje.get("bandejas", {}).items():
+        h = b["hueco_m"] / 2 + b["pared_m"]
+        u, v = aplicar(Ti, punto_en_mesa(montaje, b["centro"]))[:2] / esc
+        sal[nombre] = {"lado": "izq" if v > 0 else "der", "exterior": ancho / 2 - abs(v) - h, "cercana": u - h,
+                       "lejana": fondo - u - h, "centro_mesa": (float(u), float(v)), "lado_m": 2 * h}
+    return sal
+
+
+def texto_distancias(montaje):
+    """La tabla de distancias_bandejas() para quien coloca las bandejas: [lineas]."""
+    d = distancias_bandejas(montaje)
+    T = T_torso_mesa(montaje)
+    lados = {"izq": "izquierda (a tu dcha.)", "der": "derecha (a tu izqda.)"}
+    tam = sorted({round(v["lado_m"] * 100, 1) for v in d.values()})
+    lin = [f"Mesa del [g] de {montaje.get('fecha', '?')}: borde cercano {T[0, 3]:.3f} m, {T[1, 3] * 100:+.1f} cm a la "
+           f"izquierda del robot, giro {montaje['mesa'].get('yaw_deg', 0.0):+.2f} grados.",
+           f"Bandejas de {' / '.join(f'{t:g}' for t in tam)} cm por fuera, rectas respecto del tablero: la misma distancia "
+           f"en las dos esquinas de cada pared.",
+           "Distancias a la cara interior de cada labio, en cm. Izquierda y derecha, las del robot (de frente a el, "
+           "al reves).",
+           "",
+           f"  {'Bandeja':<12}{'Lado del robot':<24}{'Pared exterior':>15}{'Pared cercana':>16}{'Pared lejana':>15}",
+           f"  {'':<12}{'':<24}{'-> l. lateral':>15}{'-> l. cercano':>16}{'-> l. lejano':>15}"]
+    for nombre, v in sorted(d.items()):
+        b = montaje["bandejas"][nombre]
+        corta = "cercana" if v["cercana"] <= v["lejana"] else "lejana"
+        cel = {k: f"{v[k] * 100:.1f}" + (" *" if k == corta else "  ") for k in ("cercana", "lejana")}
+        lin.append(f"  {nombre + ' ' + str(b.get('color', '')):<12}{lados[v['lado']]:<24}{v['exterior'] * 100:>13.1f}  "
+                   f"{cel['cercana']:>16}{cel['lejana']:>15}")
+    huecos = []
+    for lado in ("izq", "der"):
+        us = sorted((v["centro_mesa"][0], v["lado_m"]) for v in d.values() if v["lado"] == lado)
+        if len(us) == 2:
+            huecos.append(f"{'izquierda' if lado == 'izq' else 'derecha'} {(us[1][0] - us[0][0] - (us[0][1] + us[1][1]) / 2) * 100:.1f} cm")
+    lin += ["", "  * la mas corta de las dos: mejor esa con la regla"]
+    if huecos:
+        lin.append("  Hueco entre las dos bandejas de cada lado: " + ", ".join(huecos))
+    return lin
+
+
 def dentro_de_zona(montaje, p, margen=0.0):
     z = montaje["zona_recogida"]
     return (z["x"][0] - margen <= p[0] <= z["x"][1] + margen) and (z["y"][0] - margen <= p[1] <= z["y"][1] + margen)

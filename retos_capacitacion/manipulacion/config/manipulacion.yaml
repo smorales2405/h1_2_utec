@@ -97,7 +97,8 @@ brazo:                  # manip/brazo.py, con los patrones de caja_cuadrado.py
   t_rampa_entrada_s: 12.0
   t_rampa_salida_s: 5.0     # >= 5 s (seccion 10)
   tope_seguir_rad: 0.035    # la rampa de entrada sigue la postura medida sin apartarse mas de 2 grados
-  t_min_mov_s: 8.0          # >= max(8 s, el minimo medido en 6.3): se sube con la curva de pasos
+  t_min_mov_s: 8.0          # >= max(8 s, el minimo medido en 6.3). Curva de pasos en el robot (2026-11-11,
+                            # RESULTADOS §31): a 8 s, 0 pasos, <= 0.2 grados de pitch y <= 0.3 de giro: 8 s
   vel_max_rad_s: 0.5        # seccion 10; la minima sacudida tiene un pico de 1.875 * dq / T
   err_seguimiento_max_rad: 0.25   # mas que esto con el brazo quieto -> choque o arm_sdk sin efecto
   margen_limites_rad: 0.05

@@ -864,3 +864,31 @@ el reposo de la marcha, no desde los brazos a 0.
   alcances a 20/10/8 s): completada; pitch ≤ 0.13°, exceso ≈ 0, yaw ≤ 0.1°, lo que más explica es el
   desplazamiento del centro de masas, duración mínima 8 s. Falta en el robot.
 - Pruebas: `tests/test_curva_pasos.py` (5, con el banco ×40 de la opción B).
+
+## 31. Curva de pasos en el robot (2026-11-11)
+
+Desplegado `ed2d56e`; `arnes.py` de pie y nivelado (pies al 71–74 %), `[g]` de la mesa (04:39: borde 0.295 m,
++0.8 cm, −0.67°) y `curva_pasos.py` con lo de por defecto: la observación (por el punto de paso, dos tramos de T
+cada uno) y el alcance izquierdo, a 30, 20, 10 y 8 s, ida y vuelta, 8 s quietos entre medias
+(`datos/pasos_20261111_044016`, `arnes_20261111_043610`). **Completada** en 10 min, sin paradas. El usuario vio
+las manos más lejos de las asas que en la tirada del §29 (en recta); en el gemelo, con esta mesa, la recta pasa a
+30 mm del tablero y por el punto de paso a más de 100 mm de mesa y asas.
+
+| | T (s) | pitch pico (°) | queda (°) | exceso (°) | roll (°) | yaw (°) | carga | tobillos (N m) | error brazo |
+|---|---|---|---|---|---|---|---|---|---|
+| observación, ida | 30 / 20 / 10 / 8 | +0.10 / −0.10 / −0.14 / −0.14 | 0.00 a −0.12 | ≤ 0.09 | ≤ 0.09 | ≤ 0.31 | +2.7 % | −24 a −25 | ≤ 3.9° |
+| observación, vuelta | 30 / 20 / 10 / 8 | +0.19 / +0.15 / +0.15 / +0.17 | +0.10 a +0.15 | ≤ 0.05 | ≤ 0.08 | ≤ 0.26 | −2.8 % | +25 | ≤ 3.1° |
+| alcance izq. | 30 / 20 / 10 / 8 | ≤ 0.09 | ≤ 0.05 | ≤ 0.08 | ≤ 0.07 | ≤ 0.15 | ±0.5 % | ±3 | ≤ 4.3° |
+
+- **Pasos: 0** (de pie por `rt/lowcmd`). **Giro ≤ 0.31°**, con una deriva del yaw de la IMU de −0.7° en los 10 min
+  (~0.07°/min, que entra en las ventanas largas). **Inclinación ≤ 0.19°** de pitch y ≤ 0.09° de roll.
+- **No depende de la duración entre 8 y 30 s.** Lo que manda es el desplazamiento del centro de masas (r² 0.74 con
+  el pico de pitch y 0.67 con el giro): la observación lo lleva 4 cm atrás y los tobillos cambian 25 N m y la carga
+  2.7 % a cualquier velocidad; el alcance (+0.3 cm), 3 N m. El exceso dinámico es ≤ 0.09° y no sigue a la
+  velocidad ni a la aceleración (r² ≤ 0.3: ruido). En la simulación con física, lo mismo (≤ 0.13°, §30).
+- **Duración mínima: 8 s**, el tope del PDF (exceso ≤ 0.2° y giro ≤ 0.5° en todo): `t_min_mov_s` se queda en 8 y
+  las primeras tiradas, a escala 2 (16 s por tramo), como pide el PDF.
+- El error de seguimiento de los brazos sube con la velocidad: 2.1–2.4° a 30–20 s y 3.6–4.3° a 10–8 s (alcance).
+- Ojo: la integral del estabilizador estuvo **al tope (+15 N m) toda la sesión** (la cuerda tirando del torso
+  hacia delante: retrasar el pórtico). El torso se quedó dentro de la banda (+0.30…+0.63° con referencia +0.5) y
+  la integral no se movió: la curva mide lo que hacen la parte proporcional y la derivada.

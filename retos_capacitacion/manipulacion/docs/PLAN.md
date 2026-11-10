@@ -354,7 +354,7 @@ DDS.
 | `herramientas/grabar_calibracion.py` | 6.1.3 | En el arnés, mientras `arnes.py` [k] recorre `poses_calibracion.yaml` (cada brazo desde 0 y de vuelta): una muestra (color, profundidad, q medida y mandada) cada vez que un brazo se queda quieto 1 s en una pose nueva; solo lee | Robot | 2 | hecho, sin probar en el robot (el recorrido, con física en `arnes.py --sim`) |
 | `herramientas/calibrar_camara_torso.py` | 6.1.3–4 | Calibración y su residuo; con la q medida y con la consigna | PC | 2 | pendiente |
 | `herramientas/vibracion_camara.py` | 6.1.5 | ArUco fijo durante 60 s con el robot quieto | Robot | 2 | pendiente |
-| `herramientas/curva_pasos.py` + `analizar_pasos.py` | 6.3.1–2 | Cliente de `arnes.py` (como `manipulacion.py --arnes`): la observación (centro de masas 4 cm atrás) y un alcance de un brazo (casi quieto) a 30, 20, 10 y 8 s, ida y vuelta; caminos comprobados en el gemelo y parada por la IMU. El análisis da pico, lo que queda y el exceso dinámico de pitch y roll, el giro (yaw), la carga y los tobillos, frente a la velocidad, la aceleración y el desplazamiento del centro de masas, y la duración mínima | Robot y PC | 2 | hecho, probado en simulación (falta en el robot) |
+| `herramientas/curva_pasos.py` + `analizar_pasos.py` | 6.3.1–2 | Cliente de `arnes.py` (como `manipulacion.py --arnes`): la observación (centro de masas 4 cm atrás) y un alcance de un brazo (casi quieto) a 30, 20, 10 y 8 s, ida y vuelta; caminos comprobados en el gemelo y parada por la IMU. El análisis da pico, lo que queda y el exceso dinámico de pitch y roll, el giro (yaw), la carga y los tobillos, frente a la velocidad, la aceleración y el desplazamiento del centro de masas, y la duración mínima | Robot y PC | 2 | hecho, en el robot (RESULTADOS §31) |
 | `herramientas/fuerza_mano.py` | 6.4.2–4 | Fuerza real frente a FORCE_SET y SPEED con la báscula, apertura tras cerrar por fuerza y contacto de la yema | Robot | 2 | pendiente |
 | `herramientas/grabar_dataset.py` | 6.2 | Objetos en posiciones medidas con regla, con y sin mano delante | Robot | 2 | pendiente |
 | `herramientas/generar_sintetico.py` | 6.2 | Dataset de la cámara virtual con la verdad del simulador | PC | 0–2 | pendiente |
@@ -526,7 +526,7 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 - [ ] Profundidad: ~2 % de más a 1 m sobre papel mate y ~1 % más con el plano del tablero negro; medir en la zona (poses de calibración más bajas, 5–12 cm sobre la mesa, o tocar dianas del nivel 1) y, si hace falta, corregir la profundidad con la distancia
 - [ ] Superposición del gemelo calibrado sobre la imagen real
 - [ ] `vibracion_camara.py`
-- [ ] `curva_pasos.py` a 8, 10, 20 y 30 s; duración mínima al YAML (herramienta y análisis hechos el 2026-11-11 y probados con física en la PC, RESULTADOS §30; falta en el robot)
+- [x] `curva_pasos.py` a 8, 10, 20 y 30 s; duración mínima al YAML (2026-11-11, RESULTADOS §30–31): 0 pasos, ≤ 0.19° de pitch y ≤ 0.31° de giro a cualquier duración; manda el desplazamiento del centro de masas, no la velocidad; `t_min_mov_s` 8 s
 - [ ] `fuerza_mano.py` con la báscula: fuerza real, sobreimpulso por SPEED, apertura tras cerrar por fuerza y contacto de la yema
 - [ ] `objetos.yaml`: peso, medidas, agarre y FORCE_SET por objeto
 

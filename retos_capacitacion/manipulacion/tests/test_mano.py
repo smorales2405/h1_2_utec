@@ -142,3 +142,27 @@ def test_el_vigilante_cuenta_lecturas_distintas():
         mano.ultimo = lectura(3.0 + k, 1500.0)
         f, n = vig.fuerza_persistente()
     assert n == 3 and f == 1500.0
+
+
+def test_force_set_compensa_la_base():
+    """En el robot (2026-11-11) el anular derecho marcaba +210 gf abierto y con FORCE_SET 300 no se movia: el
+    firmware compara con FORCE_ACT en bruto. Se escribe FORCE_SET + la base, entre force_set_min y el tope."""
+    mano, sim = _mano(compensar_base=True, force_set_min=100)
+    mano.base = np.array([35.0, 210.0, 40.0, 700.0, -300.0, -150.0])
+    mano.escribir_force_set([300, 300, 300, 300, 350, -1])
+    assert sim.fset.tolist() == [335, 510, 340, 800, 100, 800]      # tope 800, minimo 100, -1 = el de abierta
+    mano, sim = _mano(compensar_base=False)
+    mano.base = np.array([35.0, 210.0, 40.0, 700.0, -300.0, -150.0])
+    mano.escribir_force_set([300, 300, 300, 300, 350, -1])
+    assert sim.fset.tolist()[:5] == [300, 300, 300, 300, 350]
+
+
+def test_cierre_lento_no_se_da_por_parado():
+    """Despacio, cada lectura cambia menos que la tolerancia aunque el dedo se mueva: antes se daba por parado a
+    medio camino. Ahora espera a que de verdad se pare (o a t_cerrar_s)."""
+    mano, sim = _mano(t_cerrar_s=20.0)
+    sim.ang[:4] = 250.0
+    sim.obj[:4] = 250.0
+    mano.speed_cierre = 20                       # 60 cuentas/s en la simulada: 4 s de 250 a 0
+    e = mano.cerrar([300, 300, 300, 300, 350, -1])
+    assert e.angulo[:4].max() <= 5, e.angulo

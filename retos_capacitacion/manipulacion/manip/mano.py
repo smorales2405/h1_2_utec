@@ -13,6 +13,10 @@ Lo aprendido (memoria del proyecto, caja_cuadrado.py e inspire_hand_interface/Ca
   - 1005 (SAVE) graba en la memoria de la mano: nunca se escribe
   - hay lecturas sueltas corruptas (3187 gf, 1873 gf, una POS fuera de sitio): un umbral necesita
     `persistencia_corte` lecturas seguidas (inspire_hand_interface exige 3 ciclos)
+En el robot (probar_manos.py, 2026-11-11): con SPEED 100 los dedos cierran a ~150 cuentas/s (1000 -> 0 en ~7 s;
+`t_cerrar_s`); el firmware compara FORCE_SET con FORCE_ACT en bruto, y con la mano abierta hay dedos a +210 gf
+(`compensar_base`: se escribe FORCE_SET + esa base); cerrando en vacio con el pulgar enfrente, el indice choca con
+la punta del pulgar (~250 gf con FORCE_SET 300): en vacio los dedos no llegan a 0.
 """
 
 import struct
@@ -28,6 +32,13 @@ ANGLE_ACT, FORCE_ACT, ERROR, ESTADO = 1546, 1582, 1606, 1612
 CLEAR, SAVE = 1004, 1005
 BLOQUES_BYTE = (ERROR, ESTADO)                # un byte por DOF: 3 registros (inspire_sdkpy los lee asi)
 TACTIL_INDICE = ((4110, 9), (4128, 96))     # punta y yema del indice (zonas de caja_cuadrado.py)
+# las 17 zonas del tactil (inspire_hand_interface, Interfaz/core/tactile_zones.py): (nombre, registro, taxeles)
+ZONAS_TACTIL = (("menique punta", 3000, 9), ("menique distal", 3018, 96), ("menique palmar", 3210, 80),
+                ("anular punta", 3370, 9), ("anular distal", 3388, 96), ("anular palmar", 3580, 80),
+                ("medio punta", 3740, 9), ("medio distal", 3758, 96), ("medio palmar", 3950, 80),
+                ("indice punta", 4110, 9), ("indice distal", 4128, 96), ("indice palmar", 4320, 80),
+                ("pulgar punta", 4480, 9), ("pulgar distal", 4498, 96), ("pulgar medio", 4690, 9),
+                ("pulgar palmar", 4708, 96), ("palma", 4900, 112))
 DEDOS = (0, 1, 2, 3)
 PULGAR, ROTACION = 4, 5
 
@@ -54,6 +65,9 @@ class Mano:
         self.persistencia = max(1, int(m.get("persistencia_corte", 3)))
         self.speed_cierre = min(int(m["speed_cierre"]), 100)
         self.speed_abrir = int(m["speed_abrir"])
+        self.t_cerrar = float(m.get("t_cerrar_s", 10.0))
+        self.compensar_base = bool(m.get("compensar_base", False))
+        self.fs_min = int(m.get("force_set_min", 100))
         self.cierre = [int(x) for x in m.get("cierre", [0, 0, 0, 0, 300, -1])]
         self._dormir = dormir
         if cliente is None:
@@ -96,8 +110,15 @@ class Mano:
             raise ManoSinRespuesta(f"mano {self.lado}: fallo al escribir {a}")
 
     def escribir_force_set(self, fs):
-        """gf por DOF, recortados al tope; -1 (no cierra) deja el de mano abierta."""
-        v = [self.fs_abierta if x is None or x < 0 else min(int(x), self.fs_max) for x in fs]
+        """gf por DOF (netos: sobre la linea base si compensar_base), recortados a [force_set_min, tope]; -1 (no
+        cierra) deja el de mano abierta. El firmware compara con FORCE_ACT en bruto: se le suma la base."""
+        v = []
+        for k, x in enumerate(fs):
+            if x is None or x < 0:
+                v.append(self.fs_abierta)
+                continue
+            b = float(self.base[k]) if self.compensar_base else 0.0
+            v.append(int(min(max(round(x + b), self.fs_min), self.fs_max)))
         self.escribir(FORCE_SET, v)
         self.force_set = np.array(v, float)
 
@@ -125,9 +146,11 @@ class Mano:
 
     # --- ordenes ------------------------------------------------------------------------------------
     def _esperar_quieta(self, timeout_s, tol=6, quieta_s=0.3, vigilar=None):
-        """Espera a que ANGLE_ACT deje de cambiar. Vigila la fuerza: por encima del corte, Parada."""
+        """Espera a que ANGLE_ACT se quede `quieta_s` sin apartarse mas de `tol` de donde estaba al empezar ese rato
+        (no entre lecturas seguidas: despacio, cada lectura cambia menos que tol aunque el dedo se mueva). Vigila
+        la fuerza: por encima del corte, Parada."""
         t0 = time.monotonic()
-        prev, desde, sobre = None, None, 0
+        ref, desde, sobre = None, None, 0
         while True:
             e = self.leer()
             if vigilar:
@@ -137,14 +160,12 @@ class Mano:
                 self.mover([1000, 1000, 1000, 1000, 1000, -1])
                 raise Parada(f"mano {self.lado}: {int(e.fuerza.max())} gf > corte de {self.corte} "
                              f"en {sobre} lecturas seguidas")
-            if prev is not None and np.abs(e.angulo - prev).max() <= tol:
-                desde = desde or time.monotonic()
-                if time.monotonic() - desde >= quieta_s:
-                    return e
-            else:
-                desde = None
-            prev = e.angulo
-            if time.monotonic() - t0 > timeout_s:
+            ahora = time.monotonic()
+            if ref is None or np.abs(e.angulo - ref).max() > tol:
+                ref, desde = e.angulo.copy(), ahora
+            elif ahora - desde >= quieta_s:
+                return e
+            if ahora - t0 > timeout_s:
                 return e
             self._dormir(0.05)
 
@@ -168,7 +189,7 @@ class Mano:
         self.escribir_force_set(force_set)
         self.escribir(SPEED_SET, [self.speed_cierre] * 6)
         self.mover([self.cierre[k] if force_set[k] is not None and force_set[k] > 0 else -1 for k in range(6)])
-        return self._esperar_quieta(4.0, vigilar=vigilar)
+        return self._esperar_quieta(self.t_cerrar, vigilar=vigilar)
 
     def sujetar(self, force_set):
         """Reafirma FORCE_SET y la consigna cerrada (cada ~1 s mientras se lleva el objeto)."""

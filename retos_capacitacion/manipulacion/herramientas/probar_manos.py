@@ -11,6 +11,12 @@ Por cada mano (--manos), una detras de otra:
      que abre (la apertura tras cerrar por fuerza es la trampa conocida del firmware)
   4. con --tactil S: S segundos para apretar con un dedo la yema del indice y ver cuanto sube (el contacto con
      la mesa del nivel 1), con el umbral de inspire_hand_interface: max(5 sigma, 41 cuentas)
+  5. con --mapa-tactil S: las 17 zonas del tactil (el mapa de inspire_hand_interface): 2 s sin tocar (base y
+     ruido de cada zona) y S s para apretar en varios sitios (punta y yema de cada dedo, palma): cuanto sube cada
+     zona. El 2026-11-11 la yema del indice no subia al apretarla y la izquierda variaba 254 cuentas sin tocarla
+Con --speed se cierra mas despacio (el cierre en vacio con el pulgar enfrente acaba con la punta del indice contra
+la del pulgar: despacio, el golpe es menor); de cada dedo se apunta donde se paro, a que velocidad cerro y si
+llego a su consigna.
 Mide los tiempos de cada paso, la fuerza en el aire de cada dedo cerrado (su propia flexion: 70-230 gf en la
 caracterizacion), los angulos a los que llega y los errores del firmware.
 
@@ -31,7 +37,7 @@ import numpy as np
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, RAIZ)
 from manip import config  # noqa: E402
-from manip.mano import DEDOS, PULGAR, TACTIL_INDICE, Mano, ManoSinRespuesta  # noqa: E402
+from manip.mano import DEDOS, PULGAR, TACTIL_INDICE, ZONAS_TACTIL, Mano, ManoSinRespuesta  # noqa: E402
 from manip.mensajes import Parada  # noqa: E402
 from manip.registro import Registro, fila_mano  # noqa: E402
 
@@ -113,10 +119,27 @@ class Prueba:
         texto = f"{nombre}: en {paso['t_preforma_s']} s, angulos {paso['en_preforma']}"
         if cierre is not None:
             obj, fs = cierre
+            antes = e.angulo.copy()
             t0 = self.reloj()
             e = self.m.cerrar(fs)
-            paso.update(objeto=obj, force_set=fs, t_cierre_s=round(self.reloj() - t0, 2),
-                        cerrada=e.angulo.astype(int).tolist(), fuerza_neta=(e.fuerza - e.base).astype(int).tolist())
+            dt = self.reloj() - t0
+            paso.update(objeto=obj, force_set=fs, force_set_escrito=self.m.force_set.astype(int).tolist(),
+                        t_cierre_s=round(dt, 2), cerrada=e.angulo.astype(int).tolist(),
+                        fuerza_neta=(e.fuerza - e.base).astype(int).tolist())
+            # cada dedo que cierra: donde se paro, si llego a su consigna y la velocidad media
+            dedos = {}
+            for k in range(5):
+                if fs[k] is None or fs[k] <= 0:
+                    continue
+                consigna = self.m.cierre[k]
+                dedos[NOMBRES_DOF[k]] = {"se_paro_en": int(e.angulo[k]), "consigna": consigna,
+                                         "llego": bool(e.angulo[k] <= consigna + 20),
+                                         "fuerza_neta": int(e.fuerza[k] - e.base[k]),
+                                         "cuentas_s": round(float(antes[k] - e.angulo[k]) / max(dt, 1e-3), 0)}
+            paso["dedos"] = dedos
+            texto += " | " + ", ".join(f"{n} {d['se_paro_en']}" + ("" if d["llego"] else "*") for n, d in dedos.items())
+            if not all(d["llego"] for d in dedos.values()):
+                texto += " (* = se paro antes de su consigna)"
             ok, detalle = self.m.agarre(e, fs)
             paso["agarre"] = {NOMBRES_DOF[k]: v for k, v in detalle.items()}
             paso["falso_lleno"] = ok or any(v != "vacio" for v in detalle.values())
@@ -153,9 +176,42 @@ class Prueba:
         self.evento("TACTIL", f"yema apretada: sube hasta {sube.max():.0f} (ruido quieto {r['max']:.0f}); con un umbral de "
                               f"{umbral:.0f}, por encima el {100 * np.mean(sube > umbral):.0f} % del tiempo")
 
+    def mapa_tactil(self, segundos, base_s=2.0):
+        """Todas las zonas: base y ruido sin tocar, y cuanto sube cada una mientras se aprieta."""
+        def frame():
+            return [self.m.regs(a, n, signo=False) for _, a, n in ZONAS_TACTIL]
+        self.log(f"\n  [{self.lado}] Mapa del tactil: {base_s:g} s SIN TOCAR la mano...")
+        base, t_fin = [], self.reloj() + base_s
+        while self.reloj() < t_fin:
+            base.append(frame())
+        self.log(f"  [{self.lado}] Ahora aprieta durante {segundos:g} s, uno detras de otro: la punta y la yema de cada dedo "
+                 "(la cara de la palma) y la palma.")
+        sube, t_fin, n = [np.zeros(n) for _, _, n in ZONAS_TACTIL], self.reloj() + segundos, 0
+        b_med = [np.mean([f[z] for f in base], axis=0) for z in range(len(ZONAS_TACTIL))]
+        quieto = [np.max([np.abs(f[z] - b_med[z]) for f in base], axis=0) for z in range(len(ZONAS_TACTIL))]
+        crudos = []
+        while self.reloj() < t_fin:
+            fr = frame()
+            crudos.append(np.concatenate(fr))
+            for z in range(len(ZONAS_TACTIL)):
+                sube[z] = np.maximum(sube[z], fr[z] - b_med[z])
+            n += 1
+        np.savez_compressed(os.path.join(self.reg.carpeta, f"tactil_{self.lado}.npz"), base=np.array(
+            [np.concatenate(f) for f in base]), apretando=np.array(crudos))
+        zonas = {}
+        for z, (nombre, a, k) in enumerate(ZONAS_TACTIL):
+            zonas[nombre] = {"registro": a, "base_media": round(float(b_med[z].mean()), 1),
+                             "base_max": int(b_med[z].max()), "ruido_quieto_max": int(quieto[z].max()),
+                             "sube_max": int(sube[z].max()), "taxel_que_mas_sube": int(np.argmax(sube[z]))}
+        self.res["mapa_tactil"] = {"lecturas_base": len(base), "lecturas_apretando": n,
+                                   "hz": round(n / segundos, 1), "zonas": zonas}
+        lineas = [f"{nombre:15s} base {d['base_media']:7.1f} (max {d['base_max']:5d}), sin tocar varia {d['ruido_quieto_max']:4d}, "
+                  f"apretando sube {d['sube_max']:5d}" for nombre, d in zonas.items()]
+        self.evento("MAPA_TACTIL", f"{n} lecturas de las 17 zonas a {n / segundos:.1f} Hz:\n      " + "\n      ".join(lineas))
+
     def resumen(self):
         pasos = self.res["pasos"]
-        self.res["ok"] = bool(pasos) and all(p["abre"] and not p.get("falso_lleno", False) for p in pasos)
+        self.res["ok"] = all(p["abre"] and not p.get("falso_lleno", False) for p in pasos)
         return self.res
 
 
@@ -166,6 +222,10 @@ def main():
     ap.add_argument("--manos", nargs="+", default=["izq", "der"], choices=["izq", "der"])
     ap.add_argument("--preformas", nargs="+", default=list(objetos["preformas"]), choices=list(objetos["preformas"]))
     ap.add_argument("--tactil", type=float, default=0.0, metavar="S", help="S segundos para apretar la yema del indice")
+    ap.add_argument("--mapa-tactil", type=float, default=0.0, metavar="S",
+                    help="las 17 zonas del tactil: 2 s sin tocar y S s apretando en varios sitios")
+    ap.add_argument("--speed", type=int, default=None, help="SPEED_SET al cerrar (por defecto, mano.speed_cierre)")
+    ap.add_argument("--sin-preformas", action="store_true", help="no cerrar ni abrir (p. ej. solo el mapa del tactil)")
     ap.add_argument("--solo-leer", action="store_true", help="conectar y leer, sin mover los dedos")
     ap.add_argument("--sim", action="store_true", help="con la mano simulada (sim/mano_simulada.py), en la PC")
     a = ap.parse_args()
@@ -175,7 +235,9 @@ def main():
     reg.resumen["args"] = vars(a)
     cierres = force_set_de_preforma(objetos)
     print(f"\n  Manos {', '.join(a.manos)}: " + ("solo leer." if a.solo_leer else
-          f"preformas {', '.join(a.preformas)}, cerrar en el aire y abrir" + (f"; tactil {a.tactil:g} s." if a.tactil else ".")))
+          ("" if a.sin_preformas else f"preformas {', '.join(a.preformas)}, cerrar en el aire" +
+           (f" a SPEED {a.speed}" if a.speed else "") + " y abrir") +
+          (f"; tactil {a.tactil:g} s" if a.tactil else "") + (f"; mapa del tactil {a.mapa_tactil:g} s" if a.mapa_tactil else "")))
     manos = {}
     try:
         for lado in a.manos:
@@ -185,6 +247,10 @@ def main():
                 cliente = ManoSimulada()
             try:
                 manos[lado] = Mano(lado, cfg, cliente=cliente)
+                if a.speed:
+                    manos[lado].speed_cierre = min(int(a.speed), 100)
+                    # ~1.5 cuentas/s por unidad de SPEED en el robot: la espera del cierre crece al ir mas despacio
+                    manos[lado].t_cerrar = max(manos[lado].t_cerrar, 1000 / (1.5 * manos[lado].speed_cierre) + 3)
             except Parada as ex:
                 print(f"  [{lado}] {ex}")
         if not manos:
@@ -203,10 +269,12 @@ def main():
         for lado, p in pruebas.items():
             print(f"\n  --- mano {lado} ---")
             p.base_y_ruido()
-            for nombre in a.preformas:
+            for nombre in ([] if a.sin_preformas else a.preformas):
                 p.preforma_cerrar_abrir(nombre, objetos["preformas"][nombre], cierres.get(nombre))
             if a.tactil:
                 p.apretar_yema(a.tactil)
+            if a.mapa_tactil:
+                p.mapa_tactil(a.mapa_tactil)
             reg.resumen.setdefault("manos", {})[lado] = p.resumen()
     except KeyboardInterrupt:
         print("\n  Ctrl+C: abriendo las manos")

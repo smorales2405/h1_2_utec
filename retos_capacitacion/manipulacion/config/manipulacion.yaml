@@ -130,6 +130,11 @@ mano:                   # manip/mano.py; registros y trampas en la memoria del p
                         # inspire_hand_interface, que tambien exige 3 ciclos para cualquier umbral)
   abierta_min: 900      # ANGLE_ACT de los cuatro dedos por encima de esto = mano abierta
   t_abrir_s: 3.0        # si no abre en este tiempo: borrar error (1004) y reintentar
+  t_cerrar_s: 10.0      # el cierre espera a que los dedos se paren, como mucho esto: en el robot cierran a ~150
+                        # cuentas/s con SPEED 100 (1000 -> 0 en ~7 s; con 4 s seguian moviendose, 2026-11-11)
+  compensar_base: true  # FORCE_SET + la fuerza de la mano abierta (el firmware compara con FORCE_ACT en bruto: el
+                        # anular derecho, +210 gf en reposo, no se movia con FORCE_SET 300)
+  force_set_min: 100    # ... y nunca por debajo de esto (por debajo de ~60-150 el dedo se frena en el aire)
   t_base_s: 10.0        # linea base de fuerza: mano abierta, sin carga y >= 10 s desde la ultima suelta
   hz_lectura: 30        # cada DOF publica cada ~30.7 ms
 

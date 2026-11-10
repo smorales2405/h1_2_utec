@@ -994,3 +994,29 @@ mano simulada (las dos manos, las tres preformas: abre y todo "vacío", 160 gf d
 salida segura con **una** lectura por encima de 1200 gf: una corrupta paraba la tirada. Ahora hacen falta
 `mano.persistencia_corte` (3) lecturas seguidas; el vigilante cuenta lecturas distintas (por su t), no vueltas
 suyas. Pruebas en `tests/test_mano.py` (2 nuevas).
+
+## 35. Las manos reales en el aire (2026-11-11)
+
+`probar_manos.py --tactil 10` en el robot (`datos/manos_20261111_061312`), las dos manos, las tres preformas.
+**Las dos manos contestan, hacen las preformas y abren siempre** (1.8–2.5 s), sin errores del firmware. Una lectura
+del estado tarda 2 ms (máx. 11) y la del táctil del índice 1–2 ms (máx. 11) por Modbus TCP.
+
+- **Cierran a ~150 cuentas/s con SPEED 100** (1000 → 0 en ~7 s; la simulada iba al doble). `cerrar()` esperaba
+  4 s: a los 4 s el meñique, el anular y el medio **seguían moviéndose**, y el "flojo" de `agarre()` no decía nada.
+  Ahora espera a que se paren hasta `mano.t_cerrar_s` (10 s), y "parada" es no apartarse más de 6 cuentas en
+  0.3 s (antes, entre lecturas seguidas: despacio, un dedo en marcha parecía parado).
+- **El índice choca con la punta del pulgar** (lo vio el usuario): con el pulgar enfrente (rotación 0) y cerrando a
+  300, el índice se para en 445 (derecha, la fuerza salta a ~250 gf) y ~498 (izquierda). Es un contacto limitado
+  por FORCE_SET, pero **en vacío los dedos no llegan a 0**: la pista del PDF ("un dedo que se para lejos de 0 con
+  fuerza tiene algo") daría "lleno" sin objeto. Hay que medir dónde se para cada dedo cerrando en vacío (más
+  despacio) y comparar con eso, o cerrar sin que el pulgar se cruce.
+- **El anular derecho no se movió con FORCE_SET 300** (se quedó en 992): abierto marca +210 gf y el firmware
+  compara con FORCE_ACT en bruto (le quedaban 90 gf). Con 800 (preformas, abrir) iba bien. `mano.py` escribe ahora
+  FORCE_SET + la base de la mano abierta (`compensar_base`), entre 100 y 800. Bases medidas: izquierda
+  [85, 93, −4, 74, −36, 25] y derecha [33, 210, 38, 106, −10, −150] gf.
+- **El táctil no respondió:** apretando la yema del índice subió 4 (izquierda) y 0 (derecha), y la izquierda,
+  sin tocarla, varió hasta 254 cuentas (desviación 52). Los registros (4110 y 4128) son los de la interfaz de
+  `inspire_hand_interface` (que lo leía por serie). `probar_manos.py --mapa-tactil S` lee las 17 zonas para ver
+  cuál responde y cuál varía sola.
+- Estado del firmware: 1 moviéndose, 2 parado; el pulgar (flexión) dio 255 al leerlo con la mano quieta.
+- Pruebas: `tests/test_mano.py` (la base en FORCE_SET y el cierre lento).

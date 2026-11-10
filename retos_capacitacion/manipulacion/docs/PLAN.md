@@ -479,7 +479,7 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 - [x] Carpeta con `README.md`, lanzadores, `config/manipulacion.yaml` y `manip/mensajes.py` con la tabla de interfaces
 - [x] `instalar_entorno.sh` y comprobar en el PC2 las importaciones y el DDS desde el `.venv` (2026-10-13: pinocchio 4.1 y numpy 2.2, ver RESULTADOS §2)
 - [x] `camara_servidor` y `fuentes.py`: grabado por ZMQ y leído como dataset (con el extrínseco profundidad → color)
-- [ ] `robot.py` y `registro.py`, solo lectura; `mano.py` abriendo y cerrando en el aire (probados con el robot y la mano simulados; `herramientas/probar_manos.py`: en el robot las manos abren y cierran, RESULTADOS §35; falta el cierre en vacío más despacio, el táctil y `robot.py`/`registro.py`)
+- [ ] `robot.py` y `registro.py`, solo lectura; `mano.py` abriendo y cerrando en el aire (probados con el robot y la mano simulados; `herramientas/probar_manos.py`: en el robot las manos abren y cierran, RESULTADOS §35–36; cierre en vacío calibrado por mano en `config/manos.yaml` y táctil descartado; falta comprobar la calibración en el robot y `robot.py`/`registro.py`)
 - [x] `cinematica.py` con pruebas, y FK frente a MuJoCo < 1 mm (< 0.1 mm; pruebas también en el PC2)
 - [x] `sim/escena.py` con el montaje medido (2026-10-13) y la cámara virtual; comparado con la captura real y cierre de la medida en 0.6 mm
 - [x] `generar_sintetico.py`; calibración que recupera la cámara virtual (1.3 mm y 0.07°)
@@ -530,6 +530,7 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 - [x] `vibracion_camara.py` (2026-11-11, RESULTADOS §32): la cámara, quieta (≤ 0.1 px, < 0.2 mm en la mesa, por debajo del ruido de la detección)
 - [x] **El yaw de la IMU deriva** (entre +0.4 y −0.6°/min con el robot quieto, 2026-11-11): `manip/giro.py` le quita la deriva medida con los ArUco 2–3 de la mesa; con los 60 s reales, de −0.45° a −0.04° (RESULTADOS §33). Falta verlo en una tirada en el robot
 - [x] `curva_pasos.py` a 8, 10, 20 y 30 s; duración mínima al YAML (2026-11-11, RESULTADOS §30–31): 0 pasos, ≤ 0.19° de pitch y ≤ 0.31° de giro a cualquier duración; manda el desplazamiento del centro de masas, no la velocidad; `t_min_mov_s` 8 s
+- [ ] **Contacto del nivel 1 sin táctil** (no responde por Modbus TCP, RESULTADOS §36): medir la fuerza del índice (señalar) y el error del brazo bajando despacio sobre la mesa; fijar `contacto.umbral_gf`
 - [ ] `fuerza_mano.py` con la báscula: fuerza real, sobreimpulso por SPEED, apertura tras cerrar por fuerza y contacto de la yema. Lo de banco ya está en `inspire_hand_interface` (RESULTADOS §34); falta FORCE_ACT contra la báscula de cocina (un dedo sobre el plato), pesar los objetos y la esfera de PLA
 - [ ] `objetos.yaml`: peso, medidas, agarre y FORCE_SET por objeto
 

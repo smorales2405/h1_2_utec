@@ -190,11 +190,13 @@ class Supervisor:
         self._a("DESCENSO", "despacio hasta notar la mesa con la yema", {"base_gf": base.round(0).tolist()})
         contacto = {"t": None, "f": 0.0, "tactil": 0.0}
 
+        usar_tactil = self.c.get("usar_tactil", False)
+
         def notar():
             e = mano.leer()
             f = float(e.fuerza[3] - e.base[3])
-            t = mano.tactil_yema()
-            if f > self.c["umbral_gf"] or t > self.c.get("umbral_tactil", 60):
+            t = mano.tactil_yema() if usar_tactil else 0.0
+            if f > self.c["umbral_gf"] or (usar_tactil and t > self.c.get("umbral_tactil", 60)):
                 contacto.update(t=time.monotonic(), f=f, tactil=t)
                 raise Contacto()
         try:

@@ -166,3 +166,62 @@ def test_cierre_lento_no_se_da_por_parado():
     mano.speed_cierre = 20                       # 60 cuentas/s en la simulada: 4 s de 250 a 0
     e = mano.cerrar([300, 300, 300, 300, 350, -1])
     assert e.angulo[:4].max() <= 5, e.angulo
+
+
+CAL = {"tope_vacio": [1, None, 21, 447, 304, None], "residuo_gf": [231, 392, 223, 233, 225, 0]}   # la derecha, 2026-11-11
+
+
+def test_calibracion_del_cierre_en_vacio():
+    """El indice cierra hasta su tope en vacio + margen (no choca con el pulgar) y FORCE_SET suma el residuo de cada
+    dedo (el anular derecho no cerraba con 305)."""
+    cfg = copy.deepcopy(config.cargar())
+    cfg["mano"].update(t_base_s=0.0, compensar_base=True, compensar_residuo=True, margen_tope=40)
+    sim = ManoSimulada()
+    mano = Mano("der", cfg, cliente=sim, calibracion=CAL)
+    assert mano.cierre[:5] == [0, 0, 0, 487, 300]
+    mano.base = np.array([4.0, 5.0, 14.0, -19.0, -68.0, -164.0])
+    mano.escribir_force_set([300, 300, 300, 300, 350, -1])
+    assert sim.fset.tolist() == [535, 697, 537, 514, 507, 800]
+    # en vacio el indice llega a su consigna (487): "vacio"; con algo delante se para antes, con fuerza: "lleno"
+    e = mano.cerrar([-1, -1, 300, 300, 350, -1])
+    ok, det = mano.agarre(e, [-1, -1, 300, 300, 350, -1])
+    assert det[3] == "vacio" and abs(e.angulo[3] - 487) < 10 and not ok
+    mano.abrir()
+    sim.poner_objeto({2: 650, 3: 700, 4: 600})
+    e = mano.cerrar([-1, -1, 300, 300, 350, -1])
+    ok, det = mano.agarre(e, [-1, -1, 300, 300, 350, -1])
+    assert det[3] == "lleno" and ok
+
+
+def test_sin_calibracion_con_cliente():
+    """Con la mano simulada (un cliente) no se carga config/manos.yaml: la simulacion sigue como estaba."""
+    mano, _ = _mano()
+    assert mano.calibracion is None and mano.cierre[3] == 0 and not mano.residuo.any()
+
+
+def test_calibracion_desde_un_registro(tmp_path):
+    import csv
+    import importlib.util
+    import json
+    import os
+    spec = importlib.util.spec_from_file_location("probar_manos", os.path.join(config.RAIZ, "herramientas", "probar_manos.py"))
+    pm = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(pm)
+    dedos = {"menique": {"se_paro_en": 1, "fuerza_neta": 231}, "anular": {"se_paro_en": 965, "fuerza_neta": 201},
+             "medio": {"se_paro_en": 19, "fuerza_neta": 223}, "indice": {"se_paro_en": 447, "fuerza_neta": 228},
+             "pulgar": {"se_paro_en": 304, "fuerza_neta": 220}}
+    res = {"manos": {"der": {"pasos": [{"preforma": "abierta_opuesta", "en_preforma": [999, 998, 998, 998, 1000, 0],
+                                        "dedos": dedos}]}}}
+    (tmp_path / "resumen.json").write_text(json.dumps(res))
+    with open(tmp_path / "manos.csv", "w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["lado"] + [f"{c}{k}" for c in ("ang", "f", "base", "fset") for k in range(6)])
+        for _ in range(5):                                      # el anular cerrado del todo por una preforma (800)
+            w.writerow(["der", 1, 0, 998, 998, 998, 0, 230, 397, 10, 10, 10, 10, 4, 5, 14, -19, -68, -164,
+                        800, 800, 300, 300, 350, 800])
+    cal = pm.calibracion_de_registro(str(tmp_path))["der"]
+    assert cal["tope_vacio"][:5] == [1, None, 19, 447, 304]
+    assert cal["residuo_gf"][:5] == [231, 392, 223, 228, 220]
+    ruta = pm.guardar_calibracion({"der": cal}, str(tmp_path), ruta=str(tmp_path / "manos.yaml"))
+    from manip.mano import cargar_calibracion
+    assert cargar_calibracion("der", ruta)["tope_vacio"][3] == 447

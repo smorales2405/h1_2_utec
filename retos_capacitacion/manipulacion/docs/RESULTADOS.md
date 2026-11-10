@@ -1020,3 +1020,36 @@ del estado tarda 2 ms (máx. 11) y la del táctil del índice 1–2 ms (máx. 11
   cuál responde y cuál varía sola.
 - Estado del firmware: 1 moviéndose, 2 parado; el pulgar (flexión) dio 255 al leerlo con la mano quieta.
 - Pruebas: `tests/test_mano.py` (la base en FORCE_SET y el cierre lento).
+
+## 36. Cierre en vacío, calibración por mano y fuera el táctil (2026-11-11)
+
+`probar_manos.py --speed 50 --preformas abierta_opuesta tres_dedos --mapa-tactil 30`
+(`datos/manos_20261111_062824`), con la espera larga y la base en FORCE_SET del §35:
+
+- **A SPEED 50 cierran a ~80 cuentas/s** (12 s de 1000 a 0). Meñique, anular y medio llegan a 0–24. **Solo el
+  índice choca con la punta del pulgar**, siempre en el mismo sitio: izquierda 498–502, derecha 445–447 (también
+  a SPEED 100 en el §35), con 170–233 gf.
+- **Fuerza de cada dedo cerrado en vacío (su propia flexión):** izquierda 149/110/131/205/47 gf (meñique, anular,
+  medio, índice contra el pulgar, pulgar); derecha 231/392/223/233/225. El **anular derecho** marca 392 gf
+  cerrado del todo (con FORCE_SET 800, en la preforma) y con 305 se paró en 965: no cierra en el aire. La base de
+  la mano abierta cambia de una vez a otra (el anular derecho, 210 gf en el §35 y 5 aquí).
+- **El táctil no responde por Modbus TCP:** de los 1062 taxeles de cada mano, solo ~30 cambian en toda la
+  grabación apretando la punta y la yema de cada dedo y la palma (como mucho 22–60 cuentas en la izquierda y 12 en
+  la derecha, por debajo del umbral de 41) y algunos varían solos (la punta del medio izquierdo, 226). El índice
+  izquierdo varió 254 sin tocarlo en el §35. En banco, por serie, sí respondía (`inspire_hand_interface`).
+
+Cambios:
+
+- **`config/manos.yaml`** (`probar_manos.py --guardar-cierre <registro>`): por mano y dedo, dónde se para
+  cerrando en vacío (`tope_vacio`) y su fuerza ahí (`residuo_gf`). `manip/mano.py` (solo con la mano real):
+  - el índice cierra hasta su tope + `margen_tope` (40): izquierda 542, derecha 487. **En vacío ya no choca con
+    el pulgar y llega a su consigna** ("vacío"); con un objeto se para antes, con fuerza ("lleno");
+  - FORCE_SET = el del objeto + la base + el residuo (`compensar_residuo`), entre 100 y 800: para 300 gf,
+    izquierda ~400–505 y derecha ~510–700 (el anular, 692).
+- **Fuera el táctil** (`contacto.usar_tactil: false`): el toque del nivel 1 se nota solo con la fuerza del índice
+  (`contacto.umbral_gf`); antes bastaba con que el táctil subiera, y una lectura suelta de 254 lo habría
+  disparado. El agarre nunca lo usó (ángulo y fuerza, la pista del PDF). Para 6.4.4 (táctil, fuerza de los dedos o
+  error del brazo): el táctil queda descartado con estos datos; falta medir la fuerza del índice y el error del
+  brazo bajando sobre la mesa.
+- Pruebas: `tests/test_mano.py` (3 nuevas: la calibración en `Mano`, sin ella con la mano simulada, y sacarla de un
+  registro).

@@ -1,0 +1,15 @@
+# Las manos del robot cerrando en vacio (herramientas/probar_manos.py --guardar-cierre). Por mano y
+# DOF (menique, anular, medio, indice, pulgar, rotacion): tope_vacio, donde se para cerrando en vacio
+# (null: no se movio); residuo_gf, la fuerza neta que marca cerrado (su propia flexion). manip/mano.py:
+# el indice cierra hasta su tope + margen_tope (no choca con el pulgar) y FORCE_SET suma el residuo.
+izq:
+  tope_vacio: [2, 0, 24, 502, 302, null]
+  residuo_gf: [149, 110, 131, 205, 47, 0]
+  notas: []
+der:
+  tope_vacio: [1, null, 21, 447, 304, null]
+  residuo_gf: [231, 392, 223, 233, 225, 0]
+  notas: ['anular: no se movio al cerrar (se paro en 965, 201 gf)', 'anular: residuo
+      cerrado del todo por la preforma, 392 gf']
+origen: manos_20261111_062824
+fecha: 2026-11-10 17:35

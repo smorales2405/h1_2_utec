@@ -19,6 +19,7 @@ En el robot (probar_manos.py, 2026-11-11): con SPEED 100 los dedos cierran a ~15
 la punta del pulgar (~250 gf con FORCE_SET 300): en vacio los dedos no llegan a 0.
 """
 
+import os
 import struct
 import threading
 import time
@@ -53,9 +54,27 @@ def bytes_de(registros):
     return [(int(r) >> s) & 0xFF for r in registros for s in (8, 0)]
 
 
+RUTA_CALIBRACION = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config", "manos.yaml")
+
+
+def cargar_calibracion(lado, ruta=RUTA_CALIBRACION):
+    """{tope_vacio, residuo_gf} de config/manos.yaml para `lado` (probar_manos.py --guardar-cierre), o None."""
+    if not os.path.exists(ruta):
+        return None
+    import yaml
+    with open(ruta) as fh:
+        return (yaml.safe_load(fh) or {}).get(lado)
+
+
 class Mano:
-    def __init__(self, lado, cfg, cliente=None, dormir=time.sleep):
-        """cliente: un ModbusTcpClient (o el simulado de sim/mano_simulada.py en las pruebas)."""
+    def __init__(self, lado, cfg, cliente=None, dormir=time.sleep, calibracion="auto"):
+        """cliente: un ModbusTcpClient (o el simulado de sim/mano_simulada.py en las pruebas). calibracion: la de
+        config/manos.yaml de esta mano ("auto": solo con la mano real, sin cliente), un dict o None.
+          tope_vacio[k]: donde se para el DOF k cerrando en vacio. Si un dedo se para lejos de 0 (el indice, contra
+            la punta del pulgar), su consigna de cierre pasa a tope + margen_tope: en vacio no choca y llega a ella
+            ("vacio"); con un objeto se para antes, con fuerza ("lleno").
+          residuo_gf[k]: la fuerza que marca el dedo cerrado en vacio (su propia flexion: 100-390 gf en el robot).
+            Con compensar_residuo se suma a FORCE_SET: si no, un dedo duro no cierra (anular derecho, 392 gf)."""
         m = cfg["mano"]
         self.lado = lado
         self.p = m
@@ -69,6 +88,18 @@ class Mano:
         self.compensar_base = bool(m.get("compensar_base", False))
         self.fs_min = int(m.get("force_set_min", 100))
         self.cierre = [int(x) for x in m.get("cierre", [0, 0, 0, 0, 300, -1])]
+        self.compensar_residuo = bool(m.get("compensar_residuo", False))
+        self.residuo = np.zeros(6)
+        cal = cargar_calibracion(lado) if calibracion == "auto" and cliente is None else \
+            (None if calibracion == "auto" else calibracion)
+        self.calibracion = cal
+        if cal:
+            margen = int(m.get("margen_tope", 40))
+            for k, tope in enumerate(cal.get("tope_vacio") or []):
+                if k in DEDOS and tope is not None and tope > 60:
+                    self.cierre[k] = max(self.cierre[k], int(tope) + margen)
+            r = [float(x or 0.0) for x in (cal.get("residuo_gf") or [])][:6]
+            self.residuo = np.array(r + [0.0] * (6 - len(r)))
         self._dormir = dormir
         if cliente is None:
             from pymodbus.client import ModbusTcpClient
@@ -118,6 +149,7 @@ class Mano:
                 v.append(self.fs_abierta)
                 continue
             b = float(self.base[k]) if self.compensar_base else 0.0
+            b += float(self.residuo[k]) if self.compensar_residuo else 0.0
             v.append(int(min(max(round(x + b), self.fs_min), self.fs_max)))
         self.escribir(FORCE_SET, v)
         self.force_set = np.array(v, float)
@@ -231,6 +263,7 @@ class Mano:
                 continue
             neta = e.fuerza[k] - e.base[k]
             if e.angulo[k] <= max(vacio_max, self.cierre[k] + vacio_max if self.cierre[k] > 0 else 0):
+                # llego (o casi) a su consigna de cierre: en vacio (con tope_vacio, la del indice queda antes del pulgar)
                 detalle[k] = "vacio"
             elif neta >= fuerza_min:
                 detalle[k] = "lleno"

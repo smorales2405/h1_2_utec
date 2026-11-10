@@ -44,6 +44,53 @@ from manip.registro import Registro, fila_mano  # noqa: E402
 NOMBRES_DOF = ["menique", "anular", "medio", "indice", "pulgar", "rotacion"]
 
 
+def calibracion_de_registro(carpeta, mover_min=200):
+    """{lado: {tope_vacio, residuo_gf, notas}} de un registro de probar_manos.py (cierres en el aire): donde se paro
+    cada dedo que se movio (>= mover_min cuentas) y la fuerza neta que marcaba; si un dedo no se movio (FORCE_SET por
+    debajo de su propia flexion), su residuo sale de manos.csv con el dedo cerrado del todo por la preforma (800)."""
+    import csv
+    import json
+    with open(os.path.join(carpeta, "resumen.json")) as fh:
+        res = json.load(fh)
+    with open(os.path.join(carpeta, "manos.csv")) as fh:
+        filas = list(csv.DictReader(fh))
+    sal = {}
+    for lado, r in res.get("manos", {}).items():
+        tope, residuo, notas = [None] * 6, [0.0] * 6, []
+        for p in r.get("pasos", []):
+            for nombre, d in (p.get("dedos") or {}).items():
+                k = NOMBRES_DOF.index(nombre)
+                if p["en_preforma"][k] - d["se_paro_en"] >= mover_min:
+                    tope[k] = max(tope[k] or 0, int(d["se_paro_en"]))
+                    residuo[k] = max(residuo[k], float(d["fuerza_neta"]))
+                elif tope[k] is None:
+                    notas.append(f"{nombre}: no se movio al cerrar (se paro en {d['se_paro_en']}, {d['fuerza_neta']} gf)")
+        R = [x for x in filas if x["lado"] == lado]
+        for k in range(5):
+            if tope[k] is None:
+                netas = [float(x[f"f{k}"]) - float(x[f"base{k}"]) for x in R
+                         if float(x[f"ang{k}"]) < 30 and float(x[f"fset{k}"]) >= 800]
+                if netas:
+                    residuo[k] = float(np.median(netas))
+                    notas.append(f"{NOMBRES_DOF[k]}: residuo cerrado del todo por la preforma, {residuo[k]:.0f} gf")
+        sal[lado] = {"tope_vacio": tope, "residuo_gf": [int(round(v)) for v in residuo], "notas": notas}
+    return sal
+
+
+def guardar_calibracion(cal, carpeta, ruta=None):
+    from manip.mano import RUTA_CALIBRACION
+    ruta = ruta or RUTA_CALIBRACION
+    datos = dict(cal)
+    datos["origen"] = os.path.basename(os.path.normpath(carpeta))
+    datos["fecha"] = time.strftime("%Y-%m-%d %H:%M")
+    config.guardar_yaml(ruta, datos,
+                        "Las manos del robot cerrando en vacio (herramientas/probar_manos.py --guardar-cierre). Por mano y\n"
+                        "DOF (menique, anular, medio, indice, pulgar, rotacion): tope_vacio, donde se para cerrando en vacio\n"
+                        "(null: no se movio); residuo_gf, la fuerza neta que marca cerrado (su propia flexion). manip/mano.py:\n"
+                        "el indice cierra hasta su tope + margen_tope (no choca con el pulgar) y FORCE_SET suma el residuo.")
+    return ruta
+
+
 def force_set_de_preforma(objetos):
     """{preforma: (objeto, force_set)} con el primer objeto de la tabla que la usa."""
     sal = {}
@@ -227,8 +274,17 @@ def main():
     ap.add_argument("--speed", type=int, default=None, help="SPEED_SET al cerrar (por defecto, mano.speed_cierre)")
     ap.add_argument("--sin-preformas", action="store_true", help="no cerrar ni abrir (p. ej. solo el mapa del tactil)")
     ap.add_argument("--solo-leer", action="store_true", help="conectar y leer, sin mover los dedos")
+    ap.add_argument("--guardar-cierre", metavar="CARPETA",
+                    help="no mueve nada: de un registro de cierres en el aire, escribe config/manos.yaml")
     ap.add_argument("--sim", action="store_true", help="con la mano simulada (sim/mano_simulada.py), en la PC")
     a = ap.parse_args()
+    if a.guardar_cierre:
+        cal = calibracion_de_registro(a.guardar_cierre)
+        for lado, c in cal.items():
+            print(f"  {lado}: tope en vacio {c['tope_vacio']}, residuo {c['residuo_gf']} gf" +
+                  "".join(f"\n    - {n}" for n in c["notas"]))
+        print(f"  -> {guardar_calibracion(cal, a.guardar_cierre)}")
+        return
     if a.sim:
         cfg["mano"]["t_base_s"] = 0.5
     reg = Registro(getattr(a, "datos", None) or config.ruta_datos(cfg), "manos", "sim" if a.sim else None)

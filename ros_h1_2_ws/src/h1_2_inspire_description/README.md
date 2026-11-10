@@ -117,8 +117,8 @@ other way round. The palm (`*_hand_base_link`) keeps each side's own vendor mesh
 
 Both palms declare the **same inertial, set from a scale reading of the real
 hand**: **0.840 kg** for the whole hand, wrist flange included. The 12 digits keep
-their exported 0.143381 kg, so the palm carries **0.696619 kg**. The flange is
-deliberately absent from the visual and collision model.
+their exported 0.143381 kg, so the palm carries **0.696619 kg**. The flange in
+the palm mesh is the short one the robot carries (see *Hand mounting points*).
 
 The deficit was put entirely in the palm rather than spread over the hand. The
 CAD export left almost every link at SolidWorks' default 1000 kg/m³ — palm,
@@ -139,9 +139,70 @@ the vendor's mass distribution.
 ### Hand mounting points
 
 ```
-left_wrist_yaw_link  ──(fixed, xyz=0.165 -0.1125 -0.0075, rpy=π π/2 π)──► left_hand_base_link
-right_wrist_yaw_link ──(fixed, xyz=0.165  0.1125 -0.0075, rpy=0  π/2 0)──► right_hand_base_link
+left_wrist_yaw_link  ──(fixed, xyz=0.161 -0.1125 -0.0075, rpy=π π/2 π)──► left_hand_base_link
+right_wrist_yaw_link ──(fixed, xyz=0.161  0.1125 -0.0075, rpy=0  π/2 0)──► right_hand_base_link
 ```
+
+From the wrist outwards, the real joint is made of three parts, and the model
+now has all three:
+
+| Part | Size | In the model |
+|---|---|---|
+| End of `*_wrist_yaw_link` | Ø56 face at `x = 0.054` | Unitree's mesh, unchanged |
+| Adapter ring, bolted on that face | Ø56 × 10 mm, `x = 0.054 … 0.064` | **added** to `meshes/h1_2/wrist_yaw_link.STL` |
+| Hand flange (RH56DFTP-2), on the ring | Ø50 × 16 mm, `x = 0.064 … 0.080` | **shortened** in both `base_link.STL` |
+
+The flange is a cup held by four radial screws; its end face sits on the outer
+face of the ring, `x = 0.064`. The palm origin lies 80.96 mm above the top of the
+flange, hence `x = 0.064 + 0.016 + 0.081 = 0.161`.
+
+Two meshes differ from their vendors' because of this:
+
+- **`base_link.STL`, both hands.** The vendor's palm is the RH56DFTP-0, with the
+  standard Ø50 × 30 mm flange and its aviation connector. A 14 mm slice was cut
+  out of the flange (the slice holding the connector recess), the rim with its
+  four radial screw holes was moved up against the rest and the connector was
+  dropped. The flange is still a closed solid; every other triangle is byte for
+  byte the vendor's.
+- **`wrist_yaw_link.STL`.** Unitree's mesh has no adapter ring, so the hand
+  appeared to sit 10 mm closer to the wrist than it does. The ring is appended as
+  one more closed solid. Unitree's own `h1_2.urdf` has a 10 mm ring in the same
+  place, as the first 10 mm of its Inspire hand mesh.
+
+**Where the numbers come from.** A photo of the left wrist with the hand mounted
+was compared with this model rendered in MuJoCo through a virtual camera fitted
+to the photo: same focal length, its distance from the apparent diameters of the
+ring and the flange, and its height from the wrist link alone (end face, rounded
+end and yaw axis). The ring length and the flange height were then set so that
+the seat, the edge between the flange and the hand's silver ring, and the screw
+of that ring fall on the photographed ones. The screw lands within about 1 mm,
+and a flange 1 mm taller or shorter shows in the overlay. With the vendor's
+flange and `x = 0.165` the hand sat 4 mm too far out.
+
+The three lengths were then measured on the real robot and agree: the ring is
+10 mm, the flange 16 mm, and flange plus silver ring about 25 mm (24.6 in the
+model).
+
+The flange axis is 0.7 mm (y) and 0.8 mm (z) off the wrist axis, as before.
+
+#### Regenerating the edited meshes
+
+Both edits are scripted and take the vendors' original meshes, which are in
+commit `45099e5`:
+
+```bash
+P=ros_h1_2_ws/src/h1_2_inspire_description
+git show 45099e5:$P/meshes/hand_left/base_link.STL   > /tmp/left.STL
+git show 45099e5:$P/meshes/hand_right/base_link.STL  > /tmp/right.STL
+git show 45099e5:$P/meshes/h1_2/wrist_yaw_link.STL   > /tmp/wrist.STL
+$P/tools/shorten_hand_flange.py   /tmp/left.STL  $P/meshes/hand_left/base_link.STL  16   # flange height, mm
+$P/tools/shorten_hand_flange.py   /tmp/right.STL $P/meshes/hand_right/base_link.STL 16
+$P/tools/add_wrist_adapter_ring.py /tmp/wrist.STL $P/meshes/h1_2/wrist_yaw_link.STL 10   # ring length, mm
+```
+
+With another flange height `h` or ring length `r` (mm), the mount offset is
+`x = 0.054 + (r + h + 80.96)/1000`, to be set in `h1_2_with_inspire_hands.urdf.xacro`
+and in the two flat URDFs.
 
 ### Mass
 
@@ -155,9 +216,10 @@ right_wrist_yaw_link ──(fixed, xyz=0.165  0.1125 -0.0075, rpy=0  π/2 0)─�
 The body figure is the real robot's mass. Every link's mass, centre of mass and
 inertia tensor in `h1_2_body.urdf.xacro` is identical to upstream
 [`h1_2_handless.urdf`](https://github.com/unitreerobotics/unitree_ros/tree/master/robots/h1_2_description)
-— verified link by link, with the 28 body meshes in use matching by checksum.
-Only the mesh paths, the xacro namespace and the material names differ, plus the
-`<mujoco>` compiler block, which this package omits.
+— verified link by link, with the body meshes in use matching by checksum, all
+but `wrist_yaw_link.STL`, which carries the hand's adapter ring (see *Hand
+mounting points*). Only the mesh paths, the xacro namespace and the material
+names differ, plus the `<mujoco>` compiler block, which this package omits.
 
 > **Reading the mass back with Pinocchio.** On a fixed-base model,
 > `pin.computeTotalMass()` returns **62.6810 kg**, not 68.6640 kg. It is not a

@@ -1612,13 +1612,13 @@
   </joint>
   <!-- Left hand attached to left_wrist_yaw_link -->
   <joint name="left_inspire_hand_mount_joint" type="fixed">
-    <origin rpy="3.1415926535 1.5707963267 3.1415926535" xyz="0.165 -0.1125 -0.0075"/>
+    <origin rpy="3.1415926535 1.5707963267 3.1415926535" xyz="0.161 -0.1125 -0.0075"/>
     <parent link="left_wrist_yaw_link"/>
     <child link="left_hand_base_link"/>
   </joint>
   <!-- Right hand attached to right_wrist_yaw_link -->
   <joint name="right_inspire_hand_mount_joint" type="fixed">
-    <origin rpy="0 1.5707963267 0" xyz="0.165 0.1125 -0.0075"/>
+    <origin rpy="0 1.5707963267 0" xyz="0.161 0.1125 -0.0075"/>
     <parent link="right_wrist_yaw_link"/>
     <child link="right_hand_base_link"/>
   </joint>

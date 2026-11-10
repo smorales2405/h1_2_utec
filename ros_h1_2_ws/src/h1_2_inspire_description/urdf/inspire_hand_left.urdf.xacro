@@ -11,8 +11,9 @@
      0.143381 kg, so the palm carries 0.840 - 0.143381 = 0.696619 kg. The
      deficit went to the palm because that is where the six actuators, the
      gearboxes, the controller and the wiring sit, and because the CAD export
-     left almost every link at SolidWorks' default 1000 kg/m3. The flange is
-     NOT in the visual or collision model. The centre of mass is unchanged and
+     left almost every link at SolidWorks' default 1000 kg/m3. The flange in
+     the palm mesh is the 16 mm one of the RH56DFTP-2 (the vendor's 30 mm
+     flange, shortened; see the README). The centre of mass is unchanged and
      the tensor is scaled by 0.696619/0.314091 = 2.217891, which keeps the
      vendor's mass distribution. Both palms carry the same values, mirrored.
 

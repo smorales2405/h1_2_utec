@@ -11,6 +11,8 @@ Lo aprendido (memoria del proyecto, caja_cuadrado.py e inspire_hand_interface/Ca
     FORCE_SET primero y se comprueba con ANGLE_ACT que abrio; si no, se borra el error (1004) y se reintenta
   - la linea base de fuerza, con la mano abierta y >= 10 s desde la ultima suelta (el cero se corre 21-46 gf)
   - 1005 (SAVE) graba en la memoria de la mano: nunca se escribe
+  - hay lecturas sueltas corruptas (3187 gf, 1873 gf, una POS fuera de sitio): un umbral necesita
+    `persistencia_corte` lecturas seguidas (inspire_hand_interface exige 3 ciclos)
 """
 
 import struct
@@ -49,6 +51,7 @@ class Mano:
         self.fs_max = min(int(m["force_set_max"]), 800)
         self.fs_abierta = min(int(m["force_set_abierta"]), self.fs_max)
         self.corte = int(m["corte_gf"])
+        self.persistencia = max(1, int(m.get("persistencia_corte", 3)))
         self.speed_cierre = min(int(m["speed_cierre"]), 100)
         self.speed_abrir = int(m["speed_abrir"])
         self.cierre = [int(x) for x in m.get("cierre", [0, 0, 0, 0, 300, -1])]
@@ -124,14 +127,16 @@ class Mano:
     def _esperar_quieta(self, timeout_s, tol=6, quieta_s=0.3, vigilar=None):
         """Espera a que ANGLE_ACT deje de cambiar. Vigila la fuerza: por encima del corte, Parada."""
         t0 = time.monotonic()
-        prev, desde = None, None
+        prev, desde, sobre = None, None, 0
         while True:
             e = self.leer()
             if vigilar:
                 vigilar()
-            if (e.fuerza - e.base).max() > self.corte:
+            sobre = sobre + 1 if (e.fuerza - e.base).max() > self.corte else 0
+            if sobre >= self.persistencia:
                 self.mover([1000, 1000, 1000, 1000, 1000, -1])
-                raise Parada(f"mano {self.lado}: {int(e.fuerza.max())} gf > corte de {self.corte}")
+                raise Parada(f"mano {self.lado}: {int(e.fuerza.max())} gf > corte de {self.corte} "
+                             f"en {sobre} lecturas seguidas")
             if prev is not None and np.abs(e.angulo - prev).max() <= tol:
                 desde = desde or time.monotonic()
                 if time.monotonic() - desde >= quieta_s:

@@ -95,3 +95,50 @@ def test_error_y_estado_van_en_bytes():
     e = mano.leer()
     assert e.error.tolist() == [0, 0, 0, 4, 0, 0]
     assert e.estado.tolist() == [0] * 6
+
+
+def test_una_lectura_corrupta_no_para():
+    """inspire_hand_interface: lecturas sueltas de 3187 y 1873 gf. Una sola por encima del corte no para; tres
+    seguidas, si."""
+    from types import SimpleNamespace
+    from manip.mensajes import Parada
+    mano, sim = _mano()
+    leer = sim.read_holding_registers
+    n, picos = [0], set()
+
+    def con_pico(a, k, slave=1):
+        r = leer(a, k, slave)
+        if a == m.FORCE_ACT:
+            n[0] += 1
+            if n[0] in picos:
+                regs = list(r.registers)
+                regs[3] = 3187
+                return SimpleNamespace(registers=regs, isError=lambda: False)
+        return r
+    sim.read_holding_registers = con_pico
+    picos.update({3})
+    mano.cerrar([-1, -1, 300, 300, 350, -1])                   # un pico suelto: sigue
+    mano.abrir()
+    n[0] = 0
+    picos.clear()
+    picos.update({3, 4, 5})
+    with pytest.raises(Parada, match="3 lecturas seguidas"):
+        mano.cerrar([-1, -1, 300, 300, 350, -1])
+
+
+def test_el_vigilante_cuenta_lecturas_distintas():
+    from types import SimpleNamespace
+    from manip.vigilante import Vigilante
+    cfg = config.cargar()
+    base = np.zeros(6)
+    lectura = lambda t, f: SimpleNamespace(t=t, fuerza=np.array([0, 0, 0, f, 0, 0], float), base=base)
+    mano = SimpleNamespace(ultimo=lectura(1.0, 3187.0))
+    vig = Vigilante(SimpleNamespace(), cfg, manos={"izq": mano})
+    for _ in range(5):                                          # la misma lectura vista 5 veces: cuenta una
+        assert vig.fuerza_persistente()[1] == 1
+    mano.ultimo = lectura(2.0, 300.0)
+    assert vig.fuerza_persistente()[1] == 0
+    for k in range(3):
+        mano.ultimo = lectura(3.0 + k, 1500.0)
+        f, n = vig.fuerza_persistente()
+    assert n == 3 and f == 1500.0

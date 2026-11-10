@@ -955,3 +955,42 @@ con los ArUco 2 y 3 de la mesa, que no derivan:
 - Pruebas (`tests/test_giro.py`, 5): el gemelo; el hilo con el último fotograma, como en el robot; 10 min de deriva a −0.45°/min con un giro real de 3° a los 5 min y
   un minuto con los marcadores tapados (giro corregido a ±0.05°); el tope del ritmo extrapolado; el vigilante no
   para con casi 6° de deriva y sí con un giro real de 6°.
+
+## 34. Manos: probar_manos.py, el corte de fuerza con persistencia y lo que ya midió inspire_hand_interface (2026-11-11, en la PC)
+
+**Cambio de objeto (usuario):** la pelota de tenis se cambió por una **esfera de PLA naranja de 7 cm** (el color de
+la bandeja D y del prisma; peso sin medir). No afecta al Hito 3; antes de los niveles 2–4: color, masa y FORCE_SET
+en `objetos.yaml` (rígida y lisa: rueda y resbala más que el fieltro), el gemelo y los datos sintéticos, y
+distinguirla del prisma por la forma (7 × 7 × 7 cm frente a 10 × 4 × 4; la profundidad ve las esferas más bajas).
+
+**Lo que ya está medido en banco** (`/home/utec/Documents/inspire_hand_interface`, resumen de sus documentos):
+
+- La fuerza es **FORCE_ACT** (gf, tarado con la mano abierta), sin báscula ni sensor externo: ningún gramo está
+  calibrado contra una referencia (lo tienen pendiente). Residual de flexión sin objeto: 70–232 gf según la
+  posición del dedo.
+- **Lecturas sueltas corruptas** (3187 gf, 1873 gf, una POS fuera de sitio): todo umbral necesita persistencia
+  (ellos exigen 3 ciclos).
+- **Sobreimpulso:** lo manda la velocidad (índice con FORCE_SET 500: 54 gf a SPEED 25, hasta ~3000 gf a 750; el
+  pulgar, 0.3–0.6 de eso). FORCE_SET bajo no protege: por debajo de ~150 (meñique), 80 (anular), 60 (medio) y 53
+  (pulgar) el dedo se frena en el aire. Tras el pico el firmware no sostiene FORCE_SET (se relaja ~10 %).
+  **Techo sostenible:** 455–745 gf según dedo y pose.
+- **Enclavamiento** al llegar a FORCE_SET (no acepta ANGLE_SET): ellos suben FORCE_SET antes de abrir, como
+  `mano.py` (a 800, el tope de la sección 10; nuestros cierres a 300–350 no llegan ahí).
+- **Táctil:** 17 zonas; yemas 3×3 (la del índice en 4110, la que lee `mano.py`), ruido casi nulo (el 93 % de los
+  taxeles con σ = 0), umbral `max(5σ, 41 cuentas)`, ~250 cuentas de residuo tras apretar fuerte. Sin calibrar a
+  fuerza, no se usó en ningún agarre ni se probó el contacto con una superficie; el ritmo por TCP, sin medir.
+- **Agarres:** cubo de PLA con tres dedos 295/179/341 gf estable (con dos, inestable); bola de espuma 7 cm con tres
+  dedos a ~280 gf, 60 s; mandarina ~120 g resbala a 150 gf y pide ~300. **Ninguna esfera rígida y lisa.**
+
+**`herramientas/probar_manos.py`** (Fase 0 y Hito 3, "la mano abre y cierra en el aire"): con `manip/mano.py`, por
+mano, leer (ángulos, fuerza, error y estado del firmware), línea base, ruido del táctil de la yema del índice con la
+mano quieta y **ritmo de lectura por Modbus TCP** del estado y del táctil (la latencia del contacto del nivel 1);
+cada preforma de `objetos.yaml`, cerrar en el aire con el FORCE_SET de un objeto que la usa y comprobar que
+`mano.agarre()` dice "vacío" en todos los dedos (un falso "lleno" en el aire rompería la pista del PDF), y abrir
+comprobando que abre; `--tactil S` para apretar la yema y ver si pasa el umbral. No mueve los brazos. Probado con la
+mano simulada (las dos manos, las tres preformas: abre y todo "vacío", 160 gf de flexión en el aire).
+
+**Corte de fuerza con persistencia:** `mano.py` (al esperar a que la mano se pare) y el vigilante disparaban la
+salida segura con **una** lectura por encima de 1200 gf: una corrupta paraba la tirada. Ahora hacen falta
+`mano.persistencia_corte` (3) lecturas seguidas; el vigilante cuenta lecturas distintas (por su t), no vueltas
+suyas. Pruebas en `tests/test_mano.py` (2 nuevas).

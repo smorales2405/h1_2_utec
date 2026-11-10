@@ -162,9 +162,9 @@ def test_sin_latido_congela_y_quita_el_control():
     b = cliente(srv)
     b.rampa_peso(1.0)
     b._vivo = False                                        # manipulacion.py se cuelga: sin latido
-    time.sleep(0.4)
-    assert srv.controlado == b.id                          # aun no
-    time.sleep(0.5)
+    time.sleep(0.2)                                        # a mitad del plazo (a los 0.4 justos, una carrera con la
+    assert srv.controlado == b.id                          # comprobacion del servidor, cada 0.1 s): aun no
+    time.sleep(0.7)
     assert srv.controlado is None and any("sin noticias" in e for e in eventos)
     assert "quitado el control" in b.motivo_parada()
     with pytest.raises(Parada, match="sin el control|quitado"):

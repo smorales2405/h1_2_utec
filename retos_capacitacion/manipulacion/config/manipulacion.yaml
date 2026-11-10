@@ -126,6 +126,8 @@ mano:                   # manip/mano.py; registros y trampas en la memoria del p
   force_set_max: 800    # seccion 10: tope por dedo, escrito antes de cada cierre
   force_set_abierta: 800    # el que se deja al abrir (nunca el de fabrica, 2000 = sin limite)
   corte_gf: 1200        # fuerza medida que dispara la salida segura
+  persistencia_corte: 3 # ... en tantas lecturas seguidas: la mano da lecturas sueltas corruptas (3187 y 1873 gf;
+                        # inspire_hand_interface, que tambien exige 3 ciclos para cualquier umbral)
   abierta_min: 900      # ANGLE_ACT de los cuatro dedos por encima de esto = mano abierta
   t_abrir_s: 3.0        # si no abre en este tiempo: borrar error (1004) y reintentar
   t_base_s: 10.0        # linea base de fuerza: mano abierta, sin carga y >= 10 s desde la ultima suelta

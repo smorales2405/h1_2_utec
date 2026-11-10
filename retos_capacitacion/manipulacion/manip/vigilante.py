@@ -6,7 +6,8 @@ Se consulta en cada ciclo del brazo (brazo.ir_a(..., comprobar=vigilante.comprob
   - yaw de la IMU > 5 grados desde el inicio de la tirada (sin su deriva, medida con los ArUco de la mesa: giro.py);
     roll o pitch > 10 grados
   - error de seguimiento del brazo por encima del fijado (choque o arm_sdk sin efecto)
-  - fuerza de una mano por encima del corte; mano sin responder
+  - fuerza de una mano por encima del corte en `persistencia_corte` lecturas seguidas (hay lecturas sueltas
+    corruptas); mano sin responder
   - camara sin fotogramas; rt/lowstate sin llegar; motor en fallo; FSM distinta de 201
   - tecla ESPACIO, boton de parada del mando o Ctrl+C
   - con el robot en el arnes (brazo_arnes.py): parada o amortiguacion en arnes.py, o arnes.py sin contestar
@@ -41,6 +42,8 @@ class Vigilante:
         self.joystick_para = s.get("joystick_para", True)
         self.err_max = cfg["brazo"]["err_seguimiento_max_rad"]
         self.corte = cfg["mano"]["corte_gf"]
+        self.persistencia = max(1, int(cfg["mano"].get("persistencia_corte", 3)))
+        self._sobre = {}                    # lado -> (t de la ultima lectura contada, lecturas seguidas sobre el corte)
         self.parada_pedida = None           # la pone la tecla ESPACIO o Ctrl+C
         self.manos_vigiladas = set()        # los lados en uso: solo esas se leen a menudo (las lecturas tienen edad)
         self.vigilar_camara = True
@@ -108,13 +111,31 @@ class Vigilante:
             return f"inclinacion: roll {math.degrees(s.roll):+.1f}, pitch {math.degrees(s.pitch):+.1f} grados"
         if s.error_seguimiento > self.err_max:
             return f"error de seguimiento del brazo {math.degrees(s.error_seguimiento):.1f} grados (choque?)"
-        if s.fuerza_max > self.corte:
-            return f"fuerza de la mano {s.fuerza_max:.0f} gf > {self.corte}"
+        f, n = self.fuerza_persistente()
+        if n >= self.persistencia:
+            return f"fuerza de la mano {f:.0f} gf > {self.corte} en {n} lecturas seguidas"
         if not all(s.mano_ok.values()):
             return f"mano sin respuesta: {[l for l, ok in s.mano_ok.items() if not ok]}"
         if self.vigilar_camara and self.edad_fotograma is not None and s.edad_fotograma > self.fotograma_max_s:
             return f"camara sin fotogramas desde hace {s.edad_fotograma:.2f} s"
         return None
+
+    def fuerza_persistente(self):
+        """(gf, lecturas) de la mano con mas lecturas seguidas por encima del corte. Cuenta lecturas distintas (por
+        su t): la misma vista en varias vueltas del vigilante no suma."""
+        peor = (0.0, 0)
+        for lado, m in self.manos.items():
+            e = m.ultimo
+            if e is None:
+                continue
+            f = float((e.fuerza - e.base)[:5].max())
+            t_prev, n = self._sobre.get(lado, (None, 0))
+            if e.t != t_prev:
+                n = n + 1 if f > self.corte else 0
+                self._sobre[lado] = (e.t, n)
+            if n > peor[1] or (n == peor[1] and f > peor[0]):
+                peor = (f, n)
+        return peor
 
     def comprobar(self):
         m = self.motivo()

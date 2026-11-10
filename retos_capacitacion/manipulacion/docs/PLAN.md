@@ -355,7 +355,8 @@ DDS.
 | `herramientas/calibrar_camara_torso.py` | 6.1.3–4 | Calibración y su residuo; con la q medida y con la consigna | PC | 2 | pendiente |
 | `herramientas/vibracion_camara.py` | 6.2.5 | Los ArUco de la mesa (2–5) durante 60 s con el robot quieto: modo común (la cámara) y diferencia (ruido de la detección) en px, minutos de arco y mm en los marcadores y en la zona, movimiento neto, frecuencia dominante, y la IMU de `arnes.py` en la misma ventana (correlación con el pitch de la imagen); `--dataset` y `--analizar` en la PC | Robot y PC | 2 | hecho, en el robot (RESULTADOS §32) |
 | `herramientas/curva_pasos.py` + `analizar_pasos.py` | 6.3.1–2 | Cliente de `arnes.py` (como `manipulacion.py --arnes`): la observación (centro de masas 4 cm atrás) y un alcance de un brazo (casi quieto) a 30, 20, 10 y 8 s, ida y vuelta; caminos comprobados en el gemelo y parada por la IMU. El análisis da pico, lo que queda y el exceso dinámico de pitch y roll, el giro (yaw), la carga y los tobillos, frente a la velocidad, la aceleración y el desplazamiento del centro de masas, y la duración mínima | Robot y PC | 2 | hecho, en el robot (RESULTADOS §31) |
-| `herramientas/fuerza_mano.py` | 6.4.2–4 | Fuerza real frente a FORCE_SET y SPEED con la báscula, apertura tras cerrar por fuerza y contacto de la yema | Robot | 2 | pendiente |
+| `herramientas/probar_manos.py` **(nuevo)** | Fase 0 y Hito 3 | Las manos reales con `mano.py`: leer, línea base, ruido del táctil y ritmo de lectura por Modbus TCP; cada preforma, cerrar en el aire (todo "vacío") y abrir; `--tactil S` para apretar la yema | Robot | 0 | hecho, probado con la mano simulada (falta en el robot) |
+| `herramientas/fuerza_mano.py` | 6.4.2–4 | Fuerza real frente a FORCE_SET y SPEED con la báscula, apertura tras cerrar por fuerza y contacto de la yema. **Ya medido en banco** con FORCE_ACT (`inspire_hand_interface`, RESULTADOS §34): sobreimpulso por SPEED, techo sostenible, enclavamiento, agarres de cubo y bola de espuma. Falta: FORCE_ACT contra la báscula (un dedo apretando el plato), la esfera de PLA y el contacto de la yema con la mesa | Robot | 2 | en parte (banco) |
 | `herramientas/grabar_dataset.py` | 6.2 | Objetos en posiciones medidas con regla, con y sin mano delante | Robot | 2 | pendiente |
 | `herramientas/generar_sintetico.py` | 6.2 | Dataset de la cámara virtual con la verdad del simulador | PC | 0–2 | pendiente |
 | `herramientas/evaluar_percepcion.py` | 6.2 | Error contra la regla o contra la verdad, reconocimiento, oclusión, objeto movido, ms por fotograma | PC y robot | 2 | pendiente |
@@ -478,7 +479,7 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 - [x] Carpeta con `README.md`, lanzadores, `config/manipulacion.yaml` y `manip/mensajes.py` con la tabla de interfaces
 - [x] `instalar_entorno.sh` y comprobar en el PC2 las importaciones y el DDS desde el `.venv` (2026-10-13: pinocchio 4.1 y numpy 2.2, ver RESULTADOS §2)
 - [x] `camara_servidor` y `fuentes.py`: grabado por ZMQ y leído como dataset (con el extrínseco profundidad → color)
-- [ ] `robot.py` y `registro.py`, solo lectura; `mano.py` abriendo y cerrando en el aire (probados con el robot y la mano simulados; falta el robot)
+- [ ] `robot.py` y `registro.py`, solo lectura; `mano.py` abriendo y cerrando en el aire (probados con el robot y la mano simulados; `herramientas/probar_manos.py` para las manos reales, RESULTADOS §34; falta el robot)
 - [x] `cinematica.py` con pruebas, y FK frente a MuJoCo < 1 mm (< 0.1 mm; pruebas también en el PC2)
 - [x] `sim/escena.py` con el montaje medido (2026-10-13) y la cámara virtual; comparado con la captura real y cierre de la medida en 0.6 mm
 - [x] `generar_sintetico.py`; calibración que recupera la cámara virtual (1.3 mm y 0.07°)
@@ -529,7 +530,7 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 - [x] `vibracion_camara.py` (2026-11-11, RESULTADOS §32): la cámara, quieta (≤ 0.1 px, < 0.2 mm en la mesa, por debajo del ruido de la detección)
 - [x] **El yaw de la IMU deriva** (entre +0.4 y −0.6°/min con el robot quieto, 2026-11-11): `manip/giro.py` le quita la deriva medida con los ArUco 2–3 de la mesa; con los 60 s reales, de −0.45° a −0.04° (RESULTADOS §33). Falta verlo en una tirada en el robot
 - [x] `curva_pasos.py` a 8, 10, 20 y 30 s; duración mínima al YAML (2026-11-11, RESULTADOS §30–31): 0 pasos, ≤ 0.19° de pitch y ≤ 0.31° de giro a cualquier duración; manda el desplazamiento del centro de masas, no la velocidad; `t_min_mov_s` 8 s
-- [ ] `fuerza_mano.py` con la báscula: fuerza real, sobreimpulso por SPEED, apertura tras cerrar por fuerza y contacto de la yema
+- [ ] `fuerza_mano.py` con la báscula: fuerza real, sobreimpulso por SPEED, apertura tras cerrar por fuerza y contacto de la yema. Lo de banco ya está en `inspire_hand_interface` (RESULTADOS §34); falta FORCE_ACT contra la báscula de cocina (un dedo sobre el plato), pesar los objetos y la esfera de PLA
 - [ ] `objetos.yaml`: peso, medidas, agarre y FORCE_SET por objeto
 
 **Percepción y planificación sin robot**

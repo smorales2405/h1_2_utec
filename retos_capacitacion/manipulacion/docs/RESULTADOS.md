@@ -908,5 +908,21 @@ sin tomar los brazos) en la misma ventana y la correlación del pitch de la imag
   ruido y no como movimiento; una IMU que gira como la imagen da r > 0.95 y pendiente 1.
 - Sobre las dos grabaciones de 1 s del robot de pie en el arnés (2026-10-17, 30 fotogramas a 30 fps, 2 y 3 a
   1.04–1.05 m): modo común 0.02–0.11 px, igual que el ruido de la detección (0.05–0.12 px por marcador): **el
-  movimiento neto no se distingue del ruido** (< 0.1 px ≈ 0.5' ≈ 0.15 mm en los marcadores). Falta la medida de 60 s
-  en el robot con la IMU.
+  movimiento neto no se distingue del ruido** (< 0.1 px ≈ 0.5' ≈ 0.15 mm en los marcadores).
+
+**En el robot** (2026-11-11 05:06, `datos/vibracion_20261111_050647`): 60 s con `arnes.py` de pie y nivelado, pies al
+84 %, la integral del estabilizador en +0.1 N m (el pórtico, retrasado: ya no al tope), nadie tocando. 1799
+fotogramas a 30 fps con el 2 y el 3 en todos, a 0.83 m (la zona, a 0.83 m de profundidad).
+
+- **La cámara no se mueve de forma medible.** Fotograma a fotograma, el modo común (0.09 px) es el ruido de la
+  detección (0.12–0.13 px por marcador, 0.09 en el modo común): movimiento neto 0. Con medias de 1 s (que quitan
+  ese ruido): 0.015 / 0.022 px de desviación (horizontal / vertical) = 0.1', 0.08 / 0.10 px pico a pico, ~0.03 mm en
+  la zona, y sin tendencia (0.000 / −0.004 °/min). Respuesta a 6.2.5: con el robot quieto, el equilibrio no mueve
+  la cámara más de 0.1 px (< 0.2 mm en la mesa): despreciable frente al resto de errores de la percepción (la
+  profundidad, ~1–2 %). Ojo: es con nuestro estabilizador en Debug, no con la política de marcha (FSM 201).
+- **La IMU sí "se mueve": su yaw deriva −0.45°/min** (28' en el minuto) mientras la cámara no gira nada
+  (+0.000°/min): es la IMU, no el cuerpo. En la curva de pasos (§31) derivó −0.07°/min: cambia de una sesión a otra.
+  El vigilante para con 5° de yaw desde el inicio de la tirada: a −0.45°/min, a los ~11 min, y una tirada de
+  cuatro objetos a escala 2 puede acercarse. Roll y pitch de la IMU, 3–3.5' pico a pico en medias de 1 s y la
+  cámara 0.6': lo de la IMU es sobre todo su ruido. Sin movimiento real, la correlación de la imagen con la IMU
+  sale 0.

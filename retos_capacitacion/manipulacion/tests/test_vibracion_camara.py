@@ -72,9 +72,26 @@ def test_imu_en_la_misma_ventana():
     for f in secuencia(amp_px=2.0, f_hz=1.0, ruido_px=0.0, segundos=3.0):
         filas += vc.medir_fotograma(f, det, INTR, 0.05)
     # una IMU a 100 Hz cuyo pitch es el giro vertical de la camara (0.5 * 2 px senoide / 600 px)
+    # y un yaw que deriva 0.5 grados/min con la camara sin girar
     imu = [{"t": k / 100.0, "roll": 0.0, "pitch": math.atan2(1.0 * math.sin(2 * math.pi * 1.0 * k / 100.0), 600.0),
-            "yaw": 0.0, "gx": 0.0, "gy": 0.0, "gz": 0.0, "carga": 0.72, "int_pitch": 0.0} for k in range(300)]
+            "yaw": math.radians(0.5 / 60.0 * k / 100.0), "gx": 0.0, "gy": 0.0, "gz": 0.0, "carga": 0.72,
+            "int_pitch": 0.0} for k in range(300)]
     r = vc.analizar(filas, imu, INTR)
     c = r["imu"]["camara_frente_a_imu"]
     assert c["r_pitch"] > 0.95 and abs(c["pendiente_pitch"] - 1.0) < 0.15
     assert abs(r["imu"]["pitch"]["std"] - math.degrees(1.0 / 600.0) / math.sqrt(2)) < 0.01
+    assert abs(r["imu"]["tendencia_grados_min"]["yaw"] - 0.5) < 0.01
+
+
+def test_deriva_del_yaw_sin_que_gire_la_camara():
+    """La IMU deriva en yaw (2026-11-11 en el robot: -0.45 grados/min) y la camara no gira: es la IMU."""
+    det = cb.detector(CFG["calibracion"]["diccionario"])
+    filas = []
+    for f in secuencia(amp_px=0.0, ruido_px=0.1, segundos=4.0):
+        filas += vc.medir_fotograma(f, det, INTR, 0.05)
+    imu = [{"t": k / 100.0, "roll": 0.0, "pitch": 0.0, "yaw": math.radians(-0.45 / 60.0 * k / 100.0), "gx": 0.0,
+            "gy": 0.0, "gz": 0.0, "carga": 0.84, "int_pitch": 0.1} for k in range(400)]
+    r = vc.analizar(filas, imu, INTR)
+    assert abs(r["imu"]["tendencia_grados_min"]["yaw"] + 0.45) < 0.01
+    assert abs(r["camara"]["horizontal"]["tendencia_grados_min"]) < 0.05
+    assert any("es la IMU, no el cuerpo" in x and "11 min" in x for x in vc.informe(r))

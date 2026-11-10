@@ -95,6 +95,22 @@ def frecuencia_dominante(t, x, f_min=F_MIN_HZ):
     return float(fr[sel][k]), float(esp[sel][k])
 
 
+def medias(t, x, s=1.0):
+    """Las medias de x en ventanas de s segundos (quitan el ruido de la deteccion: queda lo lento)."""
+    t, x = np.asarray(t, float), np.asarray(x, float)
+    if len(t) < 2:
+        return np.array([])
+    k = np.floor((t - t[0]) / s).astype(int)
+    return np.array([x[k == i].mean() for i in range(k.max() + 1) if np.any(k == i)])
+
+
+def tendencia_por_min(t, x):
+    t, x = np.asarray(t, float), np.asarray(x, float)
+    if len(t) < 3 or np.ptp(t) <= 0:
+        return np.nan
+    return float(np.polyfit(t - t[0], x, 1)[0] * 60.0)
+
+
 def analizar(marcas, imu, intr, distancia_zona_m=None, presencia_min=PRESENCIA_MIN):
     """Del registro (filas de marcas.csv e imu.csv): el modo comun y el ruido de los marcadores, en px, grados y
     mm, su frecuencia dominante, y la IMU en la misma ventana. Devuelve un dict (resumen)."""
@@ -127,9 +143,12 @@ def analizar(marcas, imu, intr, distancia_zona_m=None, presencia_min=PRESENCIA_M
     for eje, c, f in (("horizontal", cu, intr.fx), ("vertical", cv, intr.fy)):
         e = _estad(c)
         fr, amp = frecuencia_dominante(t, c)
+        e1 = _estad(medias(t, c))
         m[eje] = {"px": e, "grados": {k: math.degrees(v / f) for k, v in e.items()},
                   "mm_en_marcadores": {k: 1000 * v * z_med / f for k, v in e.items()},
-                  "frecuencia_hz": fr, "amplitud_px": amp}
+                  "frecuencia_hz": fr, "amplitud_px": amp,
+                  "medias_1s_px": e1, "medias_1s_grados": {k: math.degrees(v / f) for k, v in e1.items()},
+                  "tendencia_grados_min": math.degrees(tendencia_por_min(t, c) / f)}
         if distancia_zona_m:
             m[eje]["mm_en_zona"] = {k: 1000 * v * distancia_zona_m / f for k, v in e.items()}
     r["camara"] = m
@@ -156,6 +175,11 @@ def analizar(marcas, imu, intr, distancia_zona_m=None, presencia_min=PRESENCIA_M
             r["imu"]["giroscopo_grados_s"] = {k: math.degrees(_estad(g[k])["std"]) for k in ("gx", "gy", "gz")}
             r["imu"]["carga"] = _estad(g["carga"])
             r["imu"]["hz"] = float((sel.sum() - 1) / np.ptp(ti[sel])) if np.ptp(ti[sel]) > 0 else np.nan
+            yaw = np.unwrap(g["yaw"])
+            r["imu"]["tendencia_grados_min"] = {k: math.degrees(tendencia_por_min(ti[sel], v))
+                                                for k, v in (("roll", g["roll"]), ("pitch", g["pitch"]), ("yaw", yaw))}
+            r["imu"]["medias_1s_grados"] = {k: {kk: math.degrees(vv) for kk, vv in _estad(medias(ti[sel], v)).items()}
+                                            for k, v in (("roll", g["roll"]), ("pitch", g["pitch"]))}
             # la camara gira con el torso: el giro vertical de la imagen (pitch) frente al pitch de la IMU
             if len(t) >= 8:
                 p_imu = np.interp(t, ti[sel], g["pitch"])
@@ -168,7 +192,8 @@ def analizar(marcas, imu, intr, distancia_zona_m=None, presencia_min=PRESENCIA_M
 
 
 def distancia_zona(cfg):
-    """Distancia de la camara de color al centro de la zona de recogida (calibracion y montaje), o None."""
+    """Profundidad (eje optico) del centro de la zona de recogida en la camara de color (calibracion y montaje), o
+    None: la que pasa px a mm (mm = px * z / f), como la z de solvePnP de los marcadores."""
     try:
         from manip.cinematica import Cinematica
         from manip.geometria import Plano, aplicar, inv
@@ -179,7 +204,7 @@ def distancia_zona(cfg):
         x, y = float(np.mean(z["x"])), float(np.mean(z["y"]))
         zt = -(pl.n[0] * x + pl.n[1] * y + pl.d) / pl.n[2]
         p = aplicar(inv(cal.T_torso_color), np.array([[x, y, zt]]))[0]
-        return float(np.linalg.norm(p))
+        return float(p[2])
     except Exception:
         return None
 
@@ -203,12 +228,26 @@ def informe(r):
         lin.append(f"  movimiento neto de la camara (modo comun sin el ruido): {c['horizontal']['neto_px']:.2f} / "
                    f"{c['vertical']['neto_px']:.2f} px = {c['horizontal']['neto_grados'] * 60:.1f}' / "
                    f"{c['vertical']['neto_grados'] * 60:.1f}' de desviacion")
+    c = r["camara"]
+    lin.append(f"  camara, lo lento (medias de 1 s, casi sin ruido): {c['horizontal']['medias_1s_px']['std']:.3f} / "
+               f"{c['vertical']['medias_1s_px']['std']:.3f} px de desviacion ({c['horizontal']['medias_1s_grados']['std'] * 60:.2f}' / "
+               f"{c['vertical']['medias_1s_grados']['std'] * 60:.2f}'), {c['horizontal']['medias_1s_px']['pp']:.3f} / "
+               f"{c['vertical']['medias_1s_px']['pp']:.3f} px pico a pico; tendencia {c['horizontal']['tendencia_grados_min']:+.3f} / "
+               f"{c['vertical']['tendencia_grados_min']:+.3f} grados/min (horizontal / vertical)")
     lin.append(f"  profundidad (solvePnP) de los marcadores: {r['profundidad_mm']['std']:.1f} mm de desviacion")
     if "imu" in r:
         i = r["imu"]
         lin.append(f"  IMU del torso ({i['hz']:.0f} Hz): roll {i['roll']['std'] * 60:.1f}' / pitch {i['pitch']['std'] * 60:.1f}' / "
                    f"yaw {i['yaw']['std'] * 60:.1f}' de desviacion ({i['roll']['pp'] * 60:.1f}' / {i['pitch']['pp'] * 60:.1f}' / "
                    f"{i['yaw']['pp'] * 60:.1f}' pico a pico); carga {100 * i['carga']['std']:.1f} %")
+        td = i["tendencia_grados_min"]
+        lin.append(f"  IMU, medias de 1 s: roll {i['medias_1s_grados']['roll']['pp'] * 60:.1f}' / pitch "
+                   f"{i['medias_1s_grados']['pitch']['pp'] * 60:.1f}' pico a pico; tendencia roll {td['roll']:+.3f} / pitch "
+                   f"{td['pitch']:+.3f} / yaw {td['yaw']:+.3f} grados/min")
+        if abs(td["yaw"]) > 5 * abs(c["horizontal"]["tendencia_grados_min"]) + 0.05:
+            lin.append(f"  OJO: el yaw de la IMU deriva {td['yaw']:+.2f} grados/min y la camara no gira "
+                       f"({c['horizontal']['tendencia_grados_min']:+.3f}): es la IMU, no el cuerpo. El vigilante para con 5 "
+                       f"grados: a este ritmo, a los {5 / abs(td['yaw']):.0f} min de tirada")
         if "camara_frente_a_imu" in i:
             c = i["camara_frente_a_imu"]
             lin.append(f"  camara frente a la IMU (pitch): r = {c['r_pitch']:.2f}, pendiente {c['pendiente_pitch']:.2f}")

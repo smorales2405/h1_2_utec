@@ -479,7 +479,7 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 - [x] Carpeta con `README.md`, lanzadores, `config/manipulacion.yaml` y `manip/mensajes.py` con la tabla de interfaces
 - [x] `instalar_entorno.sh` y comprobar en el PC2 las importaciones y el DDS desde el `.venv` (2026-10-13: pinocchio 4.1 y numpy 2.2, ver RESULTADOS §2)
 - [x] `camara_servidor` y `fuentes.py`: grabado por ZMQ y leído como dataset (con el extrínseco profundidad → color)
-- [ ] `robot.py` y `registro.py`, solo lectura; `mano.py` abriendo y cerrando en el aire (probados con el robot y la mano simulados; `herramientas/probar_manos.py`: en el robot las manos abren y cierran, RESULTADOS §35–36; cierre en vacío calibrado por mano en `config/manos.yaml` y táctil descartado; falta comprobar la calibración en el robot y `robot.py`/`registro.py`)
+- [x] `robot.py` y `registro.py`, solo lectura (en las tiradas por `arnes.py`, RESULTADOS §29); `mano.py` abriendo y cerrando en el aire con las manos reales (`herramientas/probar_manos.py`, RESULTADOS §35–37: cierre en vacío calibrado por mano en `config/manos.yaml`, el índice sin chocar con el pulgar y todo "vacío"; táctil descartado)
 - [x] `cinematica.py` con pruebas, y FK frente a MuJoCo < 1 mm (< 0.1 mm; pruebas también en el PC2)
 - [x] `sim/escena.py` con el montaje medido (2026-10-13) y la cámara virtual; comparado con la captura real y cierre de la medida en 0.6 mm
 - [x] `generar_sintetico.py`; calibración que recupera la cámara virtual (1.3 mm y 0.07°)

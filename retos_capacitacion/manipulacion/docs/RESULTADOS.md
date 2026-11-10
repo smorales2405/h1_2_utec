@@ -1053,3 +1053,17 @@ Cambios:
   brazo bajando sobre la mesa.
 - Pruebas: `tests/test_mano.py` (3 nuevas: la calibración en `Mano`, sin ella con la mano simulada, y sacarla de un
   registro).
+
+## 37. Las manos con la calibración: todo bien (2026-11-11)
+
+`probar_manos.py --preformas abierta_opuesta tres_dedos` (`datos/manos_20261111_064335`), a SPEED 100 con
+`config/manos.yaml`: **las dos manos "bien"**: cierran en ~6.4 s (156 cuentas/s), todos los dedos "vacío" y abren
+en 2.4–2.5 s.
+
+- **El índice se para en su consigna, antes del pulgar:** izquierda 541–542 (consigna 542), derecha 488 (487).
+- **El anular derecho ya cierra** (a 2, con FORCE_SET 660); marca 492 gf cerrado (392 en el §36: el residuo se
+  mueve; quedan ~170 gf de margen).
+- Fuerza neta con los dedos cerrados en vacío: izquierda 110–225 gf (el índice, 201–225 en su consigna), derecha
+  66–291 y el anular 492. FORCE_SET escrito: izquierda 413–526, derecha 490–660.
+
+Con esto, `mano.py` en el robot queda probado (Fase 0) y "la mano abre y cierra en el aire" del Hito 3.

@@ -6,6 +6,7 @@
     ./manipulacion.sh --nivel 2 --asignacion tenis=blanca cubo=naranja   # por color o por nombre (A-D)
     python3 manipulacion.py --nivel 2 --sim            # en la PC: robot, manos y camara simulados (gemelo)
     python3 manipulacion.py --nivel 2 --sim --visor    # lo mismo en una ventana de MuJoCo, a velocidad real
+    python3 manipulacion.py --nivel 2 --sim --arnes    # empezando de pie en el arnes con los brazos a 0
 
 Pide escribir MOVER antes de mover nada (seccion 10). ESPACIO o Ctrl+C: salida segura. L2+B en el mando: la
 parada de emergencia del operador. Registro en datos/tirada_<fecha>_nivel<N>[_simulacro]/.
@@ -71,6 +72,8 @@ def leer_args(cfg, objetos):
     ap.add_argument("--colocacion", nargs="*", default=None, help="--sim: clase=x,y,yaw de cada objeto en la mesa")
     ap.add_argument("--visor", action="store_true", help="--sim: ventana de MuJoCo, a velocidad real (o --velocidad)")
     ap.add_argument("--velocidad", type=float, default=1.0, help="--visor: x esto la velocidad real")
+    ap.add_argument("--arnes", action="store_true",
+                    help="--sim: el robot empieza de pie en el arnes con los brazos a 0 (como lo deja herramientas/arnes.py)")
     ap.add_argument("--parada-en", default=None, metavar="ESTADO[+s]",
                     help="--sim: pide la salida segura s segundos despues de entrar en ESTADO (p. ej. TRANSPORTE+4)")
     ap.add_argument("--sin-comprobar-montaje", action="store_true",
@@ -78,8 +81,8 @@ def leer_args(cfg, objetos):
     ap.add_argument("--salida-directa", action="store_true",
                     help="salida segura del PDF tal cual: sin pasar por la observacion y el reposo (para comparar)")
     a = ap.parse_args()
-    if (a.visor or a.parada_en) and not a.sim:
-        sys.exit("--visor y --parada-en son de la simulacion de la PC: con --sim.")
+    if (a.visor or a.parada_en or a.arnes) and not a.sim:
+        sys.exit("--visor, --parada-en y --arnes son de la simulacion de la PC: con --sim.")
     if a.sim and a.nivel >= 2 and not a.colocacion:
         a.colocacion = [f"{k}={xy[0]},{xy[1]},{yaw}" for k, (xy, yaw) in COLOCACION_SIM.items()]
     a.dianas = [tuple(float(v) for v in d.split(",")) for d in a.dianas] if a.dianas else None
@@ -126,7 +129,9 @@ def armar(a, cfg=None, montaje=None, objetos=None, log=print):
         os.environ.setdefault("MUJOCO_GL", "glfw")
         from sim.simulacion import FuenteMundo, MundoSimulado
         cal = cb.cargar_o_urdf(cin, {})
-        t.mundo = MundoSimulado(cfg, montaje, objetos, cal, cin, a.colocacion or {})
+        from sim.escena import postura_arnes
+        postura = [float(v) for v in postura_arnes(cfg)] if getattr(a, "arnes", False) else None
+        t.mundo = MundoSimulado(cfg, montaje, objetos, cal, cin, a.colocacion or {}, postura=postura)
         robot = t.mundo.robot
         fuente = FuenteMundo(t.mundo)
         # sin visor, tiempo acelerado (el brazo no espera); con visor, el reloj real x --velocidad. La mano va

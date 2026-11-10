@@ -71,12 +71,14 @@ class FuenteMundo:
 
 
 class MundoSimulado:
-    def __init__(self, cfg, montaje, objetos, cal, cin, colocacion):
-        """colocacion: {clase: ((x, y) en el torso, yaw)} de los objetos en la mesa al empezar."""
+    def __init__(self, cfg, montaje, objetos, cal, cin, colocacion, postura=None):
+        """colocacion: {clase: ((x, y) en el torso, yaw)} de los objetos en la mesa al empezar. postura: las 27 q
+        del robot al empezar (por defecto, la de la marcha con los brazos en reposo; postura_arnes, de pie en el
+        arnes con los brazos a 0)."""
         self.cfg, self.montaje, self.objetos, self.cal, self.cin = cfg, montaje, objetos, cal, cin
         self.cerrojo = threading.RLock()        # el visor (sim/visor.py) lee el mundo desde otro hilo
-        self.robot = RobotSimulado(caida_rad=0.0, instantaneo=True)
-        self.m, self.info = construir(montaje=montaje, objetos=objetos, cal=cal, cfg=cfg)
+        self.robot = RobotSimulado(postura=postura, caida_rad=0.0, instantaneo=True)
+        self.m, self.info = construir(montaje=montaje, objetos=objetos, cal=cal, cfg=cfg, postura=postura)
         self.est = Estado(self.m, self.info)
         self.cam = CamaraVirtual(self.m, self.info, cal, ruido_mm=1.0)
         pl = montaje["mesa"]["plano"]

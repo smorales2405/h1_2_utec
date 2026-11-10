@@ -64,10 +64,12 @@ objetos:
 
 # Agarre en el marco de la mano (*_wrist_yaw_link; izq: dedos en +x, palma hacia -y, indice en +z; la
 # derecha es el espejo en y). El centro del objeto queda en `centro` (la y se cambia de signo en la
-# derecha); se ajusta con el gemelo y el robot en el hito 2.
+# derecha); se ajusta con el gemelo y el robot en el hito 2. x: 0.215 con la mano montada en x=0.165; 0.211
+# desde que esta como en el robot (anillo adaptador de 10 mm y brida de 16 mm: montaje en x=0.161, 4 mm mas
+# cerca de la muneca; README de h1_2_inspire_description, commit 0d5e452).
 agarres:
-  arriba:   {centro: [0.215, -0.070, 0.010]}
-  lado:     {centro: [0.215, -0.065, 0.010]}
+  arriba:   {centro: [0.211, -0.070, 0.010]}
+  lado:     {centro: [0.211, -0.065, 0.010]}
 
 # Preformas en ANGLE_SET (0 cerrado, 1000 abierto) antes de bajar; el cierre va a 0 con FORCE_SET.
 preformas:

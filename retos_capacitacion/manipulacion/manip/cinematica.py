@@ -7,7 +7,7 @@ depende de las piernas.
 
 Marcos (por lado, "izq" / "der"):
   mano   *_wrist_yaw_link: dedos en +x, indice en +z; palma hacia -y en la izquierda y +y en la derecha
-  yema   punta del indice, medida en la malla de *_index_2 (con el indice extendido: x 0.295 en mano)
+  yema   punta del indice, medida en la malla de *_index_2 (con el indice extendido: x 0.291 en mano con la mano montada en x=0.161; 0.295 con el 0.165 de antes)
 El punto de agarre (objetos.yaml) y el marcador del dorso (calibracion) son transformaciones en `mano`.
 
 IK: minimos cuadrados amortiguados con limites (web n URDF, con margen) desde varias semillas. La tarea

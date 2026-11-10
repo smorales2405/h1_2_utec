@@ -29,13 +29,29 @@ def fisica(montaje):
             "margen": float(m.get("aruco_al_labio_m", MARGEN_MARCADOR))}
 
 
-def plano_de_profundidad(prof_m, intr_prof, cal, plano_previo=None, paso=2):
-    """Plano de la mesa en el torso ajustado a la profundidad, cerca del de la calibracion."""
+MARGEN_PLANO_BANDEJAS = 0.03      # alrededor de cada bandeja, fuera del ajuste del plano (tolerancia 1.5 cm y bordes)
+
+
+def fuera_de_bandejas(P, montaje, margen):
+    """Puntos (en el torso) fuera de la huella de las bandejas de `montaje` (bandeja_real) ampliada `margen`."""
+    fuera = np.ones(len(P), bool)
+    for b in (montaje or {}).get("bandejas", {}).values():
+        a = b["hueco_m"] / 2 + b["pared_m"] + margen
+        fuera &= ~np.all(np.abs(P[:, :2] - bandeja_real(b)[0]) <= a, axis=1)
+    return fuera
+
+
+def plano_de_profundidad(prof_m, intr_prof, cal, plano_previo=None, paso=2, montaje=None):
+    """Plano de la mesa en el torso ajustado a la profundidad, cerca del de la calibracion, sin la huella de las
+    bandejas de `montaje`. Con las bandejas puestas (la mesa quieta) el plano salia 0.46 grados mas alabeado y la
+    mesa 0.5 cm mas a la izquierda y 0.4 grados mas girada; sin su huella, 0.25 grados, 0.3 cm y 0.2 grados
+    (2026-11-10). El resto es de la profundidad del tablero, que cambia algo con lo que haya encima: el [g] de la
+    mesa, mejor vacia; comprobar() no ajusta plano."""
     P, _ = nube(prof_m, intr_prof, paso)
     P = aplicar(cal.T_torso_prof, P)
     previo = Plano(*(plano_previo or cal.plano_mesa))
     h = previo.altura(P)
-    cerca = np.abs(h) < 0.04
+    cerca = (np.abs(h) < 0.04) & fuera_de_bandejas(P, montaje, MARGEN_PLANO_BANDEJAS)
     plano, frac, rms = Plano.ajustar(P[cerca], umbral=0.006, cerca_de=previo)
     return plano, frac, rms
 
@@ -97,20 +113,24 @@ def marco_mesa(centros, plano, fondo=None, margen=MARGEN_MARCADOR, escala=1.0):
     return T(R, origen)
 
 
-def _plano_y_marcas(f, cal, montaje_previo, det, paso=2):
+def _plano_y_marcas(f, cal, montaje_previo, det, paso=2, plano=None, ir=True):
     """Plano de la profundidad (alrededor del de la medida anterior) y ArUco 2-5 cortados con el: lo comun a
-    medir() y a pose_mesa(). Devuelve (plano, frac, rms, marcas, fondo)."""
+    medir() y a pose_mesa(). Con `plano` (Plano) no se ajusta: los ArUco se cortan con ese. ir=False: solo los del
+    color. Devuelve (plano, frac, rms, marcas, fondo)."""
     from .fuentes import intrinsecos, prof_en_metros
-    plano_prev = None
-    if montaje_previo and "mesa" in montaje_previo:
-        p = montaje_previo["mesa"]["plano"]
-        plano_prev = (np.array(p["n"]), p["d"])
-    plano, frac, rms = plano_de_profundidad(prof_en_metros(f), intrinsecos(f, "prof"), cal, plano_prev, paso)
+    frac = rms = None
+    if plano is None:
+        plano_prev = None
+        if montaje_previo and "mesa" in montaje_previo:
+            p = montaje_previo["mesa"]["plano"]
+            plano_prev = (np.array(p["n"]), p["d"])
+        plano, frac, rms = plano_de_profundidad(prof_en_metros(f), intrinsecos(f, "prof"), cal, plano_prev, paso,
+                                                montaje_previo)
     if plano is None:
         raise ValueError("no encuentro el plano de la mesa en la profundidad")
     ids = set(IDS_MESA.values())
     marcas = {}
-    if f.ir is not None:
+    if ir and f.ir is not None:
         marcas.update(marcadores_en_mesa(f.ir, intrinsecos(f, "ir"), cal.T_torso_prof, plano, det, ids))
     if f.color is not None:     # el color completa lo que el IR no vio (con el emisor, a veces falla)
         for i, v in marcadores_en_mesa(f.color, intrinsecos(f, "color"), cal.T_torso_color, plano, det, ids).items():
@@ -188,11 +208,12 @@ def medir(f, cal, montaje_previo=None, dicc="DICT_4X4_50"):
 
 # --- colocacion en vivo (herramientas/marcar_montaje.py) ----------------------------------------------------
 
-def pose_mesa(f, cal, montaje_previo, det, paso=4):
+def pose_mesa(f, cal, montaje_previo, det, paso=4, plano=None, ir=True):
     """La pose de la mesa en un fotograma, rapida (para colocar el carrito mirando la pantalla): dict con T
     (T_torso_mesa), plano, x0 (borde cercano, m), y (m, + a la izquierda del robot), yaw_deg y los ArUco vistos.
+    `plano`: el de la mesa ya medido (sin ajustar otro a la profundidad); ir=False: los ArUco solo del color.
     ValueError si no hay plano o faltan ArUco."""
-    plano, _, _, marcas, fondo = _plano_y_marcas(f, cal, montaje_previo, det, paso)
+    plano, _, _, marcas, fondo = _plano_y_marcas(f, cal, montaje_previo, det, paso, plano, ir)
     fis = fisica(montaje_previo)
     centros = {i: v[0] for i, v in marcas.items()}
     esc = escala_mesa(centros, fis)
@@ -343,11 +364,18 @@ def bandeja_real(b):
 def comprobar(fotos, cal, montaje, det, hsv, tol_mesa_m=0.01, tol_mesa_deg=1.0, tol_bandeja_m=0.01):
     """Antes de una tirada: la mesa y las bandejas siguen donde dice montaje.yaml? Con varios fotogramas
     (medianas). La mesa, contra la del ultimo [g]; cada bandeja que se vea entera, contra su `medida` (o contra su
-    objetivo con tol_bandejas_m si no se midio). Devuelve (problemas: [texto], informe: [texto])."""
+    objetivo con tol_bandejas_m si no se midio). Devuelve (problemas: [texto], informe: [texto]).
+    Los ArUco se cortan con el plano del [g], no con uno ajustado ahora: si el carrito rueda por el suelo, su plano en
+    el torso no cambia, y el ajustado a la profundidad cambia unas decimas de grado con lo que haya encima (con las
+    bandejas puestas sin mover la mesa, los ArUco quietos en la imagen a 0.4 px, salia hasta 0.9 cm y 0.6 grados
+    movida: 2026-11-10). Asi solo cuenta lo que se mueven los ArUco en la imagen. Y solo los del color: los del IR
+    se corrian 2.5 mm con las bandejas puestas (el color, 0.1 mm); frente al [g] (IR y color) queda ~1 mm fijo."""
+    pm = montaje["mesa"]["plano"]
+    plano = Plano(np.asarray(pm["n"], float), float(pm["d"]))
     poses = []
     for f in fotos:
         try:
-            poses.append(pose_mesa(f, cal, montaje, det))
+            poses.append(pose_mesa(f, cal, montaje, det, plano=plano, ir=False))
         except ValueError:
             pass
     if len(poses) < max(1, len(fotos) // 2):

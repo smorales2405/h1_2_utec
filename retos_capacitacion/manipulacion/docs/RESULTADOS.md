@@ -672,3 +672,71 @@ colocación (1.5 cm) eso se come el margen del prisma (10 cm en un hueco de 12: 
 - Pruebas nuevas (`test_montaje.py`): el `[g]` de las bandejas guarda solo las que debe; el gemelo pone la
   bandeja medida con su giro; la comprobación ve la mesa corrida 2 cm y una bandeja movida 2 cm de su medida.
   65 de 65.
+
+## 26. Video de la simulación: primer avance (2026-10-29, en la PC)
+
+Para enseñar el avance: la tirada de nivel 2 en el gemelo, desde que el robot está de pie con los brazos a 0 y
+el montaje a su alcance hasta que los cuatro objetos están en su bandeja y los brazos vuelven a 0.
+
+- **`manipulacion.py --sim --arnes`**: el robot simulado empieza de pie en el arnés con los brazos a 0
+  (`postura_arnes`, lo que deja `arnes.py`). El supervisor no cambia: su reposo es la postura medida al
+  empezar, así que va de 0 a la observación y en la SALIDA vuelve a 0. Con las cuatro colocaciones de la
+  simulación (cada objeto del lado de su bandeja): 4/4 al primer intento, ~280 s de brazo a velocidad real
+  (tramos ≥ 8 s, pico de 0.5 rad/s, `--escala-tiempo 1`). En el robot falta integrar `Cuerpo`.
+- **`herramientas/video_simulacion.py`** corre esa tirada sin cambios (percepción sobre la cámara virtual,
+  planificador, supervisor, manos simuladas) con un reloj de la tirada: los movimientos del brazo cuentan lo que
+  durarían en el robot (la simulación acelerada no los espera) y lo demás (percibir, planificar, la mano), lo que
+  tarda en la PC. Guarda el gemelo hasta 60 veces por segundo de ese reloj y después renderiza:
+  - vista general (todo el robot y la mesa); en cada agarre, de cerca desde el lado del brazo que trabaja,
+    primero el objeto y luego su bandeja; al final, las cuatro bandejas; transiciones suaves de 1.2 s;
+  - la cámara de la cabeza en un recuadro; rótulos "Simulación MuJoCo · ×2", lo que está haciendo (p. ej.
+    "Llevando el cilindro a la bandeja roja") y "Objetos en su bandeja: n/4";
+  - la caída: el gemelo no tiene física y al abrir la mano el objeto pasaba al fondo de la bandeja de golpe. En
+    el video sigue en la mano 0.2 s mientras los dedos se abren y cae con la gravedad, a velocidad real
+    (4.7–6.9 cm, ~0.1 s), girando hasta su pose final.
+- Video a ×2: **2 min 38 s**, 1920×1080 a 30 fps (H.264, 30 MB), en `datos/videos/` (fuera de git). La tirada
+  tarda ~30 s y el render ~5.5 min.
+- Pruebas (`test_video.py`): el reloj de la tirada, la caída, la cámara sin saltos al cambiar de toma y la
+  tirada desde los brazos a 0 (4/4, empieza y acaba a 0, cuatro caídas, el guion del video).
+
+## 27. Montaje colocado con el robot de pie, mano nueva y comprobación sin plano vivo (2026-11-10)
+
+Robot de pie con `arnes.py` y el montaje colocado con `marcar_montaje.py`, en cuatro intentos.
+
+- **El robot inclinado.** En el primero, desde que se cargó la cuerda la integral del estabilizador estaba al
+  tope (+15) y el torso a +1.5…+1.6° con la referencia en +0.5° (el 18-oct, +0.4°). El `[g]` de la mesa se hizo
+  así: 1.1° son 1.8 cm del torso (está a 0.93 m sobre el tobillo). Con el pórtico retrasado, +0.3…+0.45° e
+  integral 0.55 el resto de la mañana. El aviso "INTEGRAL AL TOPE" de `arnes.py` hay que atenderlo antes del `[g]`.
+- **Distancias con regla.** Las del 17-oct (centros a 12.5 / 28.5 cm del labio cercano, pared exterior a 6.5 cm
+  del lateral) eran de la mesa a 0.275 m con la cámara del URDF; las bandejas quedaban 1.2–2.5 cm lejos y 1–2.6
+  cm hacia el centro. Ahora se calculan de cada `[g]` (pared → cara interior del labio, con el escalado y el giro
+  de la mesa): con la mesa girada 1°, las de un lado quedan ~1 cm más cerca del labio cercano que las del otro, y
+  las laterales no son simétricas porque el marco de los brazos está ~1 cm a la derecha del centro del tablero.
+  "Izquierda" es la del robot: la primera vez las bandejas quedaron en espejo (vistas desde el otro lado).
+- **La mesa se movió al colocar las bandejas** entre el `[g]` de las 08:52 y las 09:10 (1.7 cm y 1.2°; la wincha
+  del usuario lo confirma) y algo entre las 09:17 y las 09:33 (1.4 px en la imagen): frenos y cuidado al colocar.
+- **Montaje final:** `[g]` con la mesa vacía de las 09:36, borde 0.292 m, +1.0 cm, −0.68° (escala 1.0114).
+  `[g]` de las bandejas: B (roja) guardada en (0.556, +0.277), −0.3°; D (naranja) vista entera en 7 de 15
+  fotogramas (hacen falta 8), a ≤ 0.8 cm de su sitio cuando se ve: se usa su objetivo; A (azul) fuera de la
+  imagen bajo la mano izquierda y C (blanca) con una sola pared: colocadas con regla, y su borde coincide a pocos
+  mm con su contorno objetivo pintado a la altura del borde (4 cm; `marcar_montaje` lo pinta a ras de mesa).
+  Después se repitió el `[g]` de la mesa con las bandejas encima (`marcar_montaje` arranca en MESA) y dio 0.295 m,
+  +1.7 cm, −1.25°: se restauró el de las 09:36 con la medida de B (respaldo en
+  `datos/montaje_respaldo_20261110_0944_mesa_con_bandejas.yaml`) y se trajo a `config/` de la PC.
+- **La mesa medida cambia con lo que hay encima, sin moverse.** Entre las grabaciones de las 09:36 (vacía) y las
+  09:43 (con bandejas) los ArUco 2 y 3 se mueven ≤ 0.4 px en el color (~0.5 mm): la mesa no se movió. La
+  diferencia sale de la profundidad: con las bandejas, el plano ajustado sale 0.46° más alabeado, y los ArUco
+  del IR se corren 2.5 mm (los del color, 0.1 mm). Cambios:
+  - el plano de la mesa se ajusta sin la huella de las bandejas (+3 cm): la diferencia baja a 0.25°, 0.3 cm y
+    0.2° (lo que queda es de la profundidad del resto del tablero: el `[g]`, con la mesa vacía);
+  - `montaje.comprobar()` (antes de cada tirada) corta los ArUco del color con el plano del `[g]` en vez de
+    ajustar uno: con la mesa quieta da lo mismo vacía que con bandejas (+0.1 cm, −0.1 cm, 0.0°; antes hasta
+    +0.9 cm y −0.6° en el robot), y la mesa de las 08:52 (otra posición, 4 px) sale movida 1.0 cm.
+- **Mano montada como en el robot** (commit 0d5e452 de `h1_2_inspire_description`: anillo adaptador de 10 mm en
+  la muñeca y brida de 16 mm, montaje en x = 0.161 en vez de 0.165). La yema pasa de x 0.2954 a 0.2914 en la
+  muñeca y el punto de agarre de `objetos.yaml` de 0.215 a 0.211 (también en `poses_brazos.py` y las pruebas;
+  `sim/editor_observacion/nucleo.py` sigue con 0.215). La calibración cámara–torso no cambia: los marcadores están
+  ajustados en `*_wrist_yaw_link`. En el gemelo la mano derecha tapa la bandeja C a medias o entera según el
+  modelo: la prueba lo acepta (se coloca con regla).
+- Pruebas: `test_montaje` mide los desvíos de las bandejas respecto de su objetivo aunque el montaje traiga
+  medidas. 69 de 69.

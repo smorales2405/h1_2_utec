@@ -106,7 +106,7 @@ def main():
                 break
             for xy in objetivos:
                 xy_l = xy if lado == "izq" else (xy[0], xy[1])
-                r = cin.ik(lado, TareaIK(posicion=pl.punto(xy_l, ht), punto=np.array([0.215, -0.07 if lado == "izq" else 0.07, 0.01]),
+                r = cin.ik(lado, TareaIK(posicion=pl.punto(xy_l, ht), punto=np.array([0.211, -0.07 if lado == "izq" else 0.07, 0.01]),
                                          bandas=[palma_abajo(lado, 35)], tol_pos=0.01), q0=qv)
                 if not r.ok or not tramo_limpio(pl, cin, est, col, lado, qv, r.q):
                     ok = False

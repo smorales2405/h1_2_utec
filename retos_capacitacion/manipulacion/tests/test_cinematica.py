@@ -24,7 +24,7 @@ def test_yema_en_la_mano(cin):
         M = cin.fk(lado, q0, "mano")
         Y = cin.fk(lado, q0, "yema")
         p = aplicar(inv(M), Y[:3, 3])
-        assert np.allclose(p, [0.2954, -s * 0.0085, 0.0358], atol=1e-3)
+        assert np.allclose(p, [0.2914, -s * 0.0085, 0.0358], atol=1e-3)
 
 
 def test_camara_del_urdf(cin):
@@ -59,7 +59,7 @@ def test_ik_ida_y_vuelta(cin):
 
 
 def test_agarre_desde_arriba_sobre_la_mesa(cin):
-    punto = np.array([0.215, -0.070, 0.010])
+    punto = np.array([0.211, -0.070, 0.010])
     objetivo = np.array([0.45, 0.10, ZT + 0.035])
     r = cin.ik("izq", TareaIK(posicion=objetivo, punto=punto, bandas=[palma_abajo("izq", 35)]))
     assert r.ok
@@ -74,7 +74,7 @@ def test_agarre_desde_arriba_sobre_la_mesa(cin):
 
 
 def test_agarre_de_lado_con_los_dedos_inclinados(cin):
-    punto = np.array([0.215, -0.065, 0.010])
+    punto = np.array([0.211, -0.065, 0.010])
     objetivo = np.array([0.45, 0.05, ZT + 0.04])
     r = cin.ik("izq", TareaIK(posicion=objetivo, punto=punto,
                               bandas=[palma_vertical("izq", 25), dedos_inclinados(15, 55)]))
@@ -86,13 +86,13 @@ def test_agarre_de_lado_con_los_dedos_inclinados(cin):
 
 def test_fuera_de_alcance(cin):
     # el centro del tablero (x 0.6 m) no se alcanza con la palma abajo: lo dice el mapa del 2026-10-09
-    r = cin.ik("izq", TareaIK(posicion=np.array([0.62, 0.0, ZT + 0.035]), punto=np.array([0.215, -0.07, 0.01]),
+    r = cin.ik("izq", TareaIK(posicion=np.array([0.62, 0.0, ZT + 0.035]), punto=np.array([0.211, -0.07, 0.01]),
                               bandas=[palma_abajo("izq", 35)]))
     assert not r.ok
 
 
 def test_guinada_de_la_mano(cin):
-    punto = np.array([0.215, -0.070, 0.010])
+    punto = np.array([0.211, -0.070, 0.010])
     objetivo = np.array([0.44, 0.0, ZT + 0.035])
     r = cin.ik("izq", TareaIK(posicion=objetivo, punto=punto,
                               bandas=[palma_abajo("izq", 35), guinada([math.cos(-2.1), math.sin(-2.1)], 15)]))

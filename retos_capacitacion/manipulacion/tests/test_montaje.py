@@ -90,6 +90,8 @@ def test_mesa_y_bandejas_en_el_gemelo():
     cfg = config.cargar()
     mon = copy.deepcopy(config.cargar_montaje())
     mon["objetivo_mesa"] = dict(OBJETIVO)
+    for b in mon["bandejas"].values():
+        b.pop("medida", None)       # los desvios son respecto del objetivo (el gemelo pondria la medida)
     fs = herr.FuenteSim(cfg, mon, Cinematica.desde_config(cfg), [0.012, -0.015, 1.2])
     desvios = {"A": (0.02, -0.01, 0.0), "B": (-0.015, 0.0, 8.0), "C": (0.0, 0.0, 0.0), "D": (0.01, 0.02, -5.0)}
     for k, d in desvios.items():
@@ -101,6 +103,10 @@ def test_mesa_y_bandejas_en_el_gemelo():
     assert abs(pose["yaw_deg"] - 1.2) < 0.3
     med = mt.medir_bandejas(f, fs.cal, pose["plano"], pose["T"], mon, cfg["montaje"]["hsv_bandejas"])
     for k, (dx, dy, dyaw) in desvios.items():
+        if k == "C" and (med[k] is None or med[k]["a_medias"]):
+            # la mano derecha a 0 la tapa (a medias o entera, segun el modelo de la mano y donde quede la mesa;
+            # en el robot, el 2026-11-10, solo una pared). Se coloca con regla (marcar_montaje.py lo dice)
+            continue
         assert med[k] is not None, k
         esperado = np.asarray(mon["bandejas"][k]["centro"]) + [dx, dy]
         assert np.linalg.norm(med[k]["centro"] - esperado) < 0.004, k

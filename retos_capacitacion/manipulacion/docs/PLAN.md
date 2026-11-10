@@ -507,16 +507,19 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 - [x] Bandejas y asignación por color (2026-10-17): en el gemelo, rectángulo (0.40 / 0.56, ±0.28) con azul, roja, blanca y naranja en A–D; `marcar_montaje.py` (RESULTADOS §21)
 - [x] Primera colocación en el robot (2026-10-18): carrito y bandejas con `marcar_montaje.py` (la C blanca, con regla: con los brazos a 0 solo se ve una pared), la naranja detectada, los cuatro objetos reconocidos (192/192), la mesa con wincha en `mesa_fisica` y el marco escalado con lo que ve la cámara (RESULTADOS §22)
 - [ ] **La cámara ve la mesa ~3 % más grande** (ArUco 2–3: 738 mm de 716): medir la profundidad en la calibración cámara–torso con el ArUco de las manos por la zona, o calibrar el D435i en placa; hasta entonces, ~1–1.5 cm en la zona
-- [ ] Volver a colocar el carrito con el marco corregido (el `[g]` del 18 da 0.286 m, y se movió a 0.300 al medir); frenos y huellas; zona marcada con cinta (16 × 40 cm, centrada entre los labios laterales)
+- [x] Volver a colocar el carrito con el marco corregido (2026-11-10): borde 0.292 m, +1.0 cm, −0.68°, con el robot nivelado; bandejas con las distancias con regla de cada `[g]` (RESULTADOS §27). Falta: huellas en el suelo y la zona marcada con cinta (16 × 40 cm)
+- [x] La mesa medida cambiaba con las bandejas encima sin moverse (2026-11-10): plano sin la huella de las bandejas y `comprobar()` con el plano del `[g]` y los ArUco del color (RESULTADOS §27)
 - [ ] Ajustar el rango HSV del prisma (toca la roja y la pelota) con más capturas; profundidad del cubo blanco (4–5.5 cm de 6)
-- [ ] Supervisor desde los brazos a 0: desde el reposo de la FSM la mano izquierda pasa a 13 mm de la mesa con el carrito a < 0.29 m (fallan las 5 pruebas de `test_supervisor.py`)
+- [ ] Supervisor desde los brazos a 0: desde el reposo de la FSM la mano izquierda pasa a 13 mm de la mesa con el carrito a < 0.29 m (fallan las 5 pruebas de `test_supervisor.py`). En la simulación (2026-10-29): `manipulacion.py --sim --arnes` empieza de pie con los brazos a 0, va a la observación y vuelve a 0; nivel 2, 4/4 al primer intento (RESULTADOS §26). En el robot, con la integración de `Cuerpo`
+- [x] Video de la simulación como primer avance (2026-10-29): `herramientas/video_simulacion.py`, nivel 2 desde los brazos a 0, ×2 (RESULTADOS §26)
 
 **Hito 2: calibración y caracterización**
 
 - [x] Calibración en el arnés (2026-10-18): `poses_calibracion.py` desde los brazos a 0 delante del montaje medido (caminos sin choques y marcador leído en el gemelo), [k] en `arnes.py` y `grabar_calibracion.py`; `calibrar_camara_torso.py` compara la profundidad en el marcador con la esperada (RESULTADOS §23)
 - [x] Calibración en el robot (2026-10-18): 32/32 muestras, 1.6 px / 1.7 mm; cámara a 13.9 mm y 2.25° del URDF (los ~2° son del marco de los brazos); montaje y `objetivo_mesa` pasados al marco calibrado (RESULTADOS §24)
 - [x] Bandejas medidas con `[g]` en `marcar_montaje.py` (el robot suelta en lo medido) y comprobación del montaje al empezar cada tirada (RESULTADOS §25)
-- [ ] Desplegar la calibración, el montaje y las poses (robot apagado hasta el 2026-10-20), volver a colocar las bandejas (~2 cm) con `marcar_montaje.py` y guardarlas con `[g]`
+- [x] Desplegar la calibración, el montaje y las poses, volver a colocar las bandejas con `marcar_montaje.py` y guardarlas con `[g]` (2026-11-10: B medida, D en su objetivo, A y C con regla; RESULTADOS §27)
+- [x] Mano montada como en el robot (anillo de 10 mm y brida de 16 mm, x = 0.161): punto de agarre 0.215 → 0.211 (RESULTADOS §27)
 - [ ] Profundidad: ~2 % de más a 1 m sobre papel mate y ~1 % más con el plano del tablero negro; medir en la zona (poses de calibración más bajas, 5–12 cm sobre la mesa, o tocar dianas del nivel 1) y, si hace falta, corregir la profundidad con la distancia
 - [ ] Superposición del gemelo calibrado sobre la imagen real
 - [ ] `vibracion_camara.py`

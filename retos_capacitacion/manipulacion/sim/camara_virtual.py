@@ -50,6 +50,10 @@ class CamaraVirtual:
         self._escena(d, camara)
         return self.r.render().copy()
 
+    def color_rgb(self, estado):
+        """Solo la imagen de color (RGB, sin profundidad ni IR): el recuadro de herramientas/video_simulacion.py."""
+        return self._rgb(estado.d, self.nombre_color)
+
     def _profundidad(self, d, camara):
         self.r.enable_depth_rendering()
         self._escena(d, camara)

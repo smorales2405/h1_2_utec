@@ -67,7 +67,9 @@ class Supervisor:
         self.vig.comprobar()
 
     def contexto_registro(self):
-        return {"estado": self.estado, "peso": self.brazo.peso, "obj": self.brazo.consigna()}
+        giro = getattr(self.vig, "giro", None)
+        return {"estado": self.estado, "peso": self.brazo.peso, "obj": self.brazo.consigna(),
+                "deriva_yaw": giro.deriva() if giro is not None and giro.imu0 is not None else None}
 
     def _mover(self, lado, punto, extra=None):
         """Un punto de paso con el brazo `lado`; `extra` se llama en cada ciclo (contacto, sujetar...)."""

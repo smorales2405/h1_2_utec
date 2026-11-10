@@ -527,7 +527,7 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 - [ ] Profundidad: ~2 % de más a 1 m sobre papel mate y ~1 % más con el plano del tablero negro; medir en la zona (poses de calibración más bajas, 5–12 cm sobre la mesa, o tocar dianas del nivel 1) y, si hace falta, corregir la profundidad con la distancia
 - [ ] Superposición del gemelo calibrado sobre la imagen real
 - [x] `vibracion_camara.py` (2026-11-11, RESULTADOS §32): la cámara, quieta (≤ 0.1 px, < 0.2 mm en la mesa, por debajo del ruido de la detección)
-- [ ] **El yaw de la IMU deriva** (−0.45°/min el 2026-11-11 con la cámara quieta; −0.07°/min en otra sesión): el vigilante para con 5° desde el inicio de la tirada. Medir la deriva al empezar (o con el giro de los ArUco de la mesa) y descontarla, o comprobar el giro con la cámara
+- [x] **El yaw de la IMU deriva** (entre +0.4 y −0.6°/min con el robot quieto, 2026-11-11): `manip/giro.py` le quita la deriva medida con los ArUco 2–3 de la mesa; con los 60 s reales, de −0.45° a −0.04° (RESULTADOS §33). Falta verlo en una tirada en el robot
 - [x] `curva_pasos.py` a 8, 10, 20 y 30 s; duración mínima al YAML (2026-11-11, RESULTADOS §30–31): 0 pasos, ≤ 0.19° de pitch y ≤ 0.31° de giro a cualquier duración; manda el desplazamiento del centro de masas, no la velocidad; `t_min_mov_s` 8 s
 - [ ] `fuerza_mano.py` con la báscula: fuerza real, sobreimpulso por SPEED, apertura tras cerrar por fuerza y contacto de la yema
 - [ ] `objetos.yaml`: peso, medidas, agarre y FORCE_SET por objeto

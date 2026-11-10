@@ -3,7 +3,8 @@
 Se consulta en cada ciclo del brazo (brazo.ir_a(..., comprobar=vigilante.comprobar)) y del supervisor:
   - un paso: una junta de pierna que se aparta mas de paso_pierna_rad de la postura al empezar (lo que usa
     prueba_brazos_armsdk.py) o un eje del joystick fuera de cero (en FSM 201 hace andar al robot)
-  - yaw de la IMU > 5 grados desde el inicio de la tirada; roll o pitch > 10 grados
+  - yaw de la IMU > 5 grados desde el inicio de la tirada (sin su deriva, medida con los ArUco de la mesa: giro.py);
+    roll o pitch > 10 grados
   - error de seguimiento del brazo por encima del fijado (choque o arm_sdk sin efecto)
   - fuerza de una mano por encima del corte; mano sin responder
   - camara sin fotogramas; rt/lowstate sin llegar; motor en fallo; FSM distinta de 201
@@ -23,8 +24,9 @@ from .robot import FSM_VALIDA
 
 
 class Vigilante:
-    def __init__(self, robot, cfg, brazo=None, manos=None, lector_fsm=None, edad_fotograma=None):
-        """manos: {lado: Mano}; edad_fotograma(): s desde el ultimo fotograma (None = no se vigila)."""
+    def __init__(self, robot, cfg, brazo=None, manos=None, lector_fsm=None, edad_fotograma=None, giro=None):
+        """manos: {lado: Mano}; edad_fotograma(): s desde el ultimo fotograma (None = no se vigila); giro:
+        manip.giro.Giro (la deriva del yaw de la IMU medida con la mesa) o None (la IMU sola)."""
         s = cfg["supervisor"]
         self.robot, self.brazo, self.manos = robot, brazo, manos or {}
         self.lector_fsm = lector_fsm
@@ -42,12 +44,15 @@ class Vigilante:
         self.parada_pedida = None           # la pone la tecla ESPACIO o Ctrl+C
         self.manos_vigiladas = set()        # los lados en uso: solo esas se leen a menudo (las lecturas tienen edad)
         self.vigilar_camara = True
+        self.giro = giro
         self.yaw0, self.q0, self.t0 = None, None, None
 
     def iniciar(self):
         """Toma la postura y el rumbo de referencia (al empezar la tirada, antes de la rampa de peso)."""
         e = self.robot.estado()
         self.yaw0, self.q0, self.t0 = e.imu.yaw, e.q.copy(), time.monotonic()
+        if self.giro is not None:
+            self.giro.iniciar(e.imu.yaw)
 
     def pedir_parada(self, motivo):
         self.parada_pedida = motivo
@@ -61,13 +66,15 @@ class Vigilante:
             if d.max() > self.paso_rad:
                 paso = f"junta {int(np.argmax(d))} {math.degrees(d.max()):.1f} grados"
         dyaw = 0.0 if self.yaw0 is None else (e.imu.yaw - self.yaw0 + math.pi) % (2 * math.pi) - math.pi
+        deriva = self.giro.deriva() if self.giro is not None and self.yaw0 is not None else 0.0
         fuerza = max((float((m.ultimo.fuerza - m.ultimo.base)[:5].max()) for m in self.manos.values()
                       if m.ultimo is not None), default=0.0)
         return Salud(fsm=fsm, motores_en_fallo=e.motores_en_fallo, edad_lowstate=self.robot.edad_lowstate(),
                      edad_fotograma=self.edad_fotograma() if self.edad_fotograma else 0.0,
                      mano_ok={l: (time.monotonic() - m.t_ultima_lectura) < self.mano_max_s
                               for l, m in self.manos.items() if l in self.manos_vigiladas},
-                     paso=paso, yaw_desde_inicio=dyaw, roll=e.imu.roll, pitch=e.imu.pitch,
+                     paso=paso, yaw_desde_inicio=(dyaw - deriva + math.pi) % (2 * math.pi) - math.pi,
+                     yaw_imu=dyaw, deriva_yaw=deriva, roll=e.imu.roll, pitch=e.imu.pitch,
                      error_seguimiento=self.brazo.error() if self.brazo is not None else 0.0,
                      fuerza_max=fuerza, parada=self.parada_pedida)
 
@@ -94,7 +101,9 @@ class Vigilante:
         if self.boton and e.mando.pulsado(self.boton):
             return f"boton de parada {self.boton}"
         if abs(s.yaw_desde_inicio) > self.yaw_max:
-            return f"giro del cuerpo {math.degrees(s.yaw_desde_inicio):+.1f} grados"
+            extra = (f" (IMU {math.degrees(s.yaw_imu):+.1f}, menos su deriva {math.degrees(s.deriva_yaw):+.1f} medida "
+                     "con la mesa)" if self.giro is not None else "")
+            return f"giro del cuerpo {math.degrees(s.yaw_desde_inicio):+.1f} grados" + extra
         if abs(s.roll) > self.incl_max or abs(s.pitch) > self.incl_max:
             return f"inclinacion: roll {math.degrees(s.roll):+.1f}, pitch {math.degrees(s.pitch):+.1f} grados"
         if s.error_seguimiento > self.err_max:

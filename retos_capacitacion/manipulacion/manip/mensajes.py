@@ -191,6 +191,8 @@ class Salud:
     error_seguimiento: float    # rad, el mayor de los brazos
     fuerza_max: float           # gf, la mayor de las manos
     parada: Optional[str]       # tecla o boton, o None
+    yaw_imu: float = 0.0        # rad, el giro de la IMU sin corregir (yaw_desde_inicio = este - deriva_yaw)
+    deriva_yaw: float = 0.0     # rad, la deriva de la IMU medida con la mesa (manip/giro.py)
 
 
 @dataclass

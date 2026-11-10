@@ -911,7 +911,8 @@ sin tomar los brazos) en la misma ventana y la correlación del pitch de la imag
   movimiento neto no se distingue del ruido** (< 0.1 px ≈ 0.5' ≈ 0.15 mm en los marcadores).
 
 **En el robot** (2026-11-11 05:06, `datos/vibracion_20261111_050647`): 60 s con `arnes.py` de pie y nivelado, pies al
-84 %, la integral del estabilizador en +0.1 N m (el pórtico, retrasado: ya no al tope), nadie tocando. 1799
+84 %, la integral del estabilizador en +0.1 N m (tras la curva se movieron el pórtico y el polipasto hasta que dejó de
+salir INTEGRAL AL TOPE, sin reiniciar `arnes.py`: la misma sesión que la curva del §31), nadie tocando. 1799
 fotogramas a 30 fps con el 2 y el 3 en todos, a 0.83 m (la zona, a 0.83 m de profundidad).
 
 - **La cámara no se mueve de forma medible.** Fotograma a fotograma, el modo común (0.09 px) es el ruido de la
@@ -926,3 +927,31 @@ fotogramas a 30 fps con el 2 y el 3 en todos, a 0.83 m (la zona, a 0.83 m de pro
   cuatro objetos a escala 2 puede acercarse. Roll y pitch de la IMU, 3–3.5' pico a pico en medias de 1 s y la
   cámara 0.6': lo de la IMU es sobre todo su ruido. Sin movimiento real, la correlación de la imagen con la IMU
   sale 0.
+
+## 33. El giro del vigilante sin la deriva del yaw de la IMU (2026-11-11, en la PC)
+
+En la sesión de `arnes.py` de la curva y la vibración (40 min, `arnes_20261111_043610`, que ya guarda el yaw), el
+yaw de la IMU fue de +4.3° a −1.6° con un ritmo que cambiaba solo entre +0.43 y −0.59°/min (minuto a minuto), con
+el robot quieto; en el minuto de `vibracion_camara.py`, −0.45°/min con la cámara sin girar (+0.000°/min). No
+basta con medir la deriva al empezar y restarla. El vigilante paraba con 5° desde el inicio de la tirada.
+
+`manip/giro.py`: el giro que se vigila sigue siendo el yaw de la IMU (lo que pide el PDF), menos su deriva medida
+con los ArUco 2 y 3 de la mesa, que no derivan:
+
+- **Giro respecto de la mesa:** el ángulo en planta de la recta entre los ArUco 2 y 3 (el cruce de las diagonales de
+  cada uno en el color, llevado al plano de la mesa del `[g]` con la calibración cámara–torso). La mesa vista gira
+  al revés que el cuerpo.
+- **Deriva medida** = lo que gira la IMU desde el inicio − lo que gira el cuerpo respecto de la mesa, a 2 Hz en un
+  hilo con el último fotograma (`LectorContinuo`). **Deriva(t)** = la recta de las medidas de los últimos 30 s
+  en t: si un brazo tapa los marcadores, sigue con su ritmo (como mucho 1°/min).
+- **Giro vigilado** = IMU − deriva(t). Un giro de verdad lo ven la IMU y la cámara a la vez y no se resta; si se
+  mueve la mesa (un golpe al carrito) sale como giro y se para, que también es lo que toca. El mensaje dice las dos
+  cosas ("giro del cuerpo +6.0 grados (IMU +0.2, menos su deriva −5.8 medida con la mesa)"); `lowstate.csv` lleva la
+  columna `deriva_yaw_deg` y `resumen.json` la deriva final y cuántas medidas hubo. Solo en el robot
+  (`supervisor.giro_con_mesa`); en la simulación la IMU no deriva.
+- **Con los 60 s reales de `vibracion_camara.py`:** la IMU giró −0.448° y el giro corregido −0.044° (máximo
+  0.10°). En el gemelo, la mesa girada 1.5° se mide con ±0.2° (los ArUco lejanos miden ~23 px y el render no
+  suaviza: 0.5–2 mm por marcador; en el robot, 0.17 mm).
+- Pruebas (`tests/test_giro.py`, 5): el gemelo; el hilo con el último fotograma, como en el robot; 10 min de deriva a −0.45°/min con un giro real de 3° a los 5 min y
+  un minuto con los marcadores tapados (giro corregido a ±0.05°); el tope del ritmo extrapolado; el vigilante no
+  para con casi 6° de deriva y sí con un giro real de 6°.

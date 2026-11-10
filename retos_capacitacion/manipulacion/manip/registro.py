@@ -128,6 +128,7 @@ class RegistroLowstate:
         for n in NOMBRES:
             cab += [f"{n}_q", f"{n}_dq", f"{n}_tau", f"{n}_T", f"{n}_err"]
         cab += [f"{NOMBRES[j]}_obj" for j in range(12, 27)]
+        cab += ["deriva_yaw_deg"]                   # la del yaw de la IMU medida con la mesa (manip/giro.py)
         self._f = open(ruta, "w", newline="")
         self._w = csv.writer(self._f)
         self._w.writerow(cab)
@@ -152,6 +153,7 @@ class RegistroLowstate:
             fila += [f"{s.q:.5f}", f"{s.dq:.4f}", f"{s.tau_est:.3f}", s.temperature[0], s.motorstate]
         obj = ctx.get("obj") or {}
         fila += [f"{obj[j]:.5f}" if j in obj else "" for j in range(12, 27)]
+        fila += [f"{math.degrees(ctx['deriva_yaw']):.3f}" if ctx.get("deriva_yaw") is not None else ""]
         with self._cerrojo:
             if not self._cerrado:
                 self._w.writerow(fila)

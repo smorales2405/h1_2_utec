@@ -18,6 +18,7 @@ movimientos que se le piden (manip/brazo_arnes.py); tiene que estar de pie, nive
 """
 
 import argparse
+import math
 import os
 import sys
 import threading
@@ -207,7 +208,15 @@ def armar(a, cfg=None, montaje=None, objetos=None, log=print):
     pl = Planificador(cfg, montaje, objetos, cin, (est, Colisiones(m, est, cfg["planificacion"]["holgura_m"])),
                       reposo, observacion, a.escala_tiempo, paso_inicio=paso)
     per = Percepcion(cfg, montaje, objetos, cal, cin)
-    vig = Vigilante(robot, cfg, brazo, manos, lector_fsm, edad_fotograma=edad)
+    giro = None
+    if not a.sim and cfg["supervisor"].get("giro_con_mesa", False):
+        # la deriva del yaw de la IMU, medida con los ArUco de la mesa en un hilo (en la simulacion no deriva)
+        from manip.giro import Giro
+        s = cfg["supervisor"]
+        giro = Giro(robot, fuente, cal, montaje["mesa"]["plano"], cfg["calibracion"]["diccionario"],
+                    hz=s.get("giro_hz", 2.0), ventana_s=s.get("giro_ventana_s", 30.0),
+                    ritmo_max=s.get("giro_ritmo_max_deg_min", 1.0), log=log)
+    vig = Vigilante(robot, cfg, brazo, manos, lector_fsm, edad_fotograma=edad, giro=giro)
     if a.simulacro or a.sim:
         vig.err_max = float("inf")          # el brazo no se mueve (simulacro) o va siempre a su consigna (sim)
     nombre = f"nivel{a.nivel}" + ("_simulacro" if a.simulacro else "") + ("_sim" if a.sim else "")
@@ -220,6 +229,7 @@ def armar(a, cfg=None, montaje=None, objetos=None, log=print):
                         "escala_tiempo": a.escala_tiempo, "reposo": {l: v.round(4).tolist() for l, v in reposo.items()}})
     t.robot, t.brazo, t.manos, t.fuente, t.lector_fsm, t.vig, t.reg, t.sup, t.cal = \
         robot, brazo, manos, fuente, lector_fsm, vig, reg, sup, cal
+    t.giro = giro
     t.montaje = t_montaje
     if getattr(a, "visor", False):
         from sim.visor import Visor
@@ -319,11 +329,18 @@ def correr(t, confirmar=True):
     from manip.teclado import Teclado
     teclado = Teclado(lambda: t.vig.pedir_parada("tecla ESPACIO"))
     teclado.abrir()
+    giro = getattr(t, "giro", None)
+    if giro is not None and giro.arrancar():
+        print("  Giro: el yaw de la IMU sin su deriva, medida con los ArUco 2 y 3 de la mesa.")
     t0 = time.monotonic()
     try:
         motivo = t.sup.recuperar() if getattr(a, "recuperar", False) else t.sup.ejecutar()
     finally:
         teclado.cerrar()
+        if giro is not None:
+            giro.parar()
+            t.reg.resumen["giro"] = {"deriva_final_deg": round(math.degrees(giro.deriva()), 3),
+                                     "medidas": giro.medidas, "sin_los_dos_marcadores": giro.sin_ver}
         try:
             t.brazo.parar()
         except RuntimeError as e:

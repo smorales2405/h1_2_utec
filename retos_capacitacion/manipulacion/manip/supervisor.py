@@ -103,7 +103,8 @@ class Supervisor:
         motivo_fin = "completado"
         try:
             self.vig.iniciar()
-            self._a("ENTRADA", f"peso 0 -> 1 en {self.brazo.t_entrada:.0f} s siguiendo la postura medida")
+            self._a("ENTRADA", getattr(self.brazo, "texto_entrada", None) or
+                    f"peso 0 -> 1 en {self.brazo.t_entrada:.0f} s siguiendo la postura medida")
             self.brazo.rampa_peso(1.0, comprobar=self.comprobar)
             planes = [self.pl.entre_reposo_y_observacion(l, True) for l in LADOS]
             malos = [p.motivo for p in planes if not p.comprobado]
@@ -123,6 +124,19 @@ class Supervisor:
             motivo_fin = "salida segura: Ctrl+C"
             self.salida_segura("Ctrl+C")
         return motivo_fin
+
+    def recuperar(self):
+        """Con arnes.py (manipulacion.py --arnes --recuperar): unos brazos que se quedaron donde sea (manipulacion.py
+        murio a medias) vuelven a 0 por la salida segura: abrir las manos, subir, por la observacion y al reposo."""
+        self.vig.iniciar()
+        self._a("ENTRADA", "recuperar: tomar los brazos donde esten")
+        try:
+            self.brazo.rampa_peso(1.0)
+        except Parada as e:
+            self._a("FIN", f"no se pueden tomar los brazos: {e}")
+            return f"recuperar: {e}"
+        self.salida_segura("recuperar los brazos")
+        return "recuperados"
 
     def _salida(self):
         self._a("SALIDA", "observacion -> reposo")
@@ -304,6 +318,8 @@ class Supervisor:
         """Congelar, abrir la mano, subir a la altura de seguridad, (salir por la observacion al reposo) y solo
         entonces bajar el peso. Si algo grave pasa a mitad (lowstate o motor), directo a la rampa de bajada."""
         self._a("SALIDA_SEGURA", motivo)
+        if hasattr(self.brazo, "en_salida_segura"):   # con arnes.py: sus movimientos se aceptan tras su parada
+            self.brazo.en_salida_segura()
         self.brazo.congelar()
         if self.brazo.peso <= 0.01:
             self._a("FIN", "salida segura sin peso: nada que mover")

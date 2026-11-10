@@ -24,11 +24,17 @@ persona en la manivela del polipasto y otra con el mando y el terminal. El progr
                guarda las muestras en otra terminal (~6 min). [c] para colgar: se sube el
                polipasto; el estabilizador se apaga solo y, sin carga, el par vuelve a "colgado"; [f] termina:
                brazos a la postura colgada y kp a 0.
+               Listo (de pie, nivelado, con los brazos a 0), manipulacion.py --arnes puede tomar los brazos
+               (manip/servidor_brazos.py, en 127.0.0.1:red.puerto_brazos): este programa sigue publicando y
+               sosteniendo las piernas, y manipulacion.py solo pide movimientos. Mientras los tiene, [m], [k] y
+               [c] no; si deja de dar noticias (latido_max_s), sus brazos se congelan y pierde el control.
 Teclas (da igual mayuscula o minuscula): ESPACIO (o el boton del mando de config, L1) = parada: los brazos se
 quedan donde estan y la postura se sostiene; luego colgar y [f]. Ctrl+C igual; un segundo Ctrl+C suelta (kp a 0
 en 0.5 s). L2+B en el mando = amortiguacion ya (kp a 0 en 0.5 s, queda kd), como fuera de Debug: de pie, el
 robot cae en la cuerda. En Debug el robot no hace nada con L2+B; lo hace el hilo de control (manip/cuerpo.py).
 Si se corta el terminal (SSH) el programa sigue: parada, y cuando el polipasto lo cuelga termina solo.
+Una parada con manipulacion.py moviendo los brazos los congela y le deja hacer su salida segura (abrir la mano,
+subir y por la observacion a 0) hasta que suelte (180 s como mucho); despues, la parada de aqui (colgar).
 En --sim: [u]/[j] suben/bajan el polipasto 1 cm ([U]/[J] 5 cm) y [l] pulsa el boton de parada del mando.
 Registro en datos/arnes_<fecha>/: ciclo.csv (100 Hz), eventos.csv y resumen.json.
 """
@@ -48,6 +54,7 @@ RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, RAIZ)
 from manip import config  # noqa: E402
 from manip.cuerpo import BRAZOS, Cuerpo  # noqa: E402
+from manip.servidor_brazos import ServidorBrazos  # noqa: E402
 from manip.registro import NOMBRES, CsvSimple, carpeta_tirada, guardar_json  # noqa: E402
 
 CARGA_APOYAR = (0.40, 0.90)  # [e] solo con los pies llevando esto: cargados, pero con la cuerda aun sosteniendo
@@ -57,6 +64,7 @@ CARGA_MOVER = 0.6            # [m] y [n] solo de pie (la carga estimada se mueve
 # movimiento de prueba: el brazo adelante como en un agarre (la tirada simulada del nivel 2) y vuelta a 0
 ALCANCE_IZQ = [-0.32, 0.18, -1.07, 0.48, 0.28, 0.30, 0.70]
 T_QUIETO_CAL = 3.0          # s quieto en cada pose de calibracion ([k]): grabar_calibracion.py pide 1 s sin moverse
+T_SALIDA_REMOTA = 180.0     # una parada con manipulacion.py en los brazos: lo que se espera a que salga y suelte
 
 
 def argumentos():
@@ -67,9 +75,12 @@ def argumentos():
                     help="--sim: un operador simulado contesta, maneja el polipasto y pulsa las teclas (ensayo completo)")
     ap.add_argument("--con-calibracion", action="store_true",
                     help="--operador-auto: ademas pulsa [k] (las poses de calibracion) despues de [m]")
+    ap.add_argument("--con-remoto", action="store_true",
+                    help="--operador-auto: despues de [m], un cliente como manipulacion.py --arnes toma los brazos, va a "
+                         "la observacion y vuelve; otra vez, con ESPACIO a mitad (su salida y despues colgar)")
     ap.add_argument("--solo-colgado", action="store_true", help="solo el paso 1 (no deja apoyar)")
     a = ap.parse_args()
-    if (a.visor or a.operador_auto or a.con_calibracion) and not a.sim:
+    if (a.visor or a.operador_auto or a.con_calibracion or a.con_remoto) and not a.sim:
         sys.exit("--visor y --operador-auto son de la simulacion: con --sim")
     return a
 
@@ -92,6 +103,7 @@ class Arnes:
         self.sin_terminal = False
         self._t_linea = 0.0
         self.nivelado_visto = False
+        self.servidor = None                     # los brazos para manipulacion.py
 
     # --- registro ------------------------------------------------------------------------------------
     def evento(self, texto):
@@ -204,7 +216,9 @@ class Arnes:
                 return "nivelando, espera"
             if cu.carga > hi:
                 return f"NIVELADO: centra el portico (cuerda vertical) y sube el polipasto hasta {lo:.0%}-{hi:.0%}"
-            return "listo: [m] brazos, [k] calibracion, [c] colgar"
+            if self.servidor is not None and self.servidor.controlado:
+                return f"{self.servidor.controlado} tiene los brazos (ESPACIO: su salida segura y colgar)"
+            return "listo: manipulacion.py --arnes, [m] brazos, [k] calibracion, [c] colgar"
         if self.fase == "COLGAR":
             return "sube el polipasto hasta colgar; luego [f]"
         return ""
@@ -224,6 +238,8 @@ class Arnes:
                     f"{'delante: retrasa' if e['integral'][1] > 0 else 'atras: adelanta'} el portico hasta que quede vertical >>")
         sig = self.siguiente(cu)
         sim += f"  >> {sig}" if sig else ""
+        if self.servidor is not None and self.servidor.controlado:
+            sim = f"  BRAZOS: {self.servidor.controlado}{' (parada: solo su salida)' if self.servidor.parada else ''}" + sim
         decir(f"  {self.fase:8s} pies {e['carga']:4.0%} ({e['fz']['izq']:4.0f}/{e['fz']['der']:4.0f} N)  "
               f"roll {r:+5.1f} pitch {p:+5.1f} ({imu}, ref {math.degrees(cu.ref[0]):+.1f}/{math.degrees(cu.ref[1]):+.1f}"
               f"{' nivelando' if cu.nivelado else ''})  "
@@ -247,6 +263,48 @@ def nivelado(cu, margen_deg=0.5):
     e = cu.estado
     llegada = all(o is None or abs(o - r) < 1e-4 for o, r in zip(cu.ref_objetivo, cu.ref))
     return llegada and abs(e["pitch"] - cu.ref[1]) < math.radians(margen_deg)
+
+
+def listo_remoto(arnes, cu):
+    """(si se le pueden dar los brazos a manipulacion.py, por que no): de pie, nivelado, con el estabilizador
+    entero, los pies cargados y sin parada."""
+    if arnes.fase != "DE_PIE":
+        return False, f"fase {arnes.fase}"
+    if not (cu.nivelado and arnes.nivelado_visto):
+        return False, "sin nivelar ([n])"
+    if cu.f_estab.valor < 1.0 or cu.f_estab.meta < 1.0:
+        return False, "estabilizador apagado"
+    if cu.carga < CARGA_MOVER:
+        return False, f"los pies llevan el {cu.carga:.0%} (< {CARGA_MOVER:.0%})"
+    if arnes.parada is not None:
+        return False, f"parada ({arnes.parada})"
+    if cu.amortiguado:
+        return False, f"amortiguado ({cu.motivo})"
+    return True, ""
+
+
+def salida_remota(arnes, cu, tmax=T_SALIDA_REMOTA):
+    """Una parada con manipulacion.py moviendo los brazos: se congelan y se le deja hacer su salida segura (abrir la
+    mano, subir y por la observacion a 0) hasta que los suelte; despues sigue la parada de aqui (colgar). Sin
+    soltarlos en tmax s, se le quitan congelados donde esten. Un segundo Ctrl+C o L2+B cortan la espera."""
+    srv = arnes.servidor
+    motivo = arnes.parada or "Ctrl+C"
+    quien = srv.controlado if srv is not None else None
+    if quien is None or not srv.parar_remoto(motivo):
+        return
+    arnes.evento(f"PARADA ({motivo}) con {quien} en los brazos: congelados; se espera su salida segura (hasta "
+                 f"{tmax:.0f} s; L2+B amortigua)")
+    t0 = time.monotonic()
+    while srv.controlado and not cu.amortiguado and time.monotonic() - t0 < tmax:
+        for _, texto in cu.avisos[arnes._avisos_vistos:]:
+            arnes.evento(f"vigilancia: {texto}")
+        arnes._avisos_vistos = len(cu.avisos)
+        arnes.linea(cu, 2.0)
+        time.sleep(0.05)
+    if srv.controlado:
+        srv.quitar("amortiguado" if cu.amortiguado else f"sin soltarlos en {tmax:.0f} s")
+    else:
+        arnes.evento(f"{quien} ha soltado los brazos: sigue la parada")
 
 
 def esperar(arnes, cu, segundos=None, hasta=None, cada_linea=1.0, guardar_teclas=False):
@@ -338,7 +396,13 @@ def colgar_y_terminar(arnes, cu):
     colgada y suelta. Sin terminal (SSH cortado) termina solo tras 3 s colgado; L2+B amortigua en cualquier
     momento."""
     arnes.fase = "COLGAR"
+    if arnes.servidor is not None:
+        arnes.servidor.quitar("colgar")
     cu.nivelar(False)                                # la cuerda vuelve a tirar: la referencia y la integral quietas
+    lejos = float(np.abs(cu.consigna()[BRAZOS] - cu.brazos_cero).max())
+    if lejos > 0.1:
+        arnes.evento(f"OJO: los brazos estan a {math.degrees(lejos):.0f} grados de 0. [f] los lleva a la postura colgada "
+                     "sacando antes el hombro: si estan sobre la mesa, antes de colgar, manipulacion.py --arnes --recuperar")
     arnes.evento("[f] para terminar" if cu.carga < CARGA_COLGADO and cu.apoyo.meta == 0.0 else
                  "sube el polipasto hasta que los pies no toquen el suelo; luego [f] para terminar")
     t_colgado, visto = None, None
@@ -408,12 +472,47 @@ def operador_auto(arnes, cu, sim):
         arnes.al_teclear("k")
         hasta(lambda: "calibracion recorrida" in str(arnes.resumen["eventos"][-1:]) or arnes.parada is not None, 900)
         time.sleep(4.0)
-    arnes.al_teclear("c")
+    if arnes.a.con_remoto:
+        remoto_auto(arnes, sim)                                 # acaba con una parada: arnes.py pasa a colgar
+        hasta(lambda: arnes.fase == "COLGAR", 300)
+    else:
+        arnes.al_teclear("c")
     hasta(lambda: arnes.fase == "COLGAR")
     bajar_mientras(lambda: cu.carga > 0.05, paso=-0.002)       # subir
     sim.polipasto(0.03)
     time.sleep(3.0)
     arnes.al_teclear("f")
+
+
+def remoto_auto(arnes, sim):
+    """--con-remoto: lo que hara manipulacion.py --arnes, con su cliente (manip/brazo_arnes.py): tomar los brazos,
+    los dos a la observacion y a 0; otra vez a la observacion con ESPACIO a mitad: su salida a 0 y soltar."""
+    from manip.brazo_arnes import BrazoArnes
+    from manip.mensajes import Parada
+    obs = config._leer(os.path.join(config.CONFIG, "poses_brazos.yaml"))["observacion"]
+    b = BrazoArnes(sim, arnes.cfg, escala_tiempo=1.0)
+    cero = {j: 0.0 for j in BRAZOS}
+    pose = {**b.pose_brazo("izq", obs["izq"]), **b.pose_brazo("der", obs["der"])}
+    try:
+        b.rampa_peso(1.0)
+        arnes.evento(f"(cliente simulado) a la observacion en {b.ir_a(pose):.1f} s")
+        arnes.evento(f"(cliente simulado) a 0 en {b.ir_a(cero):.1f} s")
+        threading.Timer(4.0, lambda: arnes.pedir_parada("ESPACIO (operador simulado)")).start()
+        try:
+            b.ir_a(pose)
+            arnes.evento("(cliente simulado) la parada no llego a mitad del movimiento")
+        except Parada as ex:
+            arnes.evento(f"(cliente simulado) {ex}: su salida segura, a 0")
+            b.en_salida_segura()
+            b.ir_a(cero)
+        b.rampa_peso(0.0)
+    except Exception as ex:
+        arnes.evento(f"(cliente simulado) ERROR: {ex!r}")
+    finally:
+        try:
+            b.parar()
+        except RuntimeError as ex:
+            arnes.evento(f"(cliente simulado) {ex}")
 
 
 def esperar_colgado(arnes, cu):
@@ -492,6 +591,14 @@ def main():
     motivo_fin = "completado"
     try:
         cu.iniciar()
+        try:
+            arnes.servidor = ServidorBrazos(cu, cfg["red"]["puerto_brazos"], lambda: listo_remoto(arnes, cu),
+                                            cu.brazos_cero, log=arnes.evento,
+                                            latido_max_s=float(cu.c.get("latido_max_s", 2.0)))
+            arnes.servidor.iniciar()
+        except OSError as ex:
+            arnes.servidor = None
+            arnes.evento(f"sin servidor de brazos para manipulacion.py (puerto {cfg['red']['puerto_brazos']}): {ex}")
         teclado.abrir()
         if a.operador_auto:
             threading.Thread(target=operador_auto, args=(arnes, cu, robot), daemon=True).start()
@@ -528,7 +635,13 @@ def main():
         while True:
             t = esperar(arnes, cu, hasta=lambda: not arnes.nivelado_visto and nivelado(cu))
             if t is None:
+                if not cu.amortiguado:
+                    salida_remota(arnes, cu)
                 raise KeyboardInterrupt
+            remoto = arnes.servidor.controlado if arnes.servidor is not None else None
+            if remoto and any(k in t for k in "mkc"):
+                arnes.evento(f"{remoto} tiene los brazos: [m], [k] y [c] cuando acabe (ESPACIO: su salida segura y colgar)")
+                t = [k for k in t if k not in "mkc"]
             if not arnes.nivelado_visto and nivelado(cu):
                 arnes.nivelado_visto = True
                 lo, hi = CARGA_TRABAJO
@@ -580,8 +693,12 @@ def main():
                     continue
                 arnes.evento(f"calibracion: {len(pc['poses']['izq'])} + {len(pc['poses']['der'])} poses "
                              "(grabar_calibracion.py en otra terminal); ESPACIO para")
-                if not recorrer_calibracion(arnes, cu, pc):
-                    raise KeyboardInterrupt
+                arnes.servidor and setattr(arnes.servidor, "ocupado_local", True)
+                try:
+                    if not recorrer_calibracion(arnes, cu, pc):
+                        raise KeyboardInterrupt
+                finally:
+                    arnes.servidor and setattr(arnes.servidor, "ocupado_local", False)
             if "m" in t and arnes.fase == "DE_PIE":
                 if cu.carga < CARGA_MOVER or cu.f_estab.valor < 1.0 or not cu.nivelado:
                     arnes.evento(f"[m] solo de pie ({cu.carga:.0%}, hace falta {CARGA_MOVER:.0%}), con el "
@@ -590,17 +707,21 @@ def main():
                 if cu.carga > CARGA_TRABAJO[1] + 0.05:
                     arnes.evento(f"ojo: los pies llevan el {cu.carga:.0%}; el procedimiento pide {CARGA_TRABAJO[0]:.0%}-"
                                  f"{CARGA_TRABAJO[1]:.0%} (sube el polipasto despues); se mueve igual")
-                for lado, q7 in (("izq", ALCANCE_IZQ), ("der", list(np.array(ALCANCE_IZQ) * [1, -1, -1, 1, -1, 1, -1]))):
-                    js = list(range(13, 20)) if lado == "izq" else list(range(20, 27))
-                    q = cu.consigna()
-                    q[js] = q7
-                    if not mover(arnes, cu, q, js, texto=f"brazo {lado} adelante"):
-                        raise KeyboardInterrupt
-                    esperar(arnes, cu, segundos=2.0)
-                    q[js] = 0.0
-                    if not mover(arnes, cu, q, js, texto=f"brazo {lado} a 0"):
-                        raise KeyboardInterrupt
-                    esperar(arnes, cu, segundos=2.0)
+                arnes.servidor and setattr(arnes.servidor, "ocupado_local", True)
+                try:
+                    for lado, q7 in (("izq", ALCANCE_IZQ), ("der", list(np.array(ALCANCE_IZQ) * [1, -1, -1, 1, -1, 1, -1]))):
+                        js = list(range(13, 20)) if lado == "izq" else list(range(20, 27))
+                        q = cu.consigna()
+                        q[js] = q7
+                        if not mover(arnes, cu, q, js, texto=f"brazo {lado} adelante"):
+                            raise KeyboardInterrupt
+                        esperar(arnes, cu, segundos=2.0)
+                        q[js] = 0.0
+                        if not mover(arnes, cu, q, js, texto=f"brazo {lado} a 0"):
+                            raise KeyboardInterrupt
+                        esperar(arnes, cu, segundos=2.0)
+                finally:
+                    arnes.servidor and setattr(arnes.servidor, "ocupado_local", False)
         colgar_y_terminar(arnes, cu)
     except (KeyboardInterrupt, Exception) as ex:
         ctrl_c[0] += 1
@@ -613,6 +734,8 @@ def main():
             if cu.amortiguado:
                 arnes.evento(f"AMORTIGUACION ({cu.motivo}): kp a 0, queda kd; si estaba de pie, cae en la cuerda")
             else:
+                if arnes.servidor is not None and arnes.servidor.controlado:
+                    salida_remota(arnes, cu)
                 arnes.evento(f"PARADA ({motivo_fin}): brazos quietos, postura sostenida")
                 cu.congelar()
                 arnes.parada = None
@@ -634,6 +757,8 @@ def main():
             except KeyboardInterrupt:
                 cu.soltar(0.5, "Ctrl+C al salir")
         teclado.cerrar()
+        if arnes.servidor is not None:
+            arnes.servidor.parar()
         try:
             cu.parar()
         except RuntimeError as ex:

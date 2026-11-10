@@ -8,6 +8,7 @@ Se consulta en cada ciclo del brazo (brazo.ir_a(..., comprobar=vigilante.comprob
   - fuerza de una mano por encima del corte; mano sin responder
   - camara sin fotogramas; rt/lowstate sin llegar; motor en fallo; FSM distinta de 201
   - tecla ESPACIO, boton de parada del mando o Ctrl+C
+  - con el robot en el arnes (brazo_arnes.py): parada o amortiguacion en arnes.py, o arnes.py sin contestar
 Trabaja con cualquier objeto con la interfaz de robot.Robot (tambien sim/robot_simulado.py): se prueba sin
 robot. Devuelve el motivo (o None) y comprobar() lanza Parada con el.
 """
@@ -73,6 +74,11 @@ class Vigilante:
     def motivo(self, s: Salud = None):
         if self.parada_pedida:
             return self.parada_pedida
+        arnes = getattr(self.brazo, "motivo_parada", None)     # con arnes.py (brazo_arnes.py)
+        if arnes is not None:
+            m = arnes()
+            if m:
+                return m
         if self.robot.edad_lowstate() > self.lowstate_max_s:
             return f"rt/lowstate lleva {self.robot.edad_lowstate():.2f} s sin llegar"
         s = s or self.salud()

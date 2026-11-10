@@ -10,6 +10,7 @@ red:
   zmq_fotogramas: tcp://127.0.0.1:5556    # camara_servidor.py (root) -> procesos del usuario
   manos: {izq: 192.168.124.211, der: 192.168.124.210}   # al reves que la documentacion de Unitree
   puerto_manos: 6000
+  puerto_brazos: 5557                     # arnes.py (manip/servidor_brazos.py) <- manipulacion.py --arnes, en 127.0.0.1
 
 camara:
   fps: 30
@@ -85,6 +86,7 @@ cuerpo:                 # manip/cuerpo.py: rt/lowcmd de las 27 juntas con el rob
     edad_lowstate_max_s: 0.25   # mas: amortiguacion
     temperatura_max_c: 75       # mas: parada (sostener)
   boton_parada: L1              # en el mando, ademas de ESPACIO en el terminal
+  latido_max_s: 2.0             # manipulacion.py con los brazos y sin noticias en esto: brazos congelados y sin control
 
 brazo:                  # manip/brazo.py, con los patrones de caja_cuadrado.py
   hz: 50

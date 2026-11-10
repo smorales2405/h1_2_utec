@@ -744,3 +744,41 @@ Robot de pie con `arnes.py` y el montaje colocado con `marcar_montaje.py`, en cu
   cuentas, en `montaje.distancias_bandejas()`; reproducen las que se dieron a mano el 10-nov.
 - Pruebas: `test_montaje` mide los desvíos de las bandejas respecto de su objetivo aunque el montaje traiga
   medidas, y comprueba la tabla de distancias. 70 de 70.
+
+## 28. manipulacion.py con el robot de pie en el arnés: arnes.py presta los brazos (2026-11-10, en la PC)
+
+Decisión del usuario (opción B del PLAN): `arnes.py` sigue sosteniendo al robot por `rt/lowcmd` y es el único
+que publica; `manipulacion.py --arnes` le pide los movimientos de los brazos. Se pone de pie una vez para varias
+tiradas, y si `manipulacion.py` falla las piernas siguen sostenidas.
+
+- **`manip/servidor_brazos.py`** (un hilo de `arnes.py`, TCP en 127.0.0.1:`red.puerto_brazos`, una línea JSON
+  por petición): `estado`, `tomar` (solo de pie, nivelado, con el estabilizador, los pies cargados, sin parada y
+  con los brazos a 0), `mover` (los 14 de los brazos con `Cuerpo.mover`: mínima sacudida ≥ 8 s, ≤ 0.5 rad/s, a
+  los límites; uno cada vez), `congelar` y `soltar`. Cada petición es un latido: sin ninguno en
+  `cuerpo.latido_max_s` (2 s) los brazos se congelan y se quita el control. Con el control dado, `[m]`, `[k]` y
+  `[c]` no se aceptan. Una parada de `arnes.py` (ESPACIO, botón del mando, SSH cortado, temperatura) congela los
+  brazos, solo acepta movimientos de salida, espera a que `manipulacion.py` haga su salida segura y suelte (180 s
+  como mucho) y después cuelga como siempre. L2+B, igual que antes (amortigua en el hilo de `Cuerpo`).
+- **`manip/brazo_arnes.py`**: la interfaz de `Brazo` para el supervisor sin publicar nada. "Peso" = tener el
+  control. `ir_a` pide el movimiento y espera mirando el estado y llamando a `comprobar`; si algo salta (el
+  contacto de la yema, una parada) **congela antes de dejar salir la excepción** (con `arm_sdk` el brazo se
+  paraba solo porque los pasos los daba ese bucle). El vigilante pregunta `motivo_parada()` (parada o
+  amortiguación en `arnes.py`, control perdido, `arnes.py` sin contestar); la salida segura marca sus movimientos
+  como de salida. En Debug no hay FSM ni el joystick hace andar: no se vigilan.
+- **`manipulacion.py --arnes`** en el robot: reposo = brazos a 0; `--recuperar`: solo la salida segura desde
+  donde estén los brazos (si `manipulacion.py` murió a medias, `arnes.py` los dejó congelados).
+- **En la PC**, con el `Cuerpo` de verdad sin publicar sobre el robot simulado y un reloj ×40
+  (`tests/test_brazo_arnes.py`, 10 pruebas): tomar, mover y soltar; brazos fuera de 0 solo con `--recuperar`; un
+  `comprobar` que salta congela el brazo a medio camino; sin latido se congela y se pierde el control; parada de
+  `arnes.py` → solo la salida; amortiguado → nada; `arnes.py` caído. En el gemelo, la tirada de nivel 2 a través
+  del servidor: **4/4**, acaba con los brazos a 0 y el control devuelto; ESPACIO en `arnes.py` con el cilindro en
+  la mano → salida segura por un punto alto y la observación a 0; `--recuperar` trae a 0 un brazo dejado sobre la
+  zona.
+- **`arnes.py --sim --operador-auto --con-remoto`** (con física): el cliente toma los brazos, los dos a la
+  observación y a 0, y otra vez con ESPACIO a los 4 s: congelados, su salida a 0, suelta y `arnes.py` cuelga y
+  termina. Con los dos brazos a la observación el torso se va +0.5° (pitch respecto de la referencia, sobre el
+  +1.7° de la simulación) y +0.1° de roll, tobillos ≤ 30 N m, pies al 72–74 %; con `[m]` (un brazo), +0.15°.
+- **Ganancias:** los brazos se mueven con las de `arnes.py` (`tuned_gff`), con el hombro derecho (pitch) a kp 280,
+  por encima del tope de 150 de la sección 10 que aplicaba `manipulacion.py` con `arm_sdk`. Decisión del usuario:
+  se quedan como se probaron en el Hito 0.
+- Pruebas: 80 de 80.

@@ -7,9 +7,14 @@
     python3 manipulacion.py --nivel 2 --sim            # en la PC: robot, manos y camara simulados (gemelo)
     python3 manipulacion.py --nivel 2 --sim --visor    # lo mismo en una ventana de MuJoCo, a velocidad real
     python3 manipulacion.py --nivel 2 --sim --arnes    # empezando de pie en el arnes con los brazos a 0
+    ./manipulacion.sh --nivel 1 --arnes                # el robot de pie en el arnes (herramientas/arnes.py)
+    ./manipulacion.sh --nivel 1 --arnes --recuperar    # brazos que se quedaron donde sea: salida segura a 0
 
 Pide escribir MOVER antes de mover nada (seccion 10). ESPACIO o Ctrl+C: salida segura. L2+B en el mando: la
 parada de emergencia del operador. Registro en datos/tirada_<fecha>_nivel<N>[_simulacro]/.
+Con --arnes (robot real) no se publica nada: herramientas/arnes.py sostiene al robot por rt/lowcmd y hace los
+movimientos que se le piden (manip/brazo_arnes.py); tiene que estar de pie, nivelado y con los brazos a 0. Sin
+--arnes, el camino de rt/arm_sdk con FSM 201 (descartado en el robot porque daba pasos, 2026-10-15).
 """
 
 import argparse
@@ -25,6 +30,7 @@ from manip import calibracion as cb  # noqa: E402
 from manip import config  # noqa: E402
 from manip import dianas as md  # noqa: E402
 from manip.brazo import Brazo  # noqa: E402
+from manip.brazo_arnes import BrazoArnes  # noqa: E402
 from manip.cinematica import Cinematica  # noqa: E402
 from manip.mano import Mano  # noqa: E402
 from manip.mensajes import JUNTAS_BRAZO, LADOS  # noqa: E402
@@ -73,7 +79,10 @@ def leer_args(cfg, objetos):
     ap.add_argument("--visor", action="store_true", help="--sim: ventana de MuJoCo, a velocidad real (o --velocidad)")
     ap.add_argument("--velocidad", type=float, default=1.0, help="--visor: x esto la velocidad real")
     ap.add_argument("--arnes", action="store_true",
-                    help="--sim: el robot empieza de pie en el arnes con los brazos a 0 (como lo deja herramientas/arnes.py)")
+                    help="robot de pie en el arnes: los brazos los mueve herramientas/arnes.py (con --sim, el robot "
+                         "simulado empieza de pie con los brazos a 0)")
+    ap.add_argument("--recuperar", action="store_true",
+                    help="--arnes: solo la salida segura, desde donde esten los brazos (si manipulacion.py murio a medias)")
     ap.add_argument("--parada-en", default=None, metavar="ESTADO[+s]",
                     help="--sim: pide la salida segura s segundos despues de entrar en ESTADO (p. ej. TRANSPORTE+4)")
     ap.add_argument("--sin-comprobar-montaje", action="store_true",
@@ -81,8 +90,10 @@ def leer_args(cfg, objetos):
     ap.add_argument("--salida-directa", action="store_true",
                     help="salida segura del PDF tal cual: sin pasar por la observacion y el reposo (para comparar)")
     a = ap.parse_args()
-    if (a.visor or a.parada_en or a.arnes) and not a.sim:
-        sys.exit("--visor, --parada-en y --arnes son de la simulacion de la PC: con --sim.")
+    if (a.visor or a.parada_en) and not a.sim:
+        sys.exit("--visor y --parada-en son de la simulacion de la PC: con --sim.")
+    if a.recuperar and (not a.arnes or a.sim or a.simulacro):
+        sys.exit("--recuperar es del robot en el arnes: con --arnes, sin --sim ni --simulacro.")
     if a.sim and a.nivel >= 2 and not a.colocacion:
         a.colocacion = [f"{k}={xy[0]},{xy[1]},{yaw}" for k, (xy, yaw) in COLOCACION_SIM.items()]
     a.dianas = [tuple(float(v) for v in d.split(",")) for d in a.dianas] if a.dianas else None
@@ -157,19 +168,35 @@ def armar(a, cfg=None, montaje=None, objetos=None, log=print):
         e = robot.estado()
         if e.motores_en_fallo:
             sys.exit(f"Motores en fallo: {e.motores_en_fallo}")
-        lector_fsm = LectorFsm(robot, cfg["supervisor"]["fsm_cada_s"])
-        fsm = lector_fsm.iniciar()
-        log(f"lowstate OK, mode_machine {e.mode_machine}, FSM {fsm}")
-        if fsm != FSM_VALIDA:
-            sys.exit(f"La FSM es {fsm}: tiene que ser {FSM_VALIDA} (L2+UP y R2+X en el mando).")
+        if getattr(a, "arnes", False):
+            # en Debug no hay FSM: lo que se vigila es arnes.py (brazo_arnes.py); el joystick no hace andar
+            lector_fsm = None
+            cfg["supervisor"]["joystick_para"] = False
+            log(f"lowstate OK, mode_machine {e.mode_machine}; robot en el arnes (herramientas/arnes.py)")
+        else:
+            lector_fsm = LectorFsm(robot, cfg["supervisor"]["fsm_cada_s"])
+            fsm = lector_fsm.iniciar()
+            log(f"lowstate OK, mode_machine {e.mode_machine}, FSM {fsm}")
+            if fsm != FSM_VALIDA:
+                sys.exit(f"La FSM es {fsm}: tiene que ser {FSM_VALIDA} (L2+UP y R2+X en el mando).")
         fuente = LectorContinuo(FuenteZmq(cfg["red"]["zmq_fotogramas"]))
         if fuente.fresco(timeout_s=5.0) is None:
             sys.exit("No llegan fotogramas: ./camara_servidor.sh")
         manos = {l: Mano(l, cfg) for l in LADOS}
-        brazo = Brazo(robot, cfg, simulacro=a.simulacro, escala_tiempo=a.escala_tiempo)
+        if getattr(a, "arnes", False) and not a.simulacro:
+            try:
+                brazo = BrazoArnes(robot, cfg, escala_tiempo=a.escala_tiempo, recuperar=getattr(a, "recuperar", False))
+            except RuntimeError as ex:
+                sys.exit(str(ex))
+        else:
+            brazo = Brazo(robot, cfg, simulacro=a.simulacro, escala_tiempo=a.escala_tiempo)
         edad = fuente.edad
     q = robot.q()
     reposo = {l: q[JUNTAS_BRAZO[l]] for l in LADOS}
+    if getattr(a, "arnes", False):
+        # el reposo es con los brazos a 0 (lo que deja arnes.py), no la postura medida: con --recuperar estan donde sea
+        cero = np.radians(np.asarray(cfg["cuerpo"]["brazos_cero_deg"], float))
+        reposo = {"izq": cero[:7], "der": cero[7:]}
     # gemelo para comprobar los planes, con la postura medida
     from sim.colisiones import Colisiones
     from sim.escena import Estado, construir
@@ -256,7 +283,7 @@ def correr(t, confirmar=True):
     a, cfg = t.a, t.cfg
     print(f"\n  Nivel {a.nivel}{' en SIMULACRO (no se publica en rt/arm_sdk)' if a.simulacro else ''}"
           f"{' SIMULADO en la PC' if a.sim else ''}; duraciones x{a.escala_tiempo}.")
-    if not getattr(a, "sin_comprobar_montaje", False):
+    if not getattr(a, "sin_comprobar_montaje", False) and not getattr(a, "recuperar", False):
         problemas, informe = comprobar_montaje(t)
         print("\n  Montaje:\n" + "\n".join(f"    {x}" for x in informe))
         if problemas:
@@ -273,7 +300,10 @@ def correr(t, confirmar=True):
             t.reg.cerrar(motivo="montaje movido", problemas_montaje=problemas)
             return "montaje movido"
     if confirmar and not a.sim:
-        print("  Robot de pie en FSM 201, nadie al alcance de los brazos, operador con L2+B. ESPACIO: salida segura.")
+        if getattr(a, "recuperar", False):
+            print("  RECUPERAR: los brazos saldran por la salida segura (abrir las manos, subir, por la observacion a 0).")
+        print("  Robot de pie " + ("en el arnes (arnes.py nivelado)" if getattr(a, "arnes", False) else "en FSM 201") +
+              ", nadie al alcance de los brazos, operador con L2+B. ESPACIO: salida segura.")
         if input(f"  Escribe {cfg['supervisor']['palabra']} para empezar: ").strip() != cfg["supervisor"]["palabra"]:
             print("Cancelado.")
             t.brazo.parar()
@@ -289,7 +319,7 @@ def correr(t, confirmar=True):
     teclado.abrir()
     t0 = time.monotonic()
     try:
-        motivo = t.sup.ejecutar()
+        motivo = t.sup.recuperar() if getattr(a, "recuperar", False) else t.sup.ejecutar()
     finally:
         teclado.cerrar()
         try:

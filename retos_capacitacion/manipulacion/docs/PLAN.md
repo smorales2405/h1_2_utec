@@ -353,7 +353,7 @@ DDS.
 | `herramientas/mapa_alcance.py` | 6.1.1 | Mapa por mano, agarre y giro en planta, con colisiones del gemelo | PC | 1 | pendiente |
 | `herramientas/grabar_calibracion.py` | 6.1.3 | En el arnés, mientras `arnes.py` [k] recorre `poses_calibracion.yaml` (cada brazo desde 0 y de vuelta): una muestra (color, profundidad, q medida y mandada) cada vez que un brazo se queda quieto 1 s en una pose nueva; solo lee | Robot | 2 | hecho, sin probar en el robot (el recorrido, con física en `arnes.py --sim`) |
 | `herramientas/calibrar_camara_torso.py` | 6.1.3–4 | Calibración y su residuo; con la q medida y con la consigna | PC | 2 | pendiente |
-| `herramientas/vibracion_camara.py` | 6.1.5 | ArUco fijo durante 60 s con el robot quieto | Robot | 2 | pendiente |
+| `herramientas/vibracion_camara.py` | 6.2.5 | Los ArUco de la mesa (2–5) durante 60 s con el robot quieto: modo común (la cámara) y diferencia (ruido de la detección) en px, minutos de arco y mm en los marcadores y en la zona, movimiento neto, frecuencia dominante, y la IMU de `arnes.py` en la misma ventana (correlación con el pitch de la imagen); `--dataset` y `--analizar` en la PC | Robot y PC | 2 | hecho, probado con imágenes sintéticas y grabaciones de octubre (falta en el robot) |
 | `herramientas/curva_pasos.py` + `analizar_pasos.py` | 6.3.1–2 | Cliente de `arnes.py` (como `manipulacion.py --arnes`): la observación (centro de masas 4 cm atrás) y un alcance de un brazo (casi quieto) a 30, 20, 10 y 8 s, ida y vuelta; caminos comprobados en el gemelo y parada por la IMU. El análisis da pico, lo que queda y el exceso dinámico de pitch y roll, el giro (yaw), la carga y los tobillos, frente a la velocidad, la aceleración y el desplazamiento del centro de masas, y la duración mínima | Robot y PC | 2 | hecho, en el robot (RESULTADOS §31) |
 | `herramientas/fuerza_mano.py` | 6.4.2–4 | Fuerza real frente a FORCE_SET y SPEED con la báscula, apertura tras cerrar por fuerza y contacto de la yema | Robot | 2 | pendiente |
 | `herramientas/grabar_dataset.py` | 6.2 | Objetos en posiciones medidas con regla, con y sin mano delante | Robot | 2 | pendiente |
@@ -385,6 +385,7 @@ python3 herramientas/generar_sintetico.py --n 200                         # Fase
 python3 herramientas/mapa_alcance.py --montaje config/montaje.yaml        # Hito 1
 python3 herramientas/calibrar_camara_torso.py datos/calib_<fecha>         # Hito 2
 python3 herramientas/analizar_pasos.py datos/pasos_<fecha>                # Hito 2
+python3 herramientas/vibracion_camara.py --analizar datos/vibracion_<fecha>  # Hito 2 (o --dataset una grabacion)
 python3 herramientas/evaluar_percepcion.py datos/dataset_<fecha>          # percepción sin robot
 python3 herramientas/comprobar_trayectorias.py --nivel 1 2 3 4            # planificación sin robot
 python3 herramientas/reproducir_mujoco.py datos/tirada_<fecha>            # Hito 3 y tras cada tirada
@@ -525,7 +526,7 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 - [x] Mano montada como en el robot (anillo de 10 mm y brida de 16 mm, x = 0.161): punto de agarre 0.215 → 0.211 (RESULTADOS §27)
 - [ ] Profundidad: ~2 % de más a 1 m sobre papel mate y ~1 % más con el plano del tablero negro; medir en la zona (poses de calibración más bajas, 5–12 cm sobre la mesa, o tocar dianas del nivel 1) y, si hace falta, corregir la profundidad con la distancia
 - [ ] Superposición del gemelo calibrado sobre la imagen real
-- [ ] `vibracion_camara.py`
+- [ ] `vibracion_camara.py` (herramienta hecha el 2026-11-11, RESULTADOS §32; falta en el robot: 60 s quieto, y opcional a la vez que `curva_pasos.py`)
 - [x] `curva_pasos.py` a 8, 10, 20 y 30 s; duración mínima al YAML (2026-11-11, RESULTADOS §30–31): 0 pasos, ≤ 0.19° de pitch y ≤ 0.31° de giro a cualquier duración; manda el desplazamiento del centro de masas, no la velocidad; `t_min_mov_s` 8 s
 - [ ] `fuerza_mano.py` con la báscula: fuerza real, sobreimpulso por SPEED, apertura tras cerrar por fuerza y contacto de la yema
 - [ ] `objetos.yaml`: peso, medidas, agarre y FORCE_SET por objeto

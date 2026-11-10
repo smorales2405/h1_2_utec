@@ -892,3 +892,21 @@ las manos más lejos de las asas que en la tirada del §29 (en recta); en el gem
 - Ojo: la integral del estabilizador estuvo **al tope (+15 N m) toda la sesión** (la cuerda tirando del torso
   hacia delante: retrasar el pórtico). El torso se quedó dentro de la banda (+0.30…+0.63° con referencia +0.5) y
   la integral no se movió: la curva mide lo que hacen la parte proporcional y la derivada.
+
+## 32. vibracion_camara.py: cuánto se mueve la cámara con el robot quieto (2026-11-11, en la PC)
+
+Para 6.2.5 ("medirlo con un marcador fijo en la mesa"): en cada fotograma de color, los ArUco de la mesa (2–5, los
+que se vean; con la mesa a ~0.29 m, el 2 y el 3) con esquinas a subpíxel y solvePnP. Lo que mueve a la vez a todos
+es la cámara (modo común); la mitad de la diferencia entre dos, el ruido de la detección (σ por marcador = √2 ×
+su desviación; en el modo común de N, σ/√N). Da el modo común en px, minutos de arco (px/f) y mm en los marcadores
+y en el centro de la zona (con la calibración y el montaje), el **movimiento neto** (modo común sin el ruido), la
+frecuencia dominante y la profundidad de solvePnP; con `arnes.py` corriendo, la IMU del torso (estado con `cuerpo`,
+sin tomar los brazos) en la misma ventana y la correlación del pitch de la imagen con el de la IMU.
+
+- Pruebas con imágenes sintéticas (`tests/test_vibracion_camara.py`, 3): una senoide común de 1.5 px a 2 Hz sale
+  con su desviación (amplitud/√2), su frecuencia y su amplitud; un ruido propio de 0.3 px por marcador sale como
+  ruido y no como movimiento; una IMU que gira como la imagen da r > 0.95 y pendiente 1.
+- Sobre las dos grabaciones de 1 s del robot de pie en el arnés (2026-10-17, 30 fotogramas a 30 fps, 2 y 3 a
+  1.04–1.05 m): modo común 0.02–0.11 px, igual que el ruido de la detección (0.05–0.12 px por marcador): **el
+  movimiento neto no se distingue del ruido** (< 0.1 px ≈ 0.5' ≈ 0.15 mm en los marcadores). Falta la medida de 60 s
+  en el robot con la IMU.

@@ -94,7 +94,7 @@ class Arnes:
         self.teclas = []
         self.cerrojo = threading.Lock()
         self.carpeta = carpeta_tirada(config.ruta_datos(cfg), "arnes", "sim" if a.sim else None)
-        self.eventos = CsvSimple(os.path.join(self.carpeta, "eventos.csv"), ["t", "fase", "texto"])
+        self.eventos = CsvSimple(os.path.join(self.carpeta, "eventos.csv"), ["t", "fase", "texto"], al_momento=True)
         self.resumen = {"inicio": time.strftime("%Y-%m-%d %H:%M:%S"), "args": vars(a), "eventos": []}
         self.t0 = time.monotonic()
         self.sim = None
@@ -395,12 +395,12 @@ def colgar_y_terminar(arnes, cu):
     """Fase COLGAR: se sube el polipasto; sin carga el par vuelve a colgado; [f] lleva los brazos a la postura
     colgada y suelta. Sin terminal (SSH cortado) termina solo tras 3 s colgado; L2+B amortigua en cualquier
     momento."""
-    arnes.fase = "COLGAR"
+    previa, arnes.fase = arnes.fase, "COLGAR"
     if arnes.servidor is not None:
         arnes.servidor.quitar("colgar")
     cu.nivelar(False)                                # la cuerda vuelve a tirar: la referencia y la integral quietas
     lejos = float(np.abs(cu.consigna()[BRAZOS] - cu.brazos_cero).max())
-    if lejos > 0.1:
+    if lejos > 0.1 and previa != "FIN":              # parado en FIN: iban de 0 a la postura colgada, no a la mesa
         arnes.evento(f"OJO: los brazos estan a {math.degrees(lejos):.0f} grados de 0. [f] los lleva a la postura colgada "
                      "sacando antes el hombro: si estan sobre la mesa, antes de colgar, manipulacion.py --arnes --recuperar")
     arnes.evento("[f] para terminar" if cu.carga < CARGA_COLGADO and cu.apoyo.meta == 0.0 else

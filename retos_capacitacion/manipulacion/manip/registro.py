@@ -66,13 +66,17 @@ def _fmt(v):
 
 
 class CsvSimple:
-    """CSV con columnas fijas; escribir() acepta un dict y es seguro entre hilos."""
+    """CSV con columnas fijas; escribir() acepta un dict y es seguro entre hilos. al_momento: cada fila va al
+    disco al escribirla (los eventos: un arnes.py que acabo sin cerrar el 2026-11-11 dejo eventos.csv vacio)."""
 
-    def __init__(self, ruta, columnas):
+    def __init__(self, ruta, columnas, al_momento=False):
         self.columnas = list(columnas)
+        self.al_momento = al_momento
         self._f = open(ruta, "w", newline="")
         self._w = csv.writer(self._f)
         self._w.writerow(self.columnas)
+        if al_momento:
+            self._f.flush()
         self._cerrojo = threading.Lock()
         self.filas = 0
 
@@ -82,6 +86,8 @@ class CsvSimple:
             if self._f.closed:
                 return
             self._w.writerow(valores)
+            if self.al_momento:
+                self._f.flush()
             self.filas += 1
 
     def cerrar(self):
@@ -163,7 +169,8 @@ class Registro:
     def __init__(self, base, tipo, nombre=None):
         self.carpeta = carpeta_tirada(base, tipo, nombre)
         self.manos = CsvSimple(os.path.join(self.carpeta, "manos.csv"), COLUMNAS_MANO)
-        self.eventos = CsvSimple(os.path.join(self.carpeta, "eventos.csv"), ["t", "estado", "motivo", "detalle"])
+        self.eventos = CsvSimple(os.path.join(self.carpeta, "eventos.csv"), ["t", "estado", "motivo", "detalle"],
+                                 al_momento=True)
         self.lowstate = None
         self.resumen = {"inicio": time.strftime("%Y-%m-%d %H:%M:%S"), "eventos": []}
         self._t0 = time.monotonic()

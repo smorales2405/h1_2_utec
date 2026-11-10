@@ -496,7 +496,7 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 - [x] Sesgo del tobillo (+13 N m), la referencia solo avanza si el torso la sigue, integral sin acumular saturada, con banda de 0.5° y sin roll, total del tobillo ≤ 50 N m; simulación con el desfase en cadera y rodilla (reproduce la oscilación); simulado
 - [x] En el robot (2026-10-17, dos tiradas): con el pórtico centrado, quieto a ~0° con los brazos moviéndose (pitch −0.03…+0.09°, tobillos ≤ 9 N m); el aviso de la integral decía la dirección al revés (corregido) y el orden pasa a `[n]` → pórtico → polipasto
 - [x] En el robot: el orden nuevo (2026-10-17, tres tiradas): nivela de +3.4° a +0.7° en ~20 s sin oscilar (tobillos ≤ 30 N m); con el pórtico centrado +0.5°; con la cuerda tensa y los brazos moviéndose +0.7…+1.0°, tobillos ≤ 16 N m. Una `[n]` pulsada mientras se encendía el estabilizador se perdía (y adelantaba el par de pie): corregido, y el siguiente paso en la línea de estado
-- [x] Integrar `Cuerpo` en `manipulacion.py` (2026-11-10, opción B del usuario): `arnes.py` sigue sosteniendo al robot y presta los brazos por `manip/servidor_brazos.py`; `manipulacion.py --arnes` los mueve con `manip/brazo_arnes.py` sin publicar nada (latido, parada de `arnes.py` → salida segura de `manipulacion.py` y luego colgar, `--recuperar`); en el gemelo, nivel 2 4/4 a través del servidor (RESULTADOS §28). Falta en el robot
+- [x] Integrar `Cuerpo` en `manipulacion.py` (2026-11-10, opción B del usuario): `arnes.py` sigue sosteniendo al robot y presta los brazos por `manip/servidor_brazos.py`; `manipulacion.py --arnes` los mueve con `manip/brazo_arnes.py` sin publicar nada (latido, parada de `arnes.py` → salida segura de `manipulacion.py` y luego colgar, `--recuperar`); en el gemelo, nivel 2 4/4 a través del servidor (RESULTADOS §28). En el robot (2026-11-11): observación y vuelta (RESULTADOS §29)
 - [x] kp de los brazos en `arnes.py` (`tuned_gff`, el hombro derecho en pitch a 280, por encima del tope de 150 de la sección 10 que `manipulacion.py` aplicaba con `rt/arm_sdk`): decisión del usuario (2026-11-10), se quedan como se probaron en el Hito 0
 - [ ] Nueva pose de observación alcanzable desde los brazos a 0 sin tapar la vista; regenerar `secuencia_ganancias.yaml`
 - [x] Mesa medida con el robot de pie en el arnés (2026-10-17): borde cercano a 0.282 m, 2.1 cm a la derecha, yaw −0.7° (solo con los ArUco lejanos y el fondo de la mesa); bandejas de la guía, zona 40 × 16 y cruz en `montaje.yaml`; el gemelo coincide con la imagen real con la calibración del URDF (RESULTADOS §20)
@@ -536,7 +536,7 @@ Se implementa en el orden en que los hitos lo necesitan, y cada tarea termina co
 **Hito 3: simulacro**
 
 - [ ] `manipulacion.sh --simulacro` con la cámara en vivo y `reproducir_mujoco.py`
-- [ ] Un movimiento real a la pose de observación y vuelta
+- [x] Un movimiento real a la pose de observación y vuelta (2026-11-11, a través de `arnes.py`: completado, brazos ≤ 3.7° de error, torso −0.4° de pitch; RESULTADOS §29)
 - [ ] Salida segura al tapar la cámara y al simular un giro, vista en el registro
 - [ ] Visto bueno del instructor al Hito 3
 

@@ -782,3 +782,36 @@ tiradas, y si `manipulacion.py` falla las piernas siguen sostenidas.
   por encima del tope de 150 de la sección 10 que aplicaba `manipulacion.py` con `arm_sdk`. Decisión del usuario:
   se quedan como se probaron en el Hito 0.
 - Pruebas: 80 de 80.
+
+## 29. Primera tirada en el robot a través de arnes.py: observación y vuelta (2026-11-11)
+
+Desplegado `74682be`; `arnes.py` de pie y nivelado; `[g]` de la mesa vacía en `marcar_montaje.py` (02:44: borde
+0.297 m, +0.6 cm, +0.70°, dentro de `objetivo_mesa`) y `./manipulacion.sh --nivel 1 --arnes` sin dianas
+(`datos/tirada_20261111_024454_nivel1`, `arnes_20261111_023839`).
+
+- **Completada**: toma los brazos, los dos a la observación en 16 s (escala 2), 0 objetos y 0 dianas (47 ms),
+  vuelta a 0 en 16 s, suelta. 32 s de tirada; `arnes.py` siguió de pie.
+- **Brazos** (consigna de `arnes.py` frente a la medida): error máximo 3.7° (codo derecho) y 3.2° (hombro izquierdo,
+  roll) durante el movimiento; en la observación, el hombro (pitch) 1° por debajo (0.599 de 0.616 rad); par máximo
+  15 N m.
+- **Cuerpo**: con los brazos adelante el torso pasa de +0.62° a +0.20° de pitch (la integral del estabilizador,
+  de −1.84 a −2.97, y vuelve a −2.08) y el roll no se mueve (±0.05°); pies al 72–73 % todo el tiempo (izquierdo
+  275 N, derecho 215 N, el reparto de siempre); tobillos ≤ 12 N m; ciclo ≤ 2.8 ms; 52 °C. Como en la simulación
+  (+0.5°). Ojo: 0.4° de torso (girando sobre los tobillos, 0.93 m) son ~6 mm en la zona entre la mesa del `[g]`
+  (brazos a 0) y la que ve el robot con los brazos adelante; dentro de las tolerancias, pero se suma al error.
+- **El primer intento (02:33) no llegó a moverse**: `arnes.py` estaba en COLGAR. Se había pulsado la **flecha
+  derecha**, que el terminal manda como `ESC [ C`: el ESC no es imprimible y se saltaba, el `[` no hacía nada y la
+  `C`, pasada a minúscula por el Bloq Mayús, era la `[c]` de colgar (`eventos.csv`: `tecla '['` y `tecla 'C'` en
+  el mismo instante). Arreglo: `manip/teclado.py` quita las secuencias de escape (flechas, Inicio/Fin, F1–F12,
+  AvPág, Alt+tecla; partidas entre lecturas si llegan en < 0.1 s) antes de pasarlas a `arnes.py` y
+  `marcar_montaje.py`. Probado también con un pty de verdad.
+- Ese mismo `arnes.py`, parado con Ctrl+C mientras llevaba los brazos a la postura colgada, avisó "los brazos
+  están a 79 grados de 0 … `--recuperar`": falso, iban de 0 a la postura colgada. Ya no se avisa si la parada fue
+  en FIN.
+- El segundo `arnes.py` (02:35) terminó sin `resumen.json` y con `eventos.csv` vacío (el `ciclo.csv` llega hasta
+  kp a 0, así que se soltó bien): salió sin pasar por el cierre y los eventos seguían en el búfer. Los
+  `eventos.csv` de `arnes.py` y de las tiradas se escriben ahora al momento (`CsvSimple(al_momento=True)`).
+- La mesa de este `[g]` está girada +0.70° y la del 2026-11-10 −0.68° (el robot se pone de pie cada vez un poco
+  distinto): con las bandejas donde estaban, C y D quedan ~1.2 cm más cerca del robot de lo que toca. Para los
+  niveles con bandejas: `herramientas/distancias_bandejas.py` y la fase de bandejas de `marcar_montaje.py`.
+- Pruebas: 85 de 85 (`tests/test_teclado.py`, nueva).

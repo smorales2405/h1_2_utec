@@ -196,6 +196,7 @@ class Brazo:
                 return False
             for j, q in pose.items():
                 self.obj[j] = self.recortar(j, q)
+        self._paso()                          # sincrono (el gemelo): se manda ya, como en cada paso de ir_a
         return True
 
     def congelar(self):

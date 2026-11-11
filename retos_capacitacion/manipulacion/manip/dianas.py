@@ -1,10 +1,12 @@
-"""Dianas del nivel 1: pegatinas de 2 cm con una cruz, al azar en la zona de recogida. Fotograma -> [(x, y)]
-en el torso, el centro de cada cruz sobre el plano de la mesa.
+"""Dianas del nivel 1: cruces claras al azar en la zona de recogida (pegatinas de 2 cm o, las del usuario, cruces de
+cinta de carrocero de ~7.5 cm con brazos de 1.9 cm). Fotograma -> [(x, y)] en el torso, el centro de cada cruz sobre
+el plano de la mesa.
 
-Marcas claras y pequenas sobre el tablero negro y las alfombrillas grises: contraste local en el color
-(top-hat), tamano de 1-4 cm a la distancia de la mesa, forma de cruz (rellenan 30-75 % de su caja) y planas
-en la profundidad (los objetos sobresalen). El centro es el rayo del color por el centroide cortado con el
-plano. La cinta real (color, ancho) se ajusta en el hito 2 con las imagenes del robot.
+Marcas claras sobre el tablero negro y las alfombrillas grises: contraste local en el color (top-hat), tamano en la
+mesa entre lado_m, forma de cruz (rellenan 25-80 % de su caja) y planas en la profundidad (los objetos sobresalen).
+El centro es el rayo del color por el centroide cortado con el plano. Se mira la zona ampliada `mascara_m` (la cruz
+entera aunque este en el borde: con la mascara justa, el 2026-11-12, una cruz en el borde se corto y su centro salio
+3 cm movido) y se quedan las de centro dentro de la zona ampliada `margen_m`.
 """
 
 import math
@@ -16,17 +18,22 @@ from .fuentes import intrinsecos, prof_en_metros
 from .geometria import Plano, aplicar, inv
 
 
-def detectar(f, cal, montaje, margen=0.03, lado_m=(0.01, 0.04), contraste=40, n_max=6):
+def detectar(f, cal, montaje, margen_m=0.06, lado_m=(0.01, 0.10), contraste=40, n_max=6, mascara_m=0.12):
     if f.color is None:
         return []
     ic = intrinsecos(f, "color")
     pl = montaje["mesa"]["plano"]
     plano = Plano(pl["n"], pl["d"])
     z = montaje["zona_recogida"]
-    # la zona en la imagen
+    mascara_m = max(float(mascara_m), float(margen_m) + float(lado_m[1]) / 2)
+
+    def en_zona(p, m):
+        return z["x"][0] - m <= p[0] <= z["x"][1] + m and z["y"][0] - m <= p[1] <= z["y"][1] + m
+    # la zona ampliada en la imagen
     esq = []
-    for x, y in ((z["x"][0] - margen, z["y"][0] - margen), (z["x"][1] + margen, z["y"][0] - margen),
-                 (z["x"][1] + margen, z["y"][1] + margen), (z["x"][0] - margen, z["y"][1] + margen)):
+    mg = mascara_m
+    for x, y in ((z["x"][0] - mg, z["y"][0] - mg), (z["x"][1] + mg, z["y"][0] - mg),
+                 (z["x"][1] + mg, z["y"][1] + mg), (z["x"][0] - mg, z["y"][1] + mg)):
         zz = -(plano.n[0] * x + plano.n[1] * y + plano.d) / plano.n[2]
         esq.append([x, y, zz])
     uv = ic.proyectar(aplicar(inv(cal.T_torso_color), np.array(esq)))
@@ -44,7 +51,7 @@ def detectar(f, cal, montaje, margen=0.03, lado_m=(0.01, 0.04), contraste=40, n_
         if area < 15:
             continue
         p = plano.corte_rayo(o, cal.T_torso_color[:3, :3] @ ic.rayos(cen[k])[0])
-        if p is None:
+        if p is None or not en_zona(p, margen_m):
             continue
         # tamano en la mesa: px -> m a esa distancia
         dist = float(np.linalg.norm(p - o))

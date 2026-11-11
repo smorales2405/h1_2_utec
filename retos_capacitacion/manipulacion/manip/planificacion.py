@@ -151,8 +151,13 @@ class Planificador:
         if relajadas:            # (un limite a -1 ya no limita y se queda asi)
             a, b = max(5, a - 10), min(90, b + 15)
             adelante, abajo = min(adelante, 0.0), (abajo - 0.25 if abajo > 0 else abajo)
-        return [dedos_inclinados(a, b, eje), Banda(eje, np.array([1.0, 0.0, 0.0]), adelante, 1.0),
-                Banda(palma, np.array([0.0, 0.0, -1.0]), abajo, 1.0)]
+        bandas = [dedos_inclinados(a, b, eje), Banda(eje, np.array([1.0, 0.0, 0.0]), adelante, 1.0),
+                  Banda(palma, np.array([0.0, 0.0, -1.0]), abajo, 1.0)]
+        if "palma_hacia" in t:          # hacia donde mira la palma (en el torso), p. ej. [-1, 0, 0]: el dorso al frente
+            d = np.asarray(t["palma_hacia"], float)
+            minimo = float(t.get("palma_min", 0.5)) - (0.3 if relajadas else 0.0)
+            bandas.append(Banda(palma, d / np.linalg.norm(d), minimo, 1.0))
+        return bandas
 
     def tocar(self, lado, diana_xy, q0):
         """Nivel 1: la yema del indice sobre la diana, con la preforma y la orientacion de planificacion.toque. El
@@ -178,9 +183,6 @@ class Planificador:
                 bandas = self.bandas_toque(lado, self.cin, relajadas)
                 t_sobre = TareaIK(posicion=self.punto(diana_xy, hs), marco="yema", bandas=bandas)
                 pasos = [("aproximar", TareaIK(posicion=self.punto(diana_xy, sup + ha), marco="yema", bandas=bandas)),
-                         # bajo la superficie: bajada_max_m y el margen del brazo, que va 13-16 mm por encima de su
-                         # consigna; el supervisor para antes, al notarlo o al llegar la yema medida
-                         ("bajar", TareaIK(posicion=self.punto(diana_xy, sup - self._bajo_superficie()), marco="yema", bandas=bandas)),
                          ("subir", TareaIK(posicion=self.punto(diana_xy, hs), marco="yema", bandas=bandas))]
                 variantes = self._variantes(lado, t_sobre, q0, n=8)
                 if not variantes:
@@ -196,13 +198,25 @@ class Planificador:
                     if resto is None:
                         plan.motivo = f"sin IK en '{falla}'"
                         continue
-                    puntos = [PuntoPaso(q=q_sobre, duracion=self.duracion(q0, q_sobre), nombre="sobre")] + resto
-                    # la bajada a contacto.vel_descenso_m_s (de verdad: la duracion se divide por la escala de
-                    # tiempo, que brazo.ir_a vuelve a aplicar), como poco la duracion minima
-                    recorrido = ha + self._bajo_superficie()                           # desde aproximar, sobre la superficie
-                    for p in puntos:
-                        if p.nombre == "bajar":
-                            p.duracion = max(p.duracion, recorrido / float(self.c["vel_descenso_m_s"]) / max(1.0, self.escala))
+                    aprox, subir = resto
+                    # la bajada en linea recta sobre la diana, con la orientacion de aproximar (articulares cada cm;
+                    # entre dos IK sueltas la yema se apartaba de 5 a 56 mm a la altura de la mesa, 2026-11-12), hasta
+                    # bajo la superficie: bajada_max_m y el margen del brazo; el supervisor para antes, al notarlo o al
+                    # llegar la yema medida. La vuelta, por la misma recta hasta aproximar, y de ahi a subir
+                    linea = self.cin.recta(lado, aprox.q, self.punto(diana_xy, sup - self._bajo_superficie()), "yema",
+                                           paso=self.c.get("paso_recta_m", 0.01), bandas=bandas)
+                    if linea is None:
+                        plan.motivo = "sin recta en 'bajar'"
+                        continue
+                    # a contacto.vel_descenso_m_s (de verdad: la duracion se divide por la escala de tiempo, que
+                    # brazo.ir_a vuelve a aplicar); la vuelta a vel_subida_m_s
+                    largo = (ha + self._bajo_superficie()) / len(linea)
+                    t_b = largo / float(self.c["vel_descenso_m_s"]) / max(1.0, self.escala)
+                    t_s = largo / float(self.c.get("vel_subida_m_s", 0.02)) / max(1.0, self.escala)
+                    bajada = [PuntoPaso(q=q, duracion=t_b, nombre="bajar") for q in linea]
+                    vuelta = [PuntoPaso(q=q, duracion=t_s, nombre="subir") for q in reversed([aprox.q] + linea[:-1])]
+                    puntos = [PuntoPaso(q=q_sobre, duracion=self.duracion(q0, q_sobre), nombre="sobre"), aprox] + \
+                        bajada + vuelta + [subir]
                     plan.puntos_de_paso = puntos
                     plan.detalle["vel_descenso_mm_s"] = round(1000 * float(self.c["vel_descenso_m_s"]), 1)
                     self._añadir_reposo(plan, marco="yema")
@@ -375,7 +389,10 @@ class Planificador:
                     if d[0] < d[1]:
                         plan.motivo = f"tramo a '{p.nombre}': {d[2]}"
                         return plan
-            detalle.append((p.nombre, round(p.duracion * self.escala, 1)))     # lo que tardara de verdad
+            if detalle and detalle[-1][0] == p.nombre:      # los tramos de una recta (la bajada del toque), juntos
+                detalle[-1] = (p.nombre, round(detalle[-1][1] + p.duracion * self.escala, 1))
+            else:
+                detalle.append((p.nombre, round(p.duracion * self.escala, 1)))     # lo que tardara de verdad
             q_prev = p.q
         plan.comprobado = True
         plan.detalle.update({"tramos": detalle, "altura_min_fuera_del_descenso_m": round(float(h_min_fuera), 3),

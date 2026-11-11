@@ -102,3 +102,27 @@ def test_cierre_del_montaje(cin, cal):
     assert np.linalg.norm(T0[:3, 3] - T1[:3, 3]) < 0.005
     assert abs(mesa["yaw_deg"] - mon["mesa"]["yaw_deg"]) < 0.5
     assert abs(mesa["plano"]["d"] - mon["mesa"]["plano"]["d"]) < 0.002
+
+
+@gl
+def test_dianas_de_cinta(cin, cal):
+    """Las cruces de cinta de carrocero del usuario (7.5 cm, brazos de 1.9 cm; las pegatinas de 2 cm, en el limite de
+    tamano de antes), una pasado el borde lejano de la zona: las cuatro, enteras y con su centro (2026-11-12: con la
+    mascara justa, la del borde se corto y su centro salio 3 cm movido, y las otras eran demasiado grandes)."""
+    from manip import dianas as md
+    from sim.camara_virtual import CamaraVirtual
+    mon = config.cargar_montaje()
+    reales = [(0.607, -0.012), (0.539, -0.113), (0.435, 0.081), (0.50, 0.17)]
+    m, info = construir(cal=cal, con_bandejas=False, dianas=[(x, y, 0.075, 0.019) for x, y in reales])
+    e = Estado(m, info)
+    e.adelante()
+    f = CamaraVirtual(m, info, cal).fotograma(e)
+    vistas = md.detectar(f, cal, mon, **config.cargar()["dianas"])
+    assert len(vistas) == 4, vistas
+    for x, y in reales:
+        assert min(float(np.hypot(v[0] - x, v[1] - y)) for v in vistas) < 0.006
+    # fuera de la zona ampliada margen_m, no
+    m, info = construir(cal=cal, con_bandejas=False, dianas=[(0.66, 0.0, 0.075, 0.019)])
+    e = Estado(m, info)
+    e.adelante()
+    assert md.detectar(CamaraVirtual(m, info, cal).fotograma(e), cal, mon, **config.cargar()["dianas"]) == []

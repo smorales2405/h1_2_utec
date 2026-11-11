@@ -266,6 +266,49 @@ class Cinematica:
             return min(validos, key=lambda r: float(np.linalg.norm(r.q - ref)))
         return min(resultados, key=lambda r: r.err_pos + r.violacion)
 
+    def recta(self, lado, q0, destino, marco="yema", paso=0.01, iteraciones=50, tol=2e-4, bandas=None):
+        """Del marco en q0 a `destino` (torso) en linea recta y con la orientacion de q0: [q] cada `paso` m como
+        mucho, cada uno por IK diferencial (6D, minimos cuadrados amortiguados) desde el anterior. La recta en
+        articulares entre dos IK sueltas se tuerce: en la bajada del toque, de 5 a 56 mm a la altura de la mesa
+        (2026-11-12); entre puntos a 1 cm, menos de 1 mm. Si con la orientacion fija una junta llega a su limite y se
+        dan `bandas`, ese punto se resuelve con ellas (la orientacion puede cambiar dentro) desde el anterior. None si
+        alguno no llega."""
+        fid = self.id_marco[(marco, lado)]
+        lo, hi = self.lo[lado], self.hi[lado]
+        q7 = np.clip(np.asarray(q0, float), lo, hi)
+        T0 = self.fk(lado, q7, marco)
+        p0, R0 = T0[:3, 3].copy(), T0[:3, :3].copy()
+        destino = np.asarray(destino, float)
+        n = max(1, int(math.ceil(float(np.linalg.norm(destino - p0)) / paso)))
+        sal = []
+        for k in range(1, n + 1):
+            pk = p0 + (destino - p0) * k / n
+            q_ant = q7.copy()
+            for _ in range(iteraciones):
+                q = self.q.copy()
+                q[self.iq[lado]] = q7
+                self._calcular(q)
+                M = self._T(fid)
+                e = np.concatenate([pk - M[:3, 3], 0.5 * sum(np.cross(M[:3, i], R0[:, i]) for i in range(3))])
+                if np.linalg.norm(e[:3]) < tol and np.linalg.norm(e[3:]) < 1e-3:
+                    break
+                Jv, Jw = self._jacobianos(lado, fid, q)
+                J = np.vstack([Jv, Jw])
+                dq = J.T @ np.linalg.solve(J @ J.T + 1e-4 * np.eye(6), e)
+                q7 = np.clip(q7 + np.clip(dq, -0.1, 0.1), lo, hi)
+            else:
+                if not bandas:
+                    return None
+                r = self.ik(lado, TareaIK(posicion=pk, marco=marco, bandas=list(bandas), tol_pos=tol * 2.5,
+                                          peso_postura=0.1), q0=q_ant, semillas=[q_ant])
+                if not r.ok:
+                    return None
+                q7 = r.q
+                T = self.fk(lado, q7, marco)
+                R0 = T[:3, :3].copy()                    # y sigue con esta orientacion
+            sal.append(q7.copy())
+        return sal
+
     def _residuo(self, lado, tarea, fid, q7, holgura_banda=0.0):
         """Residuo de la tarea. holgura_banda estrecha las bandas al resolver (dentro del borde: si no, la
         solucion queda justo en el y oscila); la violacion que se devuelve es contra la banda pedida."""

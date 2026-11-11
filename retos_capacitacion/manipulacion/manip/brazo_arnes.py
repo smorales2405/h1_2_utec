@@ -233,9 +233,11 @@ class BrazoArnes:
         demas, donde estan. Devuelve True si arnes.py la acepto."""
         if self.peso < 0.5:
             return False
+        self.estado(max_edad=0.0)                     # la consigna de ahora (la del cache puede ser de antes de parar)
         c = self.consigna()
         q = [self.recortar(j, pose[j]) if j in pose else c[j] for j in BRAZOS]
         r = self._pedir({"op": "fijar", "q": q})
+        self.ultimo_rechazo = None if (r and r.get("ok")) else (r or {}).get("error", "arnes.py no contesta")
         return bool(r and r.get("ok"))
 
     def parar(self):

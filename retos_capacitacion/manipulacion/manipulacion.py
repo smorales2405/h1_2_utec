@@ -230,7 +230,7 @@ def armar(a, cfg=None, montaje=None, objetos=None, log=print):
     reg = Registro(getattr(a, "datos", None) or config.ruta_datos(cfg), "tirada", nombre)
     sup = Supervisor(cfg, robot, brazo, manos, per, pl, fuente, vig, reg, nivel=a.nivel, simulacro=a.simulacro or a.sim,
                      dianas=a.dianas, asignacion=a.asignacion,
-                     detector_dianas=lambda f: md.detectar(f, cal, montaje), log=log)
+                     detector_dianas=lambda f: md.detectar(f, cal, montaje, **(cfg.get("dianas") or {})), log=log)
     reg.enganchar_lowstate(robot, sup.contexto_registro, cada=10)
     reg.resumen.update({"args": {k: v for k, v in vars(a).items()}, "calibracion": f"{cal.origen} {cal.fecha}",
                         "escala_tiempo": a.escala_tiempo, "reposo": {l: v.round(4).tolist() for l, v in reposo.items()}})

@@ -226,7 +226,8 @@ def _objeto(spec, clave, o):
 
 def construir(montaje=None, objetos=None, cal=None, cfg=None, postura=None, con_camaras=True, con_bandejas=True,
               dianas=None):
-    """dianas: [(x, y)] en el torso: cruces blancas de 2 cm sobre la mesa (nivel 1)."""
+    """dianas: [(x, y)] en el torso: cruces blancas de 2 cm sobre la mesa (nivel 1); [(x, y, lado, ancho)]: de ese
+    tamano (las de cinta de carrocero del usuario: 0.075 y 0.019)."""
     """(MjModel, info). info: nombres de camaras, intrinsecos usados, T_torso_mesa y objetos."""
     from manip.geometria import Intrinsecos
     cfg = cfg or config.cargar()
@@ -285,8 +286,8 @@ def construir(montaje=None, objetos=None, cal=None, cfg=None, postura=None, con_
     if dianas:
         from manip.dianas import cruz_en_mesa
         from manip.montaje import punto_en_mesa
-        for k, xy in enumerate(dianas):
-            cruz_en_mesa(spec.worldbody, f"diana_{k}", punto_en_mesa(montaje, xy), T_mesa[:3, :3])
+        for k, d in enumerate(dianas):
+            cruz_en_mesa(spec.worldbody, f"diana_{k}", punto_en_mesa(montaje, d[:2]), T_mesa[:3, :3], *d[2:4])
     info = {"T_torso_mesa": T_mesa, "objetos": list(objetos.get("objetos", {})), "camaras": {}}
     if con_camaras and cal is not None:
         intr = cfg.get("_intrinsecos") or {}

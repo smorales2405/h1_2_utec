@@ -345,3 +345,48 @@ def test_fijar_la_consigna_con_saltos_pequenos(montaje):
     b.ir_a(b.pose_brazo("izq", [0.0] * 7))
     b.rampa_peso(0.0)
     cerrar(robot, cu, srv, b)
+
+
+def test_bajada_guiada():
+    """El toque del nivel 1 (RESULTADOS §48): con el brazo corto respecto de su consigna (en el robot, 1-2 cm), la
+    consigna por la recta de la bajada (Cinematica.recta) con la correccion de manip/guia.py (supervisor._guiar,
+    fijar a pasos) lleva la yema MEDIDA a su sitio sobre la diana, la baja por la vertical y la deja quieta donde
+    toca. En abierto se queda a mas de 1 cm."""
+    from types import SimpleNamespace
+    from manip.cinematica import Cinematica
+    from manip.guia import Guia
+    from manip.supervisor import Supervisor
+    cin = Cinematica.desde_config(CFG)
+    robot = RobotSimulado(postura=[float(v) for v in postura_arnes(CFG)], caida_rad=0.05, tau_s=0.05, instantaneo=False)
+    robot, cu, srv, _ = montar(robot=robot)
+    b = cliente(srv)
+    b.rampa_peso(1.0)
+    q_ap = np.array([-1.042, 0.269, -1.194, 0.596, 0.692, 0.173, -0.779])     # un aproximar del robot (2026-11-12)
+    p_ap = cin.fk("izq", q_ap, "yema")[:3, 3]
+    Q = [q_ap] + cin.recta("izq", q_ap, p_ap - [0.0, 0.0, 0.04], "yema")
+    g = Guia(Q, [cin.fk("izq", q, "yema")[2, 3] for q in Q], ganancia=1.5)
+
+    def yema():
+        return cin.fk("izq", robot.q()[13:20], "yema")[:3, 3]
+    b.ir_a(b.pose_brazo("izq", q_ap), 1.0)
+    time.sleep(0.3)
+    assert np.linalg.norm(yema() - p_ap) > 0.01                             # en abierto, lejos
+    sup = SimpleNamespace(brazo=b, comprobar=lambda: None, log=lambda *x: None, q=lambda lado: robot.q()[13:20])
+    assert Supervisor._guiar(sup, "izq", g, lambda t: g.arriba, lambda t: t > 3.0), getattr(b, "ultimo_rechazo", None)
+    assert np.linalg.norm(yema() - p_ap) < 0.002                            # ajustada en aproximar
+    fuera = []
+
+    def bajando(t):
+        fuera.append(float(np.linalg.norm(yema()[:2] - p_ap[:2])))
+        return t > 1.2
+    v = 0.03
+    assert Supervisor._guiar(sup, "izq", g, lambda t: g.arriba - v * t, bajando)
+    assert max(fuera) < 0.003                                               # por la vertical
+    h_c = float(yema()[2])
+    assert abs(h_c - (g.arriba - v * 1.2)) < 0.004
+    assert Supervisor._guiar(sup, "izq", g, lambda t: h_c, lambda t: t > 1.0)                 # quieta donde toca
+    assert np.linalg.norm(yema() - np.r_[p_ap[:2], h_c]) < 0.002
+    assert np.abs(cu.consigna()[13:20] - robot.q()[13:20]).max() > 0.03     # con la correccion (el brazo, corto)
+    b.ir_a(b.pose_brazo("izq", [0.0] * 7))
+    b.rampa_peso(0.0)
+    cerrar(robot, cu, srv, b)

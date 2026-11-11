@@ -7,6 +7,7 @@ import threading
 import time
 from types import SimpleNamespace
 
+import numpy as np
 import pytest
 
 from manip import config
@@ -101,16 +102,19 @@ def test_el_toque_con_el_indice_vertical(tmp_path):
     """El toque del nivel 1 (RESULTADOS §42): el indice extendido (senalar) y casi vertical, en toda la zona y con las
     dos manos; la bajada para por la yema medida."""
     import numpy as np
-    from manip.cinematica import EJE_DEDO_YEMA
+    from manip.cinematica import EJE_DEDO_YEMA, EJE_PALMA
     t = manipulacion.armar(_args(tmp_path, dianas=[(0.46, 0.05)]), _cfg(), log=lambda *x: None)
     pl = t.sup.pl
     for lado, xy in (("izq", (0.44, 0.05)), ("izq", (0.56, 0.20)), ("der", (0.40, -0.20)), ("der", (0.50, -0.02))):
         plan = pl.tocar(lado, xy, pl.observacion[lado])
         assert plan.comprobado, (lado, xy, plan.motivo)
         assert plan.detalle["preforma"] == "senalar"
-        R = pl.cin_preforma("senalar").fk(lado, next(p for p in plan.puntos_de_paso if p.nombre == "aproximar").q, "yema")[:3, :3]
+        q_apr = next(p for p in plan.puntos_de_paso if p.nombre == "aproximar").q
+        R = pl.cin_preforma("senalar").fk(lado, q_apr, "yema")[:3, :3]
         bajo = np.degrees(np.arcsin(-(R @ EJE_DEDO_YEMA[lado])[2]))
         assert 55 <= bajo <= 90, (lado, xy, bajo)
+        palma = pl.cin_preforma("senalar").fk(lado, q_apr, "mano")[:3, :3] @ EJE_PALMA[lado]
+        assert palma[0] < -0.6, (lado, xy, palma)                         # la palma al robot, el dorso al frente
         pl.mano_gemelo(lado, [1000] * 6)
     if t.mundo is not None:
         t.mundo.parar()
@@ -127,10 +131,18 @@ def test_la_bajada_del_nivel1_va_a_su_velocidad(tmp_path):
     pl = t.sup.pl
     plan = pl.tocar("izq", (0.46, 0.05), pl.observacion["izq"])
     assert plan.comprobado, plan.motivo
-    bajar = next(p for p in plan.puntos_de_paso if p.nombre == "bajar")
+    bajada = [p for p in plan.puntos_de_paso if p.nombre == "bajar"]
     baja = 0.04 + 0.01 + cfg["contacto"]["margen_brazo_m"]            # aproximar, bajada y el margen del brazo
-    assert abs(bajar.duracion * 2.0 - baja / 0.003) < 0.5               # a 3 mm/s, contada la escala
-    yema = pl.cin_preforma(plan.detalle["preforma"]).fk("izq", bajar.q, "yema")[:3, 3]     # con los dedos del toque
+    assert abs(sum(p.duracion for p in bajada) * 2.0 - baja / 0.003) < 0.5      # a 3 mm/s, contada la escala
+    cin_t = pl.cin_preforma(plan.detalle["preforma"])                   # con los dedos del toque
+    yema = cin_t.fk("izq", bajada[-1].q, "yema")[:3, 3]
     assert abs(pl.plano.altura(yema) + 0.01 + cfg["contacto"]["margen_brazo_m"]) < 0.003   # bajo la mesa
+    # en linea recta sobre la diana: una postura cada cm (con una sola, la yema se apartaba hasta 56 mm, 2026-11-12)
+    assert len(bajada) >= 7
+    en = pl.punto((0.46, 0.05), 0.0)
+    Q = [p.q for p in plan.puntos_de_paso if p.nombre in ("aproximar", "bajar")]
+    peor = max(float(np.linalg.norm((pl.plano.proyectar(cin_t.fk("izq", a + s * (b - a), "yema")[:3, 3]) - en)[:2]))
+               for a, b in zip(Q[:-1], Q[1:]) for s in np.linspace(0, 1, 6))
+    assert peor < 0.0025, peor
     if t.mundo is not None:
         t.mundo.parar()

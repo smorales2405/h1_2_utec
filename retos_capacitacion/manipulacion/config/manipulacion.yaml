@@ -189,6 +189,9 @@ planificacion:          # manip/planificacion.py; alturas del punto de agarre so
     indice_deg: [60, 90]    # la falange del indice bajo la horizontal (mano_deg: la mano)
     adelante_min: -1.0      # sin limite (un eje hacia delante; el toque inclinado usaba 0.3)
     palma_abajo_min: -1.0   # sin limite (la palma hacia abajo; el toque inclinado usaba 0.3)
+    palma_hacia: [-1, 0, 0] # la palma mirando al robot, el dorso al frente del tablero (pedido del usuario, 2026-11-12;
+                            # antes la orientacion era libre: de mirar al robot a mirar al frente)
+    palma_min: 0.7          # ... dentro de ~45 grados (17/18 puntos de la zona, como sin limite)
   semillas: 12
 
 contacto:               # nivel 1: la yema del indice toca la diana
@@ -204,11 +207,31 @@ contacto:               # nivel 1: la yema del indice toca la diana
   umbral_angulo: 25         # cuentas que la mesa abre el indice (su ANGLE_ACT sube): el contacto, tambien por posicion
                             # (inspire_hand_interface detecta el contacto por la posicion o por la fuerza)
   lecturas_contacto: 3      # ... en tantas lecturas seguidas (hay lecturas sueltas corruptas de fuerza y de posicion)
+  guiado: true              # la bajada en lazo cerrado sobre lo medido (manip/guia.py, RESULTADOS §48): la consigna va
+                            # por la recta del plan mas una correccion que integra lo que el brazo se aparta (1-2 cm,
+                            # 0.02-0.035 rad por junta en la tirada del 2026-11-12); con fijar, sin trayectoria
+  guiado_ganancia: 1.5      # 1/s (con el brazo de constante hasta 0.5 s, zeta >= 0.58)
+  guiado_paso_max_rad: 0.005  # lo que puede cambiar la correccion en cada ciclo de 20 ms
+  guiado_corr_max_rad: 0.10   # su tope por junta (3 veces lo medido)
+  ajuste_tol_m: 0.002       # antes de bajar, quieto en aproximar hasta que la yema medida esta a esto de su sitio...
+  ajuste_max_s: 5.0         # ... o este tiempo
+  paso_recta_m: 0.01        # la recta de la bajada: una postura cada esto (entre ellas la yema se aparta < 1 mm)
+  vel_subida_m_s: 0.02      # la vuelta por la misma recta hasta aproximar
+  mantener_s: 1.0           # al notarlo, este tiempo guiado a la altura del contacto: el brazo se queda donde toco
   usar_tactil: false        # el tactil no responde por Modbus TCP en las manos del robot (de 1062 taxeles, ~30
                             # cambian apretando; probar_manos.py --mapa-tactil, 2026-11-11): solo la fuerza del indice
   bajada_max_m: 0.01        # lo que la bajada se manda por debajo de la superficie, ademas del margen del brazo
-  margen_brazo_m: 0.02      # el brazo va 13-16 mm por encima de su consigna (RESULTADOS §43-44): la bajada se manda esto
-                            # mas abajo para que la yema llegue; la paran la fuerza o la yema medida (altura_toque_m)
+  margen_brazo_m: 0.02      # el brazo va 13-16 mm por encima de su consigna (RESULTADOS §43-44): la recta de la bajada
+                            # llega esto mas abajo (sin guiar, para que la yema llegue); la paran la fuerza o la yema
+                            # medida (altura_toque_m)
+
+dianas:                 # nivel 1: manip/dianas.py
+  lado_m: [0.01, 0.10]      # el tamano de la cruz en la mesa: pegatinas de 2 cm o cruces de cinta de carrocero de ~7.5 cm
+                            # (las del usuario, 2026-11-12: brazos de 1.9 cm de ancho)
+  margen_m: 0.06            # se aceptan con el centro hasta esto fuera de la zona de recogida
+  mascara_m: 0.12           # se mira la zona ampliada esto: la cruz entera aunque este en el borde (con la mascara justa
+                            # se cortaba y su centro salia 3 cm movido, 2026-11-12)
+  contraste: 40             # lo que la cinta es mas clara que su entorno (top-hat de 31 px)
 
 percepcion:             # manip/percepcion.py
   paso_px: 2                # se usa 1 de cada 2 pixeles de profundidad en cada eje

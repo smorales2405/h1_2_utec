@@ -1265,3 +1265,82 @@ Cambios:
 - **`fijar` no se aplicó** en ninguna (`consigna_fijada: false`): el servidor de brazos va dentro de `arnes.py`, que
   no se había reiniciado tras desplegar. Aun así, en la tabla la yema no bajó; en la mesa, 1.6 mm. Ahora el supervisor
   avisa si `arnes.py` rechaza `fijar`.
+
+## 47. Fijar con el error de la aproximación bajaba la yema; mantener donde tocó; el dorso al frente (2026-11-12)
+
+`probar_toque.py --espesor 0` con `arnes.py` reiniciado y `[g]` nuevo (`datos/tirada_20261112_060004_nivel1`):
+"tocada por posición" (−3.1 mm, sin fuerza), `consigna_fijada: true`, pero **la yema bajó hasta −6.9 mm después
+de parar**. Al fijar, la consigna pasó a lo medido más el error medido quieto en `aproximar` (18.7 mm); en la
+bajada ese error era ~9 mm (cambia con la postura y con hacia dónde se mueve el brazo): la consigna saltó 9 mm
+abajo y la yema la siguió.
+
+- **Mantener donde tocó** (`supervisor._mantener`): al notarlo, la postura medida del contacto, y durante
+  `contacto.mantener_s` (1 s) la consigna se corrige cada 50 ms con la mitad de lo que la medida se aparta de ella
+  (`fijar`, pasos ≤ 0.04 rad; `BrazoArnes.fijar` pide antes la consigna de ahora). No adivina el error del brazo.
+- **El dorso al frente** (pedido del usuario: la mano girada 180° respecto de la prueba, para tocar las dianas):
+  `planificacion.toque.palma_hacia: [-1, 0, 0]` y `palma_min: 0.7`, la palma mirando al robot dentro de ~45°
+  (antes la orientación era libre: de mirar al robot a mirar al frente). En el gemelo, 17/18 puntos de la zona,
+  igual que sin límite.
+- Pruebas: `test_brazo_arnes` (mantener: el brazo retrasado y corto se queda en la postura del contacto, con su
+  error) y `test_supervisor` (la palma al robot). 112 de 112.
+
+## 48. Nivel 1 con las 4 cruces de cinta: 1 detectada y tocada a 4 cm; detector, recta y bajada guiada (2026-11-12)
+
+`./manipulacion.sh --nivel 1 --arnes` con cuatro cruces de cinta de carrocero (~7.5 cm, brazos de 1.9 cm;
+`montajes/nivel1_dianas.jpeg`) (`datos/tirada_20261112_062247_nivel1`): **1 diana detectada** de 4, tocada "por
+posición" con el dorso al frente, pero **a 4.1 cm a la izquierda del robot de su centro** y 0.8 cm hacia el robot
+(`montajes/nivel1_diana_toque.PNG`; la yema medida, proyectada en la imagen del robot, cae 26 px a la izquierda de
+la cruz: cámara y cinemática cuadran). Errores, de la cruz real a la yema:
+
+| | x (mm) | y (mm) |
+|---|---|---|
+| detección: la cruz cortada por la máscara de la zona | −22 | +19 |
+| consigna de la bajada (la recta en articulares entre dos IK) | +5 | −2 |
+| el brazo, por detrás de su consigna al bajar (medida − consigna) | +9…+14 | +8…+18 |
+| `_mantener` tras tocar (la yema resbaló) | −1 | +6 |
+| **total** (yema medida − cruz) | **−8** | **+41** |
+
+- **Detector** (`manip/dianas.py`, `config dianas:`): estaba hecho para pegatinas de 2 cm (`lado_m` hasta 4 cm):
+  las cruces de 7.5 cm no pasaban, y la que se vio era el trozo de una cruz que la máscara de la zona (+3 cm)
+  cortaba: centro 3 cm movido. Ahora `lado_m [0.01, 0.10]`, se mira la zona ampliada `mascara_m` 0.12 (la cruz
+  entera) y se quedan las de centro dentro de la zona ampliada `margen_m` 0.06. Sobre la imagen de la tirada, las
+  4: (0.607, −0.012), (0.539, −0.113), (0.497, 0.229) y (0.435, 0.081). Dos están fuera de la zona de recogida
+  (x 0.40–0.56, y ±0.20): la del fondo, 4.7 cm más allá (se alcanza con la mano derecha), y la de la izquierda,
+  2.9 cm, donde va la bandeja B (roja, (0.56, 0.28)): el índice choca con ella en el gemelo y no hay plan.
+- **La bajada en línea recta** (`Cinematica.recta`): una postura cada `paso_recta_m` 1 cm por IK diferencial 6D
+  desde la anterior, con la orientación de `aproximar` (si una junta llega a su límite, ese punto con las bandas
+  del toque). Con una sola IK en `bajar`, la yema se apartaba de la vertical 5 mm en esta diana y **56 mm** en la
+  del fondo con la mano derecha; con la recta, < 2 mm. La vuelta, por la misma recta. Rejilla de la zona con el
+  montaje del robot: **18/18** (antes 17: la esquina (0.40, 0.20), ahora con la derecha).
+- **Bajada guiada** (`manip/guia.py`, `supervisor._guiar`, `contacto.guiado`): la consigna (con `fijar`, cada
+  20 ms) es la postura de la recta a la altura que toca más una corrección que integra lo que la postura medida se
+  aparta (junta a junta, `guiado_ganancia` 1.5/s, tope 0.10 rad; el error medido era 0.02–0.035 rad). Quieto en
+  `aproximar` hasta que la yema medida está a 2 mm de su sitio (como mucho 5 s), baja a `vel_descenso_m_s`, al
+  notarlo se queda guiado a la altura del contacto (`mantener_s`; sustituye a `_mantener`) y sube por la recta a
+  `vel_subida_m_s`. Si `arnes.py` no acepta `fijar`, sigue sin guiar por los puntos de la recta. Los eventos
+  DESCENSO y TOCAR registran el ajuste y dónde queda la yema respecto de la diana (`yema_diana_*_mm`).
+- Gemelo: `Brazo.fijar` manda ya la consigna en modo síncrono (antes solo `ir_a`); `construir(dianas=[(x, y, lado,
+  ancho)])`. Pruebas: `test_gemelo` (las 4 cruces de cinta, una pasado el borde), `test_brazo_arnes` (bajada guiada
+  con el brazo corto: la yema medida a < 2 mm en aproximar, < 3 mm de la vertical bajando y quieta donde toca) y
+  `test_supervisor` (la recta: < 2.5 mm de la vertical). 113 de 113.
+
+## 49. Nivel 1 guiado: 3 de 4 cruces tocadas en su centro; la cuarta, sobre la bandeja B del gemelo (2026-11-12)
+
+`./manipulacion.sh --nivel 1 --arnes` con el detector, la recta y la bajada guiada de §48
+(`datos/tirada_20261112_070004_nivel1`; fotos en `montajes/nivel 1/`): **4 dianas detectadas**, 3 tocadas, la
+yema en el centro de la cruz (fotos y datos):
+
+| diana (torso) | mano | ajuste en aproximar (xy, mm) | al parar (xy, h) | quieta (xy, h) | fuerza |
+|---|---|---|---|---|---|
+| (0.435, 0.081) | izq | (8.5, 9.4) → (−3.0, −2.9), 5.0 s (el tope) | (−3.0, −0.4), −3.4 posición | (0.3, 2.6), −6.3 | 18 gf |
+| (0.539, −0.113) | der | (2.3, −1.6) → (0.2, −0.8), 4.5 s | (0.0, 4.3), −3.1 posición | (−2.1, 1.2), −5.2 | 129 gf |
+| (0.607, −0.012) | der | (−6.2, 0.2) → (−0.6, −0.3), 1.8 s | (0.8, −3.1), −0.5 fuerza | (3.0, −4.6), −2.1 | 53 gf |
+
+- La bajada guiada va a su velocidad (10 mm/s) pero a saltos (rozamiento estático: la corrección se acumula y la
+  junta se suelta), con la yema bailando ±5–9 mm en xy; al llegar a la mesa, a ≤ 5 mm. En aproximar, con la mano
+  izquierda, el ajuste se pasó (de +9 a −5 mm) y no bajó de 2 mm en 5 s.
+- Tras parar, la yema queda 2–3 mm más abajo (la de 129 gf, apretando); dentro del límite de 300 gf.
+- **Diana 1** (0.497, 0.229), la cercana de la izquierda: sin plan. Con la izquierda el índice pasa a 5 mm de la
+  bandeja B (roja) del gemelo; con la derecha no hay recta. Sin las bandejas en el gemelo, la izquierda la toca
+  (orientación del toque). Hoy las bandejas no están en la mesa, pero en el reto esa cruz quedaría bajo la esquina
+  de la bandeja B (que ocupa x 0.50–0.62, y 0.22–0.34).

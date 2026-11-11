@@ -154,10 +154,25 @@ class MundoSimulado:
                             for b in self.montaje["bandejas"].values()) else 0.0
         self.poner(clase, xy, math.atan2(M[1, 0], M[0, 0]), base)
 
+    def _cin_dedos(self, lado):
+        """La cinematica con los dedos donde estan en la mano simulada (redondeados a 50 cuentas): con el indice
+        flexionado (la preforma del toque) la yema no esta donde la pone la mano abierta."""
+        ang = getattr(self.manos[lado], "ang", None)
+        if ang is None or np.all(np.asarray(ang) >= 975):
+            return self.cin
+        clave = tuple(int(round(a / 50.0) * 50) for a in ang)
+        cache = self.__dict__.setdefault("_cin_dedos_cache", {})
+        if clave not in cache:
+            from manip.cinematica import DOF_MANO, Cinematica
+            from sim.escena import angle_set_a_rad
+            rad = angle_set_a_rad(list(clave))
+            cache[clave] = Cinematica.desde_config(self.cfg, dedos={l: dict(zip(DOF_MANO, rad)) for l in ("izq", "der")})
+        return cache[clave]
+
     def fuerza_yema(self, lado):
         """gf en el indice si la yema esta hundida en el tablero (40 gf por mm). Fuera del tablero (el brazo en
         reposo cuelga por debajo de su plano) o mas de 5 cm por debajo, no lo toca."""
-        Y = self.cin.fk(lado, self.robot.q()[JUNTAS_BRAZO[lado]], "yema")[:3, 3]
+        Y = self._cin_dedos(lado).fk(lado, self.robot.q()[JUNTAS_BRAZO[lado]], "yema")[:3, 3]
         h = float(self.plano.altura(Y))
         if h >= 0.0 or h < -0.05:
             return 0.0

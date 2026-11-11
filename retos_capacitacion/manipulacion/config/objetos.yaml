@@ -76,3 +76,6 @@ preformas:
   abierta_opuesta: [1000, 1000, 1000, 1000, 1000, 0]    # pulgar girado enfrente de los dedos
   tres_dedos:      [0, 0, 1000, 1000, 1000, 0]          # menique y anular recogidos
   senalar:         [0, 0, 0, 1000, 600, 500]            # nivel 1: solo el indice extendido
+  tocar:           [0, 0, 0, 900, 1000, 1000]           # nivel 1 (2026-11-11): el indice algo flexionado (la mesa lo
+                                                        # abre contra su actuador: con 1000 iba al tope y no se notaba);
+                                                        # 900 y la mano a 30-55 grados: 8/8 puntos de la zona limpios

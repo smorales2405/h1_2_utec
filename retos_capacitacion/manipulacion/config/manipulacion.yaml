@@ -177,12 +177,24 @@ planificacion:          # manip/planificacion.py; alturas del punto de agarre so
   guinada_tol_deg: 20       # el ancho de la mano a lo largo del lado largo de una caja, con esto de margen
   dedos_abajo_deg: [15, 55] # agarre de lado: los dedos inclinados hacia abajo
   yema_abajo_tol_deg: 45
+  toque:                    # nivel 1 (probar_toque.py, 2026-11-11): con el indice vertical y extendido la mesa lo empujaba
+                            # contra su tope y la fuerza no subia. Ahora toca con la yema: la falange inclinada, hacia
+                            # delante, la yema hacia abajo y el dorso de la mano al frente (lo propuso el usuario)
+    preformas: [tocar]      # se prueban en orden (con el pulgar recogido, 600/500, no hizo falta en ningun punto)
+    mano_deg: [30, 55]      # la mano (del nudillo a las puntas) bajo la horizontal; la falange del indice (900) ~20 grados
+                            # mas. Inclinando solo la falange, o la mano 15-45, los dedos recogidos y el pulgar rozaban
+                            # la mesa y las bandejas (en el gemelo: 2-4 de 8 puntos de la zona; con 30-55, 8 de 8)
+    adelante_min: 0.35      # ... apuntando hacia delante (componente x de su eje)
+    palma_abajo_min: 0.4    # la palma hacia abajo (componente -z de su normal): el dorso al frente
   semillas: 12
 
 contacto:               # nivel 1: la yema del indice toca la diana
   vel_descenso_m_s: 0.01
   umbral_gf: 120            # sobre la linea base (medir en el hito 2 con la bascula)
   maximo_gf: 300            # seccion 4: fuerza de contacto <= 300 gf
+  umbral_angulo: 25         # cuentas que la mesa abre el indice (su ANGLE_ACT sube): el contacto, tambien por posicion
+                            # (inspire_hand_interface detecta el contacto por la posicion o por la fuerza)
+  lecturas_contacto: 2      # ... en tantas lecturas seguidas (hay lecturas sueltas corruptas de fuerza y de posicion)
   usar_tactil: false        # el tactil no responde por Modbus TCP en las manos del robot (de 1062 taxeles, ~30
                             # cambian apretando; probar_manos.py --mapa-tactil, 2026-11-11): solo la fuerza del indice
   bajada_max_m: 0.04        # bajo la altura esperada de la diana, sin contacto -> se aborta

@@ -40,6 +40,9 @@ EJE_ANCHO = np.array([0.0, 0.0, 1.0])          # del menique al indice
 EJE_PALMA = {"izq": np.array([0.0, -1.0, 0.0]), "der": np.array([0.0, 1.0, 0.0])}
 # El indice en el marco de la yema (*_index_2): +y en la izquierda, -y en la derecha (no x: ese es transversal)
 EJE_DEDO_YEMA = {"izq": np.array([0.0, 1.0, 0.0]), "der": np.array([0.0, -1.0, 0.0])}
+# La cara de la yema (la normal hacia el lado de la palma) en el marco de la yema: +x en las dos manos (con el dedo
+# extendido coincide con EJE_PALMA a 0.999)
+EJE_YEMA_PALMA = {"izq": np.array([1.0, 0.0, 0.0]), "der": np.array([1.0, 0.0, 0.0])}
 # Brazo derecho en espejo del izquierdo (caja_cuadrado.py): mismo cabeceo, alabeo y guinada cambiados
 SIGNO_ESPEJO = np.array([1.0, -1.0, -1.0, 1.0, -1.0, 1.0, -1.0])
 # Semillas del brazo izquierdo que llegan a la mesa (mapa de alcance del 2026-10-09); la derecha, en espejo

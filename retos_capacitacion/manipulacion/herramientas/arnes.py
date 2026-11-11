@@ -6,6 +6,8 @@
 
 Antes (en el robot): colgado del portico con los pies ~5 cm sobre el suelo, en amortiguacion (L2+B), una
 persona en la manivela del polipasto y otra con el mando y el terminal. El programa:
+  0. MANOS     tras escribir COLGADO, abre las dos manos del todo (los seis DOF a 1000: la mano abierta del
+               gemelo); si una no contesta o no abre, no sigue (--sin-manos para saltarlo)
   1. COLGADO   Debug con ReleaseMode() (tras escribir SOLTAR), toma (kp de 0 a 1 en 3 s sin mover nada),
                piernas a la postura de pie (10 s), brazos a 0 (saliendo con el hombro) y tara de la carga
                de los pies (colgado marcan ~-40 N cada uno).
@@ -82,6 +84,8 @@ def argumentos():
                     help="--operador-auto: despues de [m], espera (hasta 1 h) a que un programa de fuera "
                          "(herramientas/curva_pasos.py --sim) tome los brazos y los suelte, y luego cuelga")
     ap.add_argument("--solo-colgado", action="store_true", help="solo el paso 1 (no deja apoyar)")
+    ap.add_argument("--sin-manos", action="store_true",
+                    help="no abrir las manos al empezar (si no contestan); por defecto se abren las dos del todo")
     a = ap.parse_args()
     if (a.visor or a.operador_auto or a.con_calibracion or a.con_remoto or a.esperar_cliente) and not a.sim:
         sys.exit("--visor y --operador-auto son de la simulacion: con --sim")
@@ -394,6 +398,38 @@ def recorrer_calibracion(arnes, cu, pc):
     return True
 
 
+def abrir_manos(arnes, cfg, sim=False):
+    """Las dos manos abiertas del todo antes de tomar el robot (pedido del usuario, 2026-11-11): los seis DOF a 1000
+    (primero la flexion del pulgar y luego su giro: Mano.preforma), la mano abierta del gemelo. Con los dedos cerrados
+    o el pulgar enfrente, los brazos a 0 y la postura colgada no son los que se comprobaron sin choques. Devuelve la
+    lista de problemas (vacia si las dos abrieron)."""
+    from manip.mano import Mano
+    problemas = []
+    for lado in ("izq", "der"):
+        cliente = None
+        if sim:
+            from sim.mano_simulada import ManoSimulada
+            cliente = ManoSimulada()
+            cliente.ang[:] = 0.0                     # la simulada empieza cerrada: que se vea que abre
+        m = None
+        try:
+            m = Mano(lado, cfg, cliente=cliente)
+            e = m.preforma([1000] * 6)
+            if e.angulo.min() < cfg["mano"]["abierta_min"]:
+                m.borrar_error()
+                e = m.preforma([1000] * 6)
+            if e.angulo.min() < cfg["mano"]["abierta_min"]:
+                problemas.append(f"mano {lado} sin abrir del todo: {e.angulo.astype(int).tolist()}")
+            else:
+                arnes.evento(f"mano {lado} abierta: {e.angulo.astype(int).tolist()}")
+        except Exception as ex:                       # sin red con la mano, error del firmware...
+            problemas.append(f"mano {lado}: {ex}")
+        finally:
+            if m is not None:
+                m.cerrar_conexion()
+    return problemas
+
+
 def colgar_y_terminar(arnes, cu):
     """Fase COLGAR: se sube el polipasto; sin carga el par vuelve a colgado; [f] lleva los brazos a la postura
     colgada y suelta. Sin terminal (SSH cortado) termina solo tras 3 s colgado; L2+B amortigua en cualquier
@@ -584,6 +620,16 @@ def main():
         if a.operador_auto else input
     if preguntar("Escribe COLGADO para seguir: ").strip() != "COLGADO":
         sys.exit("cancelado")
+    if a.sin_manos:
+        arnes.evento("manos sin abrir (--sin-manos)")
+    else:
+        arnes.fase = "MANOS"
+        problemas = abrir_manos(arnes, cfg, sim=a.sim)
+        if problemas:
+            for x in problemas:
+                arnes.evento(f"NO: {x}")
+            guardar_json(os.path.join(arnes.carpeta, "resumen.json"), arnes.resumen)
+            sys.exit("Las manos tienen que empezar abiertas (o --sin-manos): no se toma el robot")
     try:
         arnes.fase = "DEBUG"
         previo = modo_mod.entrar_debug(conmutador, contar=contar, preguntar=preguntar, log=arnes.evento)

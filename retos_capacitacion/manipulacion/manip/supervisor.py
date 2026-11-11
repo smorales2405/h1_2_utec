@@ -180,24 +180,33 @@ class Supervisor:
         lado, mano = plan.mano, self.manos[plan.mano]
         self._plan_activo = plan
         self._a("PLANIFICAR", f"diana {n} con la mano {lado}", plan.detalle)
-        mano.preforma(self.pl.objetos["preformas"]["senalar"], vigilar=self.comprobar)
+        mano.preforma(self.pl.objetos["preformas"][plan.detalle.get("preforma", "senalar")], vigilar=self.comprobar)
         pts = {p.nombre: p for p in plan.puntos_de_paso}
         self._a("MOVER", f"sobre la diana {n}")
         self._mover(lado, pts["sobre"])
         self._mover(lado, pts["aproximar"])
         base = mano.linea_base(n=5)
+        a0 = float(mano.leer().angulo[3])                  # el indice en su preforma, antes de bajar
         self.vig.manos_vigiladas = {lado}
-        self._a("DESCENSO", "despacio hasta notar la mesa con la yema", {"base_gf": base.round(0).tolist()})
-        contacto = {"t": None, "f": 0.0, "tactil": 0.0}
-
+        self._a("DESCENSO", "despacio hasta notar la mesa con la yema", {"base_gf": base.round(0).tolist(),
+                                                                         "indice": a0})
+        contacto = {"t": None, "f": 0.0, "abre": 0.0, "tactil": 0.0, "seguidas": 0, "por": ""}
         usar_tactil = self.c.get("usar_tactil", False)
+        umbral_ang = float(self.c.get("umbral_angulo", 1e9))
+        lecturas = int(self.c.get("lecturas_contacto", 2))
 
         def notar():
+            """Contacto: la fuerza del indice sobre su base o la mesa abriendolo (su angulo sube), en `lecturas`
+            lecturas seguidas (hay lecturas sueltas corruptas de fuerza y de posicion)."""
             e = mano.leer()
             f = float(e.fuerza[3] - e.base[3])
+            abre = float(e.angulo[3]) - a0
             t = mano.tactil_yema() if usar_tactil else 0.0
-            if f > self.c["umbral_gf"] or (usar_tactil and t > self.c.get("umbral_tactil", 60)):
-                contacto.update(t=time.monotonic(), f=f, tactil=t)
+            por = [n for n, si in (("fuerza", f > self.c["umbral_gf"]), ("angulo", abre > umbral_ang),
+                                   ("tactil", usar_tactil and t > self.c.get("umbral_tactil", 60))) if si]
+            contacto["seguidas"] = contacto["seguidas"] + 1 if por else 0
+            if contacto["seguidas"] >= lecturas:
+                contacto.update(t=time.monotonic(), f=f, abre=abre, tactil=t, por="+".join(por))
                 raise Contacto()
         try:
             self._mover(lado, pts["bajar"], extra=notar)
@@ -208,7 +217,8 @@ class Supervisor:
         q_contacto = self.q(lado)
         e = mano.leer()
         f_max = float(max(contacto["f"], e.fuerza[3] - e.base[3]))
-        self._a("TOCAR", resultado, {"fuerza_gf": round(f_max), "tactil": contacto["tactil"]})
+        self._a("TOCAR", resultado, {"fuerza_gf": round(f_max), "abre": round(contacto["abre"]), "por": contacto["por"],
+                                      "tactil": contacto["tactil"]})
         if self._ultimo_fotograma is not None:
             self.reg.imagen(f"diana_{n}", self._ultimo_fotograma.color)
         self.vig.manos_vigiladas = set()

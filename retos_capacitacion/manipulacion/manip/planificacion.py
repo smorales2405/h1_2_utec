@@ -20,8 +20,8 @@ import math
 import numpy as np
 
 from .brazo import duracion_movimiento
-from .cinematica import (EJE_DEDO_YEMA, EJE_DEDOS, EJE_PALMA, Banda, TareaIK, dedos_inclinados, guinada,
-                         palma_abajo, palma_vertical, T_punto)
+from .cinematica import (EJE_DEDO_YEMA, EJE_DEDOS, EJE_PALMA, EJE_YEMA_PALMA, Banda, TareaIK, dedos_inclinados,
+                         guinada, palma_abajo, palma_vertical, T_punto)
 from .geometria import Plano, aplicar
 from .mensajes import Agarre, Plan, PuntoPaso
 
@@ -120,31 +120,89 @@ class Planificador:
         return puntos, None
 
     # --- planes ----------------------------------------------------------------------------------------
+    def cin_preforma(self, nombre):
+        """Una Cinematica con los dedos en la preforma `nombre`: la yema se mueve con la flexion del indice."""
+        cache = self.__dict__.setdefault("_cin_preforma", {})
+        if nombre not in cache:
+            from sim.escena import angle_set_a_rad
+            from .cinematica import DOF_MANO, Cinematica
+            rad = angle_set_a_rad([1000 if v is None or v < 0 else v for v in self.objetos["preformas"][nombre]])
+            cache[nombre] = Cinematica.desde_config(self.cfg, dedos={l: dict(zip(DOF_MANO, rad)) for l in ("izq", "der")})
+        return cache[nombre]
+
+    def bandas_toque(self, lado, cin, relajadas=False):
+        """La mano contra la mesa con la yema del indice (planificacion.toque), en el marco de la yema (el de la tarea)
+        con los dedos de `cin`: la mano inclinada bajo la horizontal, hacia delante y con la palma hacia abajo (el
+        dorso al frente, como propuso el usuario). La falange del indice, algo flexionado, queda mas inclinada y con
+        brazo de palanca sobre el nudillo: la mesa la abre contra su actuador y la fuerza sube; los dedos recogidos
+        quedan por encima de la yema. Con el dedo vertical y extendido iba contra su tope (2026-11-11)."""
+        t = self.p.get("toque") or {}
+        a, b = t.get("mano_deg", [15, 45])
+        adelante, abajo = t.get("adelante_min", 0.35), t.get("palma_abajo_min", 0.5)
+        if relajadas:
+            a, b, adelante, abajo = max(5, a - 10), min(70, b + 15), 0.0, max(0.25, abajo - 0.25)
+        R = cin.fk(lado, np.zeros(7), "yema")[:3, :3].T @ cin.fk(lado, np.zeros(7), "mano")[:3, :3]   # mano -> yema
+        dedos, palma = R @ EJE_DEDOS, R @ EJE_PALMA[lado]
+        return [dedos_inclinados(a, b, dedos), Banda(dedos, np.array([1.0, 0.0, 0.0]), adelante, 1.0),
+                Banda(palma, np.array([0.0, 0.0, -1.0]), abajo, 1.0)]
+
     def tocar(self, lado, diana_xy, q0):
-        """Nivel 1: la yema del indice sobre la diana. El descenso final lo hace el supervisor despacio, con
-        deteccion de contacto, hasta `bajar` como mucho. Primero con el indice mas vertical (el resto de la mano
-        queda mas alto sobre la mesa); si no hay plan, con el minimo de la configuracion."""
-        self.mano_gemelo(lado, self.objetos["preformas"]["senalar"])
+        """Nivel 1: la yema del indice sobre la diana, con la preforma y la orientacion de planificacion.toque. El
+        descenso final lo hace el supervisor despacio, con deteccion de contacto, hasta `bajar` como mucho. Primero
+        con la orientacion de la configuracion; si no hay plan, relajada."""
+        toque = self.p.get("toque") or {}
         plan = None
-        for grados in (65, 50, self.p["yema_abajo_tol_deg"]):
-            abajo = dedos_inclinados(grados, 90, EJE_DEDO_YEMA[lado])
-            pasos = [("sobre", TareaIK(posicion=self.punto(diana_xy, self.p["altura_segura_m"]), marco="yema", bandas=[abajo])),
-                     ("aproximar", TareaIK(posicion=self.punto(diana_xy, self.p["altura_aproximacion_m"]), marco="yema", bandas=[abajo])),
-                     # hasta 2 cm bajo la mesa estimada: el descenso para al notar el contacto (si la mesa esta
-                     # algo mas baja de lo calibrado, sin esto no llegaria a tocarla)
-                     ("bajar", TareaIK(posicion=self.punto(diana_xy, -min(0.02, self.c["bajada_max_m"])), marco="yema", bandas=[abajo])),
-                     ("subir", TareaIK(posicion=self.punto(diana_xy, self.p["altura_segura_m"]), marco="yema", bandas=[abajo]))]
-            puntos, falla = self._cadena(lado, q0, pasos)
-            plan = Plan(objeto=None, mano=lado, tarea="tocar", puntos_de_paso=puntos or [],
-                        detalle={"diana": list(diana_xy), "indice_abajo_deg": grados})
-            if puntos is None:
-                plan.motivo = f"sin IK en '{falla}'"
-                continue
-            self._añadir_reposo(plan, marco="yema")
-            plan = self.comprobar(plan, marco="yema", q_inicio=q0)
+        for pref in toque.get("preformas") or [toque.get("preforma", "senalar")]:
+            plan = self._tocar_con(lado, diana_xy, q0, pref)
             if plan.comprobado:
-                return plan
+                break
         return plan
+
+    def _tocar_con(self, lado, diana_xy, q0, pref):
+        """tocar() con la preforma `pref`."""
+        self.mano_gemelo(lado, self.objetos["preformas"][pref])
+        cin_mano_abierta, self.cin = self.cin, self.cin_preforma(pref)      # la IK y la comprobacion, con ese indice
+        plan = None
+        try:
+            hs, ha = self.p["altura_segura_m"], self.p["altura_aproximacion_m"]
+            for relajadas in (False, True):
+                bandas = self.bandas_toque(lado, self.cin, relajadas)
+                t_sobre = TareaIK(posicion=self.punto(diana_xy, hs), marco="yema", bandas=bandas)
+                pasos = [("aproximar", TareaIK(posicion=self.punto(diana_xy, ha), marco="yema", bandas=bandas)),
+                         # hasta 2 cm bajo la mesa estimada: el descenso para al notar el contacto (si la mesa esta
+                         # algo mas baja de lo calibrado, sin esto no llegaria a tocarla)
+                         ("bajar", TareaIK(posicion=self.punto(diana_xy, -min(0.02, self.c["bajada_max_m"])), marco="yema", bandas=bandas)),
+                         ("subir", TareaIK(posicion=self.punto(diana_xy, hs), marco="yema", bandas=bandas))]
+                variantes = self._variantes(lado, t_sobre, q0, n=8)
+                if not variantes:
+                    plan = Plan(objeto=None, mano=lado, tarea="tocar", puntos_de_paso=[], motivo="sin IK en 'sobre'",
+                                detalle={"diana": list(diana_xy), "preforma": pref})
+                # varias soluciones de la IK de 'sobre' (como coger): con la mano inclinada, los dedos recogidos y el
+                # pulgar pasan cerca de la mesa y de las bandejas, y depende mucho de la rama
+                for k, q_sobre in enumerate(variantes):
+                    resto, falla = self._cadena(lado, q_sobre, pasos)
+                    plan = Plan(objeto=None, mano=lado, tarea="tocar", puntos_de_paso=[], motivo="",
+                                detalle={"diana": list(diana_xy), "preforma": pref, "variante": k,
+                                         "orientacion": "relajada" if relajadas else "toque"})
+                    if resto is None:
+                        plan.motivo = f"sin IK en '{falla}'"
+                        continue
+                    puntos = [PuntoPaso(q=q_sobre, duracion=self.duracion(q0, q_sobre), nombre="sobre")] + resto
+                    # la bajada a contacto.vel_descenso_m_s (de verdad: la duracion se divide por la escala de
+                    # tiempo, que brazo.ir_a vuelve a aplicar), como poco la duracion minima
+                    recorrido = ha + min(0.02, self.c["bajada_max_m"])
+                    for p in puntos:
+                        if p.nombre == "bajar":
+                            p.duracion = max(p.duracion, recorrido / float(self.c["vel_descenso_m_s"]) / max(1.0, self.escala))
+                    plan.puntos_de_paso = puntos
+                    plan.detalle["vel_descenso_mm_s"] = round(1000 * float(self.c["vel_descenso_m_s"]), 1)
+                    self._añadir_reposo(plan, marco="yema")
+                    plan = self.comprobar(plan, marco="yema", q_inicio=q0)
+                    if plan.comprobado:
+                        return plan
+            return plan
+        finally:
+            self.cin = cin_mano_abierta
 
     def coger(self, objeto, bandeja, q0, lado=None):
         """Niveles 2 y 3: coger `objeto` (mensajes.Objeto) y dejarlo en `bandeja`. Prueba los agarres del objeto
@@ -293,6 +351,10 @@ class Planificador:
                 M = self.cin.fk(lado, q, "yema" if marco == "yema" else "mano")
                 pt = M[:3, 3] if marco == "yema" else aplicar(M, punto_ag if punto_ag is not None else np.zeros(3))
                 h = float(self.plano.altura(pt))
+                if plan.tarea == "tocar" and p.nombre in ("bajar", "subir") and h < 0.0:
+                    # el nivel 1 baja hasta notar la mesa con la yema y sube desde ahi: lo que hay por debajo del
+                    # tablero solo lo recorre si no nota el contacto (y entonces lo paran la fuerza o el error)
+                    continue
                 if not descenso and h < hs - 0.01 and self.sobre_mesa(pt):
                     plan.motivo = f"tramo a '{p.nombre}' baja a {h * 100:.1f} cm de la mesa (seguridad {hs * 100:.0f})"
                     return plan

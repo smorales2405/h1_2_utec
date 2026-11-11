@@ -94,3 +94,43 @@ def test_nivel2_agrupa_los_objetos_por_brazo(tmp_path):
     manos = [r["mano"] for r in t.sup.resultados]
     assert len(manos) == 4 and all(r["resultado"] == "colocado" for r in t.sup.resultados)
     assert manos in (["izq", "izq", "der", "der"], ["der", "der", "izq", "izq"])
+
+
+@gl
+def test_el_toque_inclinado_con_la_palma_abajo(tmp_path):
+    """El toque del nivel 1 (probar_toque.py, 2026-11-11): la mano 30-55 grados bajo la horizontal, hacia delante, la
+    palma abajo y el indice algo flexionado (preforma tocar), en toda la zona y con las dos manos."""
+    import numpy as np
+    from manip.cinematica import EJE_DEDOS, EJE_PALMA
+    t = manipulacion.armar(_args(tmp_path, dianas=[(0.46, 0.05)]), _cfg(), log=lambda *x: None)
+    pl = t.sup.pl
+    for lado, xy in (("izq", (0.44, 0.05)), ("izq", (0.54, 0.12)), ("der", (0.40, -0.20)), ("der", (0.50, -0.02))):
+        plan = pl.tocar(lado, xy, pl.observacion[lado])
+        assert plan.comprobado, (lado, xy, plan.motivo)
+        assert plan.detalle["preforma"] == "tocar"
+        cin = pl.cin_preforma("tocar")
+        R = cin.fk(lado, next(p for p in plan.puntos_de_paso if p.nombre == "aproximar").q, "mano")[:3, :3]
+        dedos, palma = R @ EJE_DEDOS, R @ EJE_PALMA[lado]
+        bajo = np.degrees(np.arcsin(-dedos[2]))
+        assert 25 <= bajo <= 75 and palma[2] < -0.2, (lado, xy, bajo, palma)     # inclinada y la palma hacia abajo
+    if t.mundo is not None:
+        t.mundo.parar()
+
+
+@gl
+def test_la_bajada_del_nivel1_va_a_su_velocidad(tmp_path):
+    """contacto.vel_descenso_m_s manda en la bajada (antes solo la duracion minima: 4-5 mm/s con la escala 2), ya con
+    la escala de tiempo; y bajada_max_m limita hasta donde (probar_toque.py: 1 cm bajo la mesa)."""
+    cfg = _cfg()
+    cfg["contacto"].update(vel_descenso_m_s=0.003, bajada_max_m=0.01)
+    cfg["planificacion"]["altura_aproximacion_m"] = 0.04
+    t = manipulacion.armar(_args(tmp_path, dianas=[(0.46, 0.05)], escala_tiempo=2.0), cfg, log=lambda *x: None)
+    pl = t.sup.pl
+    plan = pl.tocar("izq", (0.46, 0.05), pl.observacion["izq"])
+    assert plan.comprobado, plan.motivo
+    bajar = next(p for p in plan.puntos_de_paso if p.nombre == "bajar")
+    assert abs(bajar.duracion * 2.0 - 0.05 / 0.003) < 0.5           # 5 cm a 3 mm/s, contada la escala
+    yema = pl.cin_preforma(plan.detalle["preforma"]).fk("izq", bajar.q, "yema")[:3, 3]     # con el indice del toque
+    assert abs(pl.plano.altura(yema) + 0.01) < 0.003                   # 1 cm bajo la mesa
+    if t.mundo is not None:
+        t.mundo.parar()

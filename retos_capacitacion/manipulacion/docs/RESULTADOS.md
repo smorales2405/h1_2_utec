@@ -1067,3 +1067,51 @@ en 2.4–2.5 s.
   66–291 y el anular 492. FORCE_SET escrito: izquierda 413–526, derecha 490–660.
 
 Con esto, `mano.py` en el robot queda probado (Fase 0) y "la mano abre y cierra en el aire" del Hito 3.
+
+## 38. arnes.py empieza con las manos abiertas; probar_toque.py (2026-11-11, en la PC)
+
+- **`arnes.py` abre las dos manos del todo** al empezar (pedido del usuario): tras escribir COLGADO y antes de tomar
+  el robot, los seis DOF a 1000 (primero la flexión del pulgar y luego su giro: `Mano.preforma`), que es la mano
+  abierta del gemelo con la que se comprueban los choques. Si una mano no contesta o no abre, no sigue
+  (`--sin-manos` para saltarlo). En `--sim`, con las manos simuladas cerradas: las dos abren.
+- **La bajada del nivel 1, a su velocidad:** `contacto.vel_descenso_m_s` no se usaba (bajaba en la duración mínima,
+  4–5 mm/s con la escala 2). Ahora la bajada dura recorrido / velocidad, contada la escala de tiempo.
+- **`herramientas/probar_toque.py`** (6.4.4 sin táctil): una tirada del nivel 1 con una sola diana fija
+  (`--diana x,y`; la cámara no decide nada) y límites de prueba: aproxima a 4 cm, baja a 3 mm/s y para con la
+  fuerza del índice (`--umbral`, 80 gf) o a 1 cm bajo la mesa del `[g]` (el nivel 1, 2). Graba cada lectura de la
+  mano y el brazo a 50 Hz, y después compara, frente a la altura de la yema sobre la mesa (cinemática con las q
+  medidas), cuándo pasan la fuerza del índice (30/60/120 gf), el error de seguimiento del brazo (0.5/1/2°) y el par
+  de la muñeca (+0.3/0.6/1 N·m): qué nota antes la mesa. Con `--espesor` cuenta una espuma o un trapo. Probado en
+  el gemelo (`--sim`) de punta a punta.
+
+## 39. Primer toque en el robot: el índice vertical no nota la mesa; toque inclinado (2026-11-11)
+
+`probar_toque.py --espesor 1` (`datos/tirada_20261111_073740_nivel1`): `[g]` nuevo, espuma de 1 cm (36 × 27 cm)
+sobre el tablero, diana (0.48, 0.10) con la mano izquierda. La tirada fue bien (observación, sobre la diana, bajada,
+vuelta, 0), la yema bajó a 3.6 mm/s y llegó a 1.9 mm sobre la mesa del `[g]` (8 de los 10 mm de espuma
+aplastados), pero **"sin contacto": ninguna señal lo notó**. La fuerza del índice no pasó de 30 gf; el error del
+brazo (>2° a 22 mm de la yema sobre la mesa) y el par de la muñeca (+0.3 N·m a 34 mm) se movieron antes de tocar,
+por el propio movimiento. En la foto (`montajes/probar_toque_espuma.jpeg`), **el índice vertical y extendido del
+todo** (preforma `senalar`, 1000): la espuma lo empuja a lo largo del dedo, contra su tope de extensión, y el
+actuador no recibe la carga. Sin espuma, el nivel 1 habría empujado el dedo contra el tablero hasta 2 cm.
+
+Cambio (propuesta del usuario: el dorso de la mano al frente y la mano inclinada sobre el tablero):
+
+- **Preforma `tocar`** (`objetos.yaml`): el índice en 900 (algo flexionado: la mesa lo abre contra su actuador y le
+  quedan 100 cuentas antes del tope), los demás recogidos y el pulgar abierto sin girar.
+- **Orientación** (`planificacion.toque`): la mano 30–55° bajo la horizontal, hacia delante y con la palma hacia
+  abajo; la falange del índice queda a ~50–75°, con 3–6 cm de palanca sobre el nudillo. La IK y la comprobación
+  usan una cinemática con los dedos de la preforma (la yema se mueve con la flexión). Barrido en el gemelo (8 puntos
+  de la zona): con la mano a 15–45° solo 2–4 limpios (los dedos recogidos y el pulgar rozan la mesa o las
+  bandejas), con 30–55° 7–8. Con varias soluciones de la IK de "sobre" (como `coger`), 16 de 18 puntos de una
+  rejilla 3 × 3 por mano; fallan las dos esquinas cercanas izquierdas (x = 0.40, y = 0.10 y 0.20: el hombro contra
+  el torso).
+- **El contacto, también por posición:** la mesa abre el índice (su ANGLE_ACT sube más de `contacto.umbral_angulo`,
+  25 cuentas) o la fuerza pasa de `umbral_gf`, en 2 lecturas seguidas (hay lecturas sueltas corruptas de las dos).
+  `TOCAR` dice por qué y cuánto se abrió.
+- **La comprobación del toque** deja de mirar los choques del resto de la mano mientras la yema está por debajo
+  del tablero: la bajada para al notarlo y la subida empieza ahí.
+- **El gemelo** calcula la fuerza de la yema con los dedos donde están (antes, con la mano abierta, el índice
+  flexionado no llegaba).
+- `probar_toque.py` analiza también la apertura del índice (10/25/50 cuentas) con la cinemática de la preforma.
+- Pruebas: `tests/test_supervisor.py` (el toque inclinado con la palma abajo en cuatro puntos de la zona).

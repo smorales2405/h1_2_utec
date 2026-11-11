@@ -415,6 +415,13 @@ class Cuerpo:
             for j in juntas:
                 self.q_des[j] = q[j]
 
+    def detener(self):
+        """Para la trayectoria donde va la consigna (sin llevarla a la postura medida, como congelar): el brazo se
+        queda con su error de seguimiento (el toque del nivel 1: va ~1 cm por encima de la consigna y, congelado
+        en lo medido, la yema subiria ese cm)."""
+        with self.cerrojo:
+            self._tray = None
+
     def consigna(self):
         with self.cerrojo:
             return self.q_des.copy()

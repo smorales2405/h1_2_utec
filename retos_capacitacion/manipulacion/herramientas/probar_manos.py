@@ -11,6 +11,9 @@ Por cada mano (--manos), una detras de otra:
      que abre (la apertura tras cerrar por fuerza es la trampa conocida del firmware)
   4. con --tactil S: S segundos para apretar con un dedo la yema del indice y ver cuanto sube (el contacto con
      la mesa del nivel 1), con el umbral de inspire_hand_interface: max(5 sigma, 41 cuentas)
+  4b. con --presionar A [A ...]: el indice en cada angulo A (los demas recogidos, el pulgar abierto, como la preforma
+     del toque) y --segundos S para apretar la yema del indice con un dedo: cuanto suben su fuerza y su angulo. Con
+     el indice abierto del todo (1000) la fuerza no cambia al apretar la punta (el usuario, 2026-11-11)
   5. con --mapa-tactil S: las 17 zonas del tactil (el mapa de inspire_hand_interface): 2 s sin tocar (base y
      ruido de cada zona) y S s para apretar en varios sitios (punta y yema de cada dedo, palma): cuanto sube cada
      zona. El 2026-11-11 la yema del indice no subia al apretarla y la izquierda variaba 254 cuentas sin tocarla
@@ -223,6 +226,33 @@ class Prueba:
         self.evento("TACTIL", f"yema apretada: sube hasta {sube.max():.0f} (ruido quieto {r['max']:.0f}); con un umbral de "
                               f"{umbral:.0f}, por encima el {100 * np.mean(sube > umbral):.0f} % del tiempo")
 
+    def presionar(self, angulos, segundos):
+        """El indice quieto en cada angulo; la persona aprieta la yema: lo que sube la fuerza y lo que se abre."""
+        res = {}
+        for a in angulos:
+            self.m.preforma([0, 0, 0, int(a), 1000, 1000])
+            time.sleep(1.0)
+            base = [self.m.leer() for _ in range(10)]
+            f0, a0 = np.median([e.fuerza[3] for e in base]), np.median([e.angulo[3] for e in base])
+            ruido = float(np.ptp([e.fuerza[3] for e in base]))
+            self.log(f"\n  [{self.lado}] indice en {a}: aprieta la yema del indice (la cara de la palma, en la punta) "
+                     f"durante {segundos:g} s, como lo haria la mesa")
+            fs, ang, t_fin = [], [], self.reloj() + segundos
+            while self.reloj() < t_fin:
+                e = self.m.leer()
+                fs.append(float(e.fuerza[3] - f0))
+                ang.append(float(e.angulo[3] - a0))
+            fs, ang = np.array(fs), np.array(ang)
+            res[int(a)] = {"angulo_medido": int(a0), "fuerza_sube_max": round(float(fs.max()), 0),
+                           "fuerza_baja_max": round(float(fs.min()), 0), "ruido_quieto": round(ruido, 0),
+                           "se_abre_max": round(float(ang.max()), 0), "lecturas": len(fs)}
+            r = res[int(a)]
+            self.evento("PRESIONAR", f"indice en {a} (medido {r['angulo_medido']}): la fuerza sube hasta {r['fuerza_sube_max']:+.0f} "
+                                     f"gf (baja hasta {r['fuerza_baja_max']:+.0f}; quieto varia {r['ruido_quieto']:.0f}) y se abre "
+                                     f"{r['se_abre_max']:+.0f} cuentas en {r['lecturas']} lecturas")
+        self.m.abrir()
+        self.res["presionar"] = res
+
     def mapa_tactil(self, segundos, base_s=2.0):
         """Todas las zonas: base y ruido sin tocar, y cuanto sube cada una mientras se aprieta."""
         def frame():
@@ -272,6 +302,9 @@ def main():
     ap.add_argument("--mapa-tactil", type=float, default=0.0, metavar="S",
                     help="las 17 zonas del tactil: 2 s sin tocar y S s apretando en varios sitios")
     ap.add_argument("--speed", type=int, default=None, help="SPEED_SET al cerrar (por defecto, mano.speed_cierre)")
+    ap.add_argument("--presionar", type=int, nargs="+", default=None, metavar="A",
+                    help="el indice en cada angulo A (p. ej. 1000 900 800 700) y apretar su yema --segundos")
+    ap.add_argument("--segundos", type=float, default=8.0, help="--presionar: s para apretar en cada angulo")
     ap.add_argument("--sin-preformas", action="store_true", help="no cerrar ni abrir (p. ej. solo el mapa del tactil)")
     ap.add_argument("--solo-leer", action="store_true", help="conectar y leer, sin mover los dedos")
     ap.add_argument("--guardar-cierre", metavar="CARPETA",
@@ -331,6 +364,8 @@ def main():
                 p.apretar_yema(a.tactil)
             if a.mapa_tactil:
                 p.mapa_tactil(a.mapa_tactil)
+            if a.presionar:
+                p.presionar(a.presionar, a.segundos)
             reg.resumen.setdefault("manos", {})[lado] = p.resumen()
     except KeyboardInterrupt:
         print("\n  Ctrl+C: abriendo las manos")

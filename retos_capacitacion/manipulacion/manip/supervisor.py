@@ -71,13 +71,23 @@ class Supervisor:
         return {"estado": self.estado, "peso": self.brazo.peso, "obj": self.brazo.consigna(),
                 "deriva_yaw": giro.deriva() if giro is not None and giro.imu0 is not None else None}
 
-    def _mover(self, lado, punto, extra=None):
+    def _mover(self, lado, punto, extra=None, al_parar="congelar"):
         """Un punto de paso con el brazo `lado`; `extra` se llama en cada ciclo (contacto, sujetar...)."""
         def chequeo():
             self.comprobar()
             if extra:
                 extra()
-        self.brazo.ir_a(self.brazo.pose_brazo(lado, punto.q), punto.duracion, chequeo)
+        self.brazo.ir_a(self.brazo.pose_brazo(lado, punto.q), punto.duracion, chequeo, al_parar=al_parar)
+
+    def _abrir_manos(self, lados=None):
+        """Las manos abiertas del todo (los seis DOF a 1000: la mano abierta del gemelo, con la que se comprueban
+        la entrada, la observacion y la salida). Al empezar la tirada (si no, heredan la postura de la anterior:
+        2026-11-11, el indice derecho siguio extendido toda la prueba) y al volver de tocar."""
+        lados = list(lados or self.manos)
+        for lado in lados:
+            self.manos[lado].preforma([1000] * 6, vigilar=self.comprobar)
+            self.pl.mano_gemelo(lado, [1000] * 6)
+        self._a("MANOS", f"abiertas: {', '.join(lados)}")
 
     def _ambos(self, planes, comprobar=None):
         """Mueve los dos brazos a la vez por sus puntos de paso, uno a uno (entrada y salida en espejo: los planes
@@ -111,6 +121,7 @@ class Supervisor:
             self._a("ENTRADA", getattr(self.brazo, "texto_entrada", None) or
                     f"peso 0 -> 1 en {self.brazo.t_entrada:.0f} s siguiendo la postura medida")
             self.brazo.rampa_peso(1.0, comprobar=self.comprobar)
+            self._abrir_manos()
             planes = [self.pl.entre_reposo_y_observacion(l, True) for l in LADOS]
             malos = [p.motivo for p in planes if not p.comprobado]
             if malos:
@@ -188,43 +199,64 @@ class Supervisor:
         base = mano.linea_base(n=5)
         a0 = float(mano.leer().angulo[3])                  # el indice en su preforma, antes de bajar
         self.vig.manos_vigiladas = {lado}
-        self._a("DESCENSO", "despacio hasta notar la mesa con la yema", {"base_gf": base.round(0).tolist(),
-                                                                         "indice": a0})
-        contacto = {"t": None, "f": 0.0, "abre": 0.0, "tactil": 0.0, "seguidas": 0, "por": ""}
+        # la yema medida: los encoders del brazo y la cinematica con los dedos de la preforma, sobre la mesa del [g]
+        cin_t = self.pl.cin_preforma(plan.detalle.get("preforma", "senalar"))
+        sup = float(plan.detalle.get("superficie_m", 0.0))
+        h_toque = sup + float(self.c.get("altura_toque_m", 0.0))
+
+        def altura_yema():
+            return float(self.pl.plano.altura(cin_t.fk(lado, self.q(lado), "yema")[:3, 3]))
+        self._a("DESCENSO", "despacio hasta la mesa (la yema medida) o hasta notarla", {
+            "base_gf": base.round(0).tolist(), "indice": a0, "yema_mm": round(1000 * altura_yema(), 1),
+            "para_en_mm": round(1000 * h_toque, 1)})
+        contacto = {"t": None, "f": 0.0, "abre": 0.0, "tactil": 0.0, "seguidas": 0, "por": "", "h": None}
         usar_tactil = self.c.get("usar_tactil", False)
         umbral_ang = float(self.c.get("umbral_angulo", 1e9))
         lecturas = int(self.c.get("lecturas_contacto", 2))
+        por_posicion = self.c.get("parar_por_posicion", True)
 
         def notar():
-            """Contacto: la fuerza del indice sobre su base o la mesa abriendolo (su angulo sube), en `lecturas`
-            lecturas seguidas (hay lecturas sueltas corruptas de fuerza y de posicion)."""
+            """Para al llegar la yema medida a la superficie (contacto.altura_toque_m sobre ella: la fuerza de los
+            dedos no recibe la carga con esta mano, RESULTADOS §39-42) o, de respaldo, por la fuerza del indice sobre
+            su base o la mesa abriendolo, en `lecturas` lecturas seguidas (hay lecturas sueltas corruptas)."""
             e = mano.leer()
             f = float(e.fuerza[3] - e.base[3])
             abre = float(e.angulo[3]) - a0
             t = mano.tactil_yema() if usar_tactil else 0.0
+            h = altura_yema()
+            if por_posicion and h <= h_toque:
+                contacto.update(t=time.monotonic(), f=f, abre=abre, tactil=t, por="posicion", h=h)
+                raise Contacto()
             por = [n for n, si in (("fuerza", f > self.c["umbral_gf"]), ("angulo", abre > umbral_ang),
                                    ("tactil", usar_tactil and t > self.c.get("umbral_tactil", 60))) if si]
             contacto["seguidas"] = contacto["seguidas"] + 1 if por else 0
             if contacto["seguidas"] >= lecturas:
-                contacto.update(t=time.monotonic(), f=f, abre=abre, tactil=t, por="+".join(por))
+                contacto.update(t=time.monotonic(), f=f, abre=abre, tactil=t, por="+".join(por), h=h)
                 raise Contacto()
         try:
-            self._mover(lado, pts["bajar"], extra=notar)
+            # al notarlo se detiene donde va la consigna: congelado en lo medido, el brazo (que va ~1 cm por encima
+            # de su consigna) subiria la yema ese cm
+            self._mover(lado, pts["bajar"], extra=notar, al_parar="detener")
             resultado = "sin contacto"
         except Contacto:
-            self.brazo.congelar()
+            self.brazo.detener()
             resultado = "tocada"
         q_contacto = self.q(lado)
         e = mano.leer()
         f_max = float(max(contacto["f"], e.fuerza[3] - e.base[3]))
+        time.sleep(0.3)                                    # quieto: donde se queda de verdad la yema
+        h_quieta = altura_yema()
         self._a("TOCAR", resultado, {"fuerza_gf": round(f_max), "abre": round(contacto["abre"]), "por": contacto["por"],
-                                      "tactil": contacto["tactil"]})
+                                      "tactil": contacto["tactil"],
+                                      "yema_al_parar_mm": None if contacto["h"] is None else round(1000 * contacto["h"], 1),
+                                      "yema_quieta_mm": round(1000 * h_quieta, 1)})
         if self._ultimo_fotograma is not None:
             self.reg.imagen(f"diana_{n}", self._ultimo_fotograma.color)
         self.vig.manos_vigiladas = set()
         self._a("VOLVER", "subir y a la observacion")
         self._mover(lado, pts["subir"])
         self._mover(lado, pts["observacion"])
+        self._abrir_manos([lado])                         # en la observacion, la mano abierta (la del gemelo)
         self._plan_activo = None
         return {"diana": list(xy), "mano": lado, "resultado": resultado, "fuerza_gf": round(f_max),
                 "q_contacto": q_contacto.round(4).tolist()}

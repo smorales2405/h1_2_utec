@@ -14,7 +14,7 @@ crece el error de seguimiento del brazo y cuando cambia el par de la muneca: que
 
 La primera vez, una espuma o un trapo doblado sobre la mesa (--espesor cm: la altura del contacto esperado).
     terminal 1: ./ejecutar.sh herramientas/arnes.py                      (de pie, [n], nivelado)
-    terminal 2: ./ejecutar.sh herramientas/probar_toque.py [--diana 0.48,0.10] [--umbral 80] [--espesor 2]
+    terminal 2: ./ejecutar.sh herramientas/probar_toque.py [--diana 0.48,0.10] [--umbral 40] [--espesor 2]
     en la PC:   python3 herramientas/probar_toque.py --analizar datos/tirada_<fecha>_nivel1
 La mano es la del lado de la diana (y >= 0: izquierda).
 """
@@ -159,11 +159,13 @@ def analizar(carpeta, espesor_m=0.0, log=print):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--diana", default="0.48,0.10", help="x,y en el torso (m); y >= 0, mano izquierda")
-    ap.add_argument("--umbral", type=float, default=80.0, help="gf sobre la base del indice que paran la bajada")
+    ap.add_argument("--umbral", type=float, default=None,
+                    help="gf sobre la base del indice que paran la bajada (por defecto, contacto.umbral_gf)")
     ap.add_argument("--bajada", type=float, default=1.0, help="cm por debajo de la mesa del [g], como mucho (<= 2)")
     ap.add_argument("--vel", type=float, default=3.0, help="mm/s de la bajada")
     ap.add_argument("--aproximar", type=float, default=4.0, help="cm sobre la mesa donde empieza la bajada")
-    ap.add_argument("--espesor", type=float, default=0.0, help="cm de la espuma o el trapo (solo para el analisis)")
+    ap.add_argument("--espesor", type=float, default=0.0,
+                    help="cm de lo que se toca sobre la mesa (tabla, espuma): la superficie donde para la yema medida")
     ap.add_argument("--escala-tiempo", type=float, default=2.0)
     ap.add_argument("--analizar", metavar="CARPETA", help="solo el analisis de una tirada ya hecha")
     ap.add_argument("--sim", action="store_true", help="en la PC, en el gemelo (manipulacion.py --sim --arnes)")
@@ -179,7 +181,10 @@ def main():
         sys.exit("--vel entre 1 y 10 mm/s")
     diana = [float(v) for v in a.diana.split(",")]
     cfg = config.cargar()
-    cfg["contacto"].update(umbral_gf=float(a.umbral), bajada_max_m=a.bajada / 100.0, vel_descenso_m_s=a.vel / 1000.0)
+    if a.umbral is None:
+        a.umbral = float(cfg["contacto"]["umbral_gf"])
+    cfg["contacto"].update(umbral_gf=float(a.umbral), bajada_max_m=a.bajada / 100.0, vel_descenso_m_s=a.vel / 1000.0,
+                           superficie_m=a.espesor / 100.0)
     cfg["planificacion"]["altura_aproximacion_m"] = a.aproximar / 100.0
     import manipulacion as mp
     t = mp.armar(argumentos_tirada(diana, a.escala_tiempo, a.sim), cfg=cfg)
@@ -194,9 +199,9 @@ def main():
             t.reg.mano(e)
             return e
         mano.leer = leer_y_apuntar
-    print(f"\n  PRUEBA DE TOQUE: diana {diana}, aproxima a {a.aproximar:g} cm, baja a {a.vel:g} mm/s y para con "
-          f"{a.umbral:g} gf en el indice o a {a.bajada:g} cm bajo la mesa del [g]" +
-          (f" (espuma de {a.espesor:g} cm)" if a.espesor else ""))
+    print(f"\n  PRUEBA DE TOQUE: diana {diana}, aproxima a {a.aproximar:g} cm sobre la superficie, baja a {a.vel:g} mm/s "
+          f"y para cuando la yema medida llega a la superficie" + (f" ({a.espesor:g} cm sobre la mesa)" if a.espesor else "") +
+          f", o con {a.umbral:g} gf en el indice, o a {a.bajada:g} cm bajo la superficie")
     mp.correr(t, confirmar=not a.sim)
     try:
         r = analizar(t.reg.carpeta, a.espesor / 100.0)

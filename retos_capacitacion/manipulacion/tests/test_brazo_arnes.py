@@ -299,3 +299,31 @@ def test_recuperar_unos_brazos_que_se_quedaron_sobre_la_mesa():
     assert motivo == "recuperados", (motivo, eventos)
     assert srv.controlado is None and any("para recuperarlos" in e for e in eventos)
     assert np.allclose(robot.q()[13:27], 0.0, atol=1e-3)
+
+
+def test_detener_deja_la_consigna_donde_iba():
+    """El toque del nivel 1: el brazo va por encima de su consigna (aqui, un robot que se queda corto); al notar la mesa
+    se detiene donde va la consigna (congelar la llevaria a lo medido y la yema subiria)."""
+    robot = RobotSimulado(postura=[float(v) for v in postura_arnes(CFG)], caida_rad=0.05, tau_s=0.005, instantaneo=False)
+    robot, cu, srv, _ = montar(robot=robot)
+    b = cliente(srv)
+    b.rampa_peso(1.0)
+    parar = {"tras": 0.08}                                                 # el movimiento dura ~0.2 s reales (x40)
+    t0 = time.monotonic()
+
+    def a_mitad():
+        if time.monotonic() - t0 > parar["tras"]:
+            raise Parada("mesa")
+    with pytest.raises(Parada):
+        b.ir_a(b.pose_brazo("izq", ADELANTE_IZQ), comprobar=a_mitad, al_parar="detener")
+    c = cu.consigna()[13:20]
+    assert not cu.moviendo()
+    assert 0.0 < abs(c[3]) < abs(ADELANTE_IZQ[3])                            # se quedo a medio camino
+    assert np.abs(c - robot.q()[13:20]).max() > 0.01                          # y no en lo medido
+    time.sleep(0.1)
+    assert np.allclose(cu.consigna()[13:20], c)                               # quieta
+    b.congelar()
+    assert np.abs(cu.consigna()[13:20] - c).max() > 0.01                      # congelar: a lo medido (otro sitio)
+    b.ir_a(b.pose_brazo("izq", [0.0] * 7))
+    b.rampa_peso(0.0)
+    cerrar(robot, cu, srv, b)

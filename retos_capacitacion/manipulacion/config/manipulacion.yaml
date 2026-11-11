@@ -177,21 +177,27 @@ planificacion:          # manip/planificacion.py; alturas del punto de agarre so
   guinada_tol_deg: 20       # el ancho de la mano a lo largo del lado largo de una caja, con esto de margen
   dedos_abajo_deg: [15, 55] # agarre de lado: los dedos inclinados hacia abajo
   yema_abajo_tol_deg: 45
-  toque:                    # nivel 1 (probar_toque.py, 2026-11-11): con el indice vertical y extendido la mesa lo empujaba
-                            # contra su tope y la fuerza no subia. Ahora toca con la yema: la falange inclinada, hacia
-                            # delante, la yema hacia abajo y el dorso de la mano al frente (lo propuso el usuario)
-    preformas: [tocar]      # se prueban en orden (con el pulgar recogido, 600/500, no hizo falta en ningun punto)
-    mano_deg: [30, 55]      # la mano (del nudillo a las puntas) bajo la horizontal; la falange del indice (900) ~20 grados
-                            # mas. Inclinando solo la falange, o la mano 15-45, los dedos recogidos y el pulgar rozaban
-                            # la mesa y las bandejas (en el gemelo: 2-4 de 8 puntos de la zona; con 30-55, 8 de 8)
-    adelante_min: 0.35      # ... apuntando hacia delante (componente x de su eje)
-    palma_abajo_min: 0.4    # la palma hacia abajo (componente -z de su normal): el dorso al frente
+  toque:                    # nivel 1 (RESULTADOS §39-42): ni la fuerza del indice ni nada noto la mesa (con el dedo
+                            # extendido iba contra su tope; inclinado y flexionado, el dedo real va mas doblado que el
+                            # modelo y la mesa lo doblaba). La bajada se para por la yema medida, y para eso el indice
+                            # extendido (el unico angulo en que el modelo del dedo es el real) y casi vertical: la punta
+                            # justo encima de la diana. 17/18 puntos de la zona (falla la esquina junto a la bandeja A)
+    preformas: [senalar]
+    indice_deg: [60, 90]    # la falange del indice bajo la horizontal (mano_deg: la mano)
+    adelante_min: -1.0      # sin limite (un eje hacia delante; el toque inclinado usaba 0.3)
+    palma_abajo_min: -1.0   # sin limite (la palma hacia abajo; el toque inclinado usaba 0.3)
   semillas: 12
 
 contacto:               # nivel 1: la yema del indice toca la diana
   vel_descenso_m_s: 0.01
-  umbral_gf: 120            # sobre la linea base (medir en el hito 2 con la bascula)
+  umbral_gf: 40             # sobre la linea base: con el indice quieto (800) varia 0-1 gf y apretando su yema a mano sube
+                            # 140-200 (probar_manos.py --presionar, 2026-11-11); con 2 lecturas seguidas (hay sueltas
+                            # corruptas: -5791 gf)
   maximo_gf: 300            # seccion 4: fuerza de contacto <= 300 gf
+  parar_por_posicion: true  # la bajada para cuando la yema medida (encoders del brazo y cinematica) llega a la superficie:
+                            # ni el tactil ni la fuerza de los dedos ni el error del brazo notaron la mesa (§39-42)
+  altura_toque_m: 0.0       # ... a esto sobre ella
+  superficie_m: 0.0         # lo que se toca, sobre la mesa del [g] (probar_toque.py --espesor: una tabla o espuma)
   umbral_angulo: 25         # cuentas que la mesa abre el indice (su ANGLE_ACT sube): el contacto, tambien por posicion
                             # (inspire_hand_interface detecta el contacto por la posicion o por la fuerza)
   lecturas_contacto: 2      # ... en tantas lecturas seguidas (hay lecturas sueltas corruptas de fuerza y de posicion)

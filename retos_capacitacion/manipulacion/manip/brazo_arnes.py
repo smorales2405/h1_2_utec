@@ -172,9 +172,10 @@ class BrazoArnes:
             self._pedir({"op": "soltar"})
         return 0.0
 
-    def ir_a(self, pose, segundos=None, comprobar=None):
+    def ir_a(self, pose, segundos=None, comprobar=None, al_parar="congelar"):
         """Minima sacudida (en arnes.py) desde su consigna hasta `pose` {junta: q} (recortada a los limites; la
-        cintura no se mueve). Espera a que acabe llamando a `comprobar`. Devuelve la duracion."""
+        cintura no se mueve). Espera a que acabe llamando a `comprobar`; si salta algo, congela (o detiene, con
+        al_parar="detener": la consigna se queda donde iba) antes de dejarlo salir. Devuelve la duracion."""
         if self.peso < 0.5:
             raise Parada("sin el control de los brazos de arnes.py")
         ini = self.consigna()
@@ -207,7 +208,7 @@ class BrazoArnes:
                     raise Parada(f"el movimiento de {T:.1f} s no acaba")
                 self._dormir(self.cada)
         except BaseException:
-            self.congelar()
+            self.detener() if al_parar == "detener" else self.congelar()
             raise
         return T
 
@@ -221,6 +222,11 @@ class BrazoArnes:
         """Los brazos se quedan donde estan (arnes.py para el movimiento en curso)."""
         if self.peso > 0.5:
             self._pedir({"op": "congelar"})
+
+    def detener(self):
+        """Para el movimiento en curso donde va la consigna (no en lo medido: ver Cuerpo.detener)."""
+        if self.peso > 0.5:
+            self._pedir({"op": "detener"})
 
     def parar(self):
         """Fin: deja de latir y cierra. Con el control aun dado (la tirada no acabo bien), congela y lo devuelve:

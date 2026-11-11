@@ -1115,3 +1115,74 @@ Cambio (propuesta del usuario: el dorso de la mano al frente y la mano inclinada
   flexionado no llegaba).
 - `probar_toque.py` analiza también la apertura del índice (10/25/50 cuentas) con la cinemática de la preforma.
 - Pruebas: `tests/test_supervisor.py` (el toque inclinado con la palma abajo en cuatro puntos de la zona).
+
+## 40. Segundo toque: el índice en 900 tampoco lo nota; en 800 y prueba a mano (2026-11-11)
+
+`probar_toque.py --espesor 1` con el toque inclinado del §39 (`datos/tirada_20261111_081540_nivel1`; `[g]` nuevo;
+la mano derecha siguió con el índice extendido de la prueba anterior porque `arnes.py` no se reinició): la yema
+bajó a 3.9 mm/s hasta 2 mm sobre la mesa (8 mm de espuma) y **otra vez "sin contacto"**: 8 gf en el índice al
+parar y 0 cuentas de apertura (el actuador no se deja mover: el ángulo no sirve para notar). El par de la muñeca
+subió +0.6 N·m 2.5 s después de llegar a la espuma.
+
+- **Error del brazo en la vertical de la yema** (la yema mandada frente a la medida, con la cinemática de la
+  preforma): la medida va **8–19 mm por encima** de la mandada todo el rato (error estático y retraso de la bajada),
+  así que el apoyo en la espuma no se separa de eso. Para los agarres importa: el brazo se queda ~1 cm por encima de
+  donde se le manda (6.3.4).
+- **Propuesta del usuario:** el índice más cerrado, para que la carga de la yema vaya contra el actuador fijo (con el
+  dedo abierto no cambia la fuerza aunque se apriete la punta). Barrido en el gemelo (rejilla 3 × 3 por mano): con el
+  índice en 800 y la mano a 30–55°, **18/18**; en 700 (falange a 55–85°), 16/18; en 600, 5–6/18 (los dedos no
+  caben). La preforma `tocar` pasa a 800; `planificacion.toque` admite fijar la falange (`indice_deg`) en vez de la
+  mano.
+- **`probar_manos.py --presionar A [A ...]`:** el índice quieto en cada ángulo y unos segundos para apretar su yema
+  con un dedo: cuánto suben su fuerza y su ángulo, sin mover el brazo. Para elegir el ángulo antes de bajar sobre
+  la mesa.
+- **La tirada abre las dos manos del todo al empezar** (si no, heredan la postura de la anterior) **y la que tocó al
+  volver a la observación** (la mano abierta del gemelo).
+
+## 41. La fuerza del índice sí responde con el dedo quieto: umbral de contacto a 40 gf (2026-11-11)
+
+`probar_manos.py --manos izq --sin-preformas --presionar 1000 900 800 700 --segundos 8`
+(`datos/manos_20261111_085636`; el usuario apretó la yema del índice como lo haría la mesa; la de las 08:53 se
+descarta, se apretó en otro sitio): leyendo solo la mano, a ~270 Hz.
+
+| índice | sin apretar varía | apretando sube | lecturas > 40 gf |
+|---|---|---|---|
+| 1000 (abierto) | 0 gf | +68 gf | 58 % |
+| 900 | 1 | +203 | 14 % |
+| 800 | 0 | +149 (8 lecturas corruptas, hasta −5791) | 42 % |
+| 700 | 0 | +142 | 39 % |
+
+**La fuerza del índice es una señal muy limpia** (0–1 gf quieto) y sube con claridad al apretar la yema en cualquier
+ángulo. Que en las dos pruebas con espuma no pasara de 8–30 gf apunta a la espuma (blanda: 8 mm aplastados) o a que
+no apoyaba la yema, no a que el sensor no responda. `contacto.umbral_gf` pasa de 120 a **40 gf** (con 2 lecturas
+seguidas) y `probar_toque.py` lo toma por defecto. El índice se queda en 800 (18/18 puntos de la zona).
+
+## 42. Tercer toque (espuma y madera): el dedo se dobla; el nivel 1 por posición (2026-11-11)
+
+`probar_toque.py --espesor 1` (espuma) y `--espesor 1.8` (tabla de madera de 1.8 cm)
+(`datos/tirada_20261111_090457_nivel1` y `_090826_nivel1`), con el índice en 800 y la mano inclinada: **otra vez sin
+contacto** (8 y 11 gf en el índice). En las fotos (`montajes/probar_toque2_espuma.jpeg`, `_madera.jpeg`) el índice
+real en 800 va **mucho más doblado** que en el modelo (la falange casi vertical o hacia atrás) y toca con el extremo
+de la punta: la superficie lo dobla más (hacia la palma) en vez de abrirlo contra su actuador, y la fuerza no sube.
+Con la madera, la yema del modelo se quedó a 13 mm (la tabla mide 18): con el dedo flexionado el modelo la pone
+≥ 5 mm fuera de sitio. El usuario: los ángulos que se mandan al modelo de la mano no son los de los dedos reales;
+corregirlo, en otra sesión.
+
+**Decisión (con el usuario): el nivel 1 por posición.** De la cámara, la mesa (`[g]`) y las dianas; la bajada para
+cuando la **yema medida** (encoders del brazo y cinemática, sobre el plano del `[g]`) llega a la superficie
+(`contacto.parar_por_posicion`, `altura_toque_m`, `superficie_m`); la fuerza del índice (40 gf, 2 lecturas) queda de
+respaldo. Para 6.4.4: el táctil no responde, la fuerza de los dedos no recibe la carga con esta mano y el error del
+brazo queda tapado por su desfase de 8–19 mm.
+
+- **El índice extendido y casi vertical** (preforma `senalar`, falange 60–90° bajo la horizontal): el único ángulo
+  en que el modelo del dedo es el real, y la punta justo encima de la diana. Con el índice extendido y la mano
+  inclinada hacia delante, 11/18 puntos de la zona (el dedo largo se mete sobre las bandejas); casi vertical,
+  **17/18** (falla la esquina junto a la bandeja A, x 0.40, y 0.20). Se quita la preforma `tocar`.
+- **Detener, no congelar:** el brazo va ~1 cm por encima de su consigna; congelado en lo medido, la yema subiría ese
+  cm justo al tocar. `Cuerpo.detener()` para la trayectoria donde va la consigna; orden `detener` del servidor de
+  brazos; `ir_a(..., al_parar="detener")` en la bajada. `TOCAR` apunta la yema al parar y 0.3 s después.
+- `contacto.superficie_m` (lo que se toca sobre la mesa; `probar_toque.py --espesor` ya lo usa): aproximar y bajar
+  se cuentan desde ella.
+- En el gemelo, la madera de 1.8 cm: "tocada por posición" con la yema a 18.0 mm.
+- Pruebas: `test_brazo_arnes` (detener deja la consigna donde iba; congelar, en lo medido) y `test_supervisor`
+  (el toque vertical en cuatro puntos de la zona). 109 de 109.

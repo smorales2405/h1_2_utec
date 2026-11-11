@@ -150,7 +150,7 @@ class Brazo:
             self._dormir(1.0 / self.hz)
         return segundos
 
-    def ir_a(self, pose, segundos=None, comprobar=None):
+    def ir_a(self, pose, segundos=None, comprobar=None, al_parar="congelar"):
         """Minima sacudida desde la consigna actual hasta `pose` {junta: q} (recortada a los limites).
         Devuelve la duracion usada."""
         with self.cerrojo:
@@ -185,6 +185,9 @@ class Brazo:
             self.ir_a(self.pose_brazo(lado, p.q), p.duracion, comprobar)
             if al_llegar:
                 al_llegar(i)
+
+    def detener(self):
+        """Parar donde va la consigna: aqui ya lo hace ir_a al cortar su bucle (la ultima consigna enviada queda)."""
 
     def congelar(self):
         """La consigna pasa a la postura medida: el brazo se queda donde esta, sin seguir empujando."""

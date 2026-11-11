@@ -97,22 +97,21 @@ def test_nivel2_agrupa_los_objetos_por_brazo(tmp_path):
 
 
 @gl
-def test_el_toque_inclinado_con_la_palma_abajo(tmp_path):
-    """El toque del nivel 1 (probar_toque.py, 2026-11-11): la mano 30-55 grados bajo la horizontal, hacia delante, la
-    palma abajo y el indice algo flexionado (preforma tocar), en toda la zona y con las dos manos."""
+def test_el_toque_con_el_indice_vertical(tmp_path):
+    """El toque del nivel 1 (RESULTADOS §42): el indice extendido (senalar) y casi vertical, en toda la zona y con las
+    dos manos; la bajada para por la yema medida."""
     import numpy as np
-    from manip.cinematica import EJE_DEDOS, EJE_PALMA
+    from manip.cinematica import EJE_DEDO_YEMA
     t = manipulacion.armar(_args(tmp_path, dianas=[(0.46, 0.05)]), _cfg(), log=lambda *x: None)
     pl = t.sup.pl
-    for lado, xy in (("izq", (0.44, 0.05)), ("izq", (0.54, 0.12)), ("der", (0.40, -0.20)), ("der", (0.50, -0.02))):
+    for lado, xy in (("izq", (0.44, 0.05)), ("izq", (0.56, 0.20)), ("der", (0.40, -0.20)), ("der", (0.50, -0.02))):
         plan = pl.tocar(lado, xy, pl.observacion[lado])
         assert plan.comprobado, (lado, xy, plan.motivo)
-        assert plan.detalle["preforma"] == "tocar"
-        cin = pl.cin_preforma("tocar")
-        R = cin.fk(lado, next(p for p in plan.puntos_de_paso if p.nombre == "aproximar").q, "mano")[:3, :3]
-        dedos, palma = R @ EJE_DEDOS, R @ EJE_PALMA[lado]
-        bajo = np.degrees(np.arcsin(-dedos[2]))
-        assert 25 <= bajo <= 75 and palma[2] < -0.2, (lado, xy, bajo, palma)     # inclinada y la palma hacia abajo
+        assert plan.detalle["preforma"] == "senalar"
+        R = pl.cin_preforma("senalar").fk(lado, next(p for p in plan.puntos_de_paso if p.nombre == "aproximar").q, "yema")[:3, :3]
+        bajo = np.degrees(np.arcsin(-(R @ EJE_DEDO_YEMA[lado])[2]))
+        assert 55 <= bajo <= 90, (lado, xy, bajo)
+        pl.mano_gemelo(lado, [1000] * 6)
     if t.mundo is not None:
         t.mundo.parar()
 
@@ -130,7 +129,7 @@ def test_la_bajada_del_nivel1_va_a_su_velocidad(tmp_path):
     assert plan.comprobado, plan.motivo
     bajar = next(p for p in plan.puntos_de_paso if p.nombre == "bajar")
     assert abs(bajar.duracion * 2.0 - 0.05 / 0.003) < 0.5           # 5 cm a 3 mm/s, contada la escala
-    yema = pl.cin_preforma(plan.detalle["preforma"]).fk("izq", bajar.q, "yema")[:3, 3]     # con el indice del toque
+    yema = pl.cin_preforma(plan.detalle["preforma"]).fk("izq", bajar.q, "yema")[:3, 3]     # con los dedos del toque
     assert abs(pl.plano.altura(yema) + 0.01) < 0.003                   # 1 cm bajo la mesa
     if t.mundo is not None:
         t.mundo.parar()

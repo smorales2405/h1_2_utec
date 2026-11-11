@@ -34,7 +34,7 @@ sys.path.insert(0, RAIZ)
 from manip import config  # noqa: E402
 from manip.mensajes import JUNTAS_BRAZO  # noqa: E402
 
-UMBRALES_F = (30, 60, 120)                 # gf sobre la base del indice
+UMBRALES_F = (5, 10, 30)                   # gf, |fuerza del indice - su base| (al tocar baja: RESULTADOS §43)
 UMBRALES_ANG = (10, 25, 50)                # cuentas que la mesa abre el indice (su ANGLE_ACT sube)
 UMBRALES_ERR = (0.5, 1.0, 2.0)             # grados, la junta del brazo que mas se aparta de su consigna
 UMBRALES_TAU = (0.3, 0.6, 1.0)             # N m, cambio del par de la muneca (pitch) desde antes de bajar
@@ -67,6 +67,11 @@ def analizar(carpeta, espesor_m=0.0, log=print):
     res = json.load(open(os.path.join(carpeta, "resumen.json")))
     ruta_mon = os.path.join(carpeta, "montaje.yaml")
     mon = config.cargar_montaje(ruta_mon) if os.path.exists(ruta_mon) else config.cargar_montaje()
+    # la mesa con la correccion de altura que uso la tirada (resumen), como en manipulacion.armar
+    corr = float((res.get("prueba_toque") or {}).get("correccion_altura_m", 0.0))
+    if corr:
+        from manip.montaje import corregir_altura
+        mon = corregir_altura(mon, corr)
     plano = Plano(mon["mesa"]["plano"]["n"], mon["mesa"]["plano"]["d"])
     ev = _csv(os.path.join(carpeta, "eventos.csv"))
     t_desc = [float(e["t"]) for e in ev if e["estado"] == "DESCENSO"]
@@ -115,8 +120,8 @@ def analizar(carpeta, espesor_m=0.0, log=print):
         return None if t is None else float(np.interp(t, tl, h))
     senales = {}
     for u in UMBRALES_F:
-        t = _primero(tm[msel], fi[msel], u)
-        senales[f"fuerza del indice > {u} gf"] = (t, h_en(t))
+        t = _primero(tm[msel], np.abs(fi[msel]), u)
+        senales[f"|fuerza del indice| > {u} gf"] = (t, h_en(t))
     for u in UMBRALES_ANG:
         t = _primero(tm[msel], abre[msel], u)
         senales[f"indice abierto > {u} cuentas"] = (t, h_en(t))
@@ -138,6 +143,10 @@ def analizar(carpeta, espesor_m=0.0, log=print):
     b = en_bajada & (h > espesor_m + 0.005)
     if b.sum() > 5:
         r["vel_bajada_mm_s"] = round(-1000 * float(np.polyfit(tl[b], h[b], 1)[0]), 1)
+    # la altura de la mesa: donde estaba la yema medida cuando la fuerza noto la superficie (si fue dura)
+    t10 = senales.get("|fuerza del indice| > 10 gf", (None, None))[1]
+    r["yema_al_notar_mm"] = None if t10 is None else round(1000 * t10, 1)
+    r["mesa_real_sobre_la_corregida_mm"] = None if t10 is None else round(1000 * (t10 - espesor_m), 1)
     for k, (t, hh) in senales.items():
         r["senales"][k] = {"t_s": None if t is None else round(t - t0, 2),
                            "altura_yema_mm": None if hh is None else round(1000 * hh, 1),
@@ -147,6 +156,10 @@ def analizar(carpeta, espesor_m=0.0, log=print):
         f"{r['abierto_al_parar']} cuentas)")
     log(f"  La yema baja a {r['vel_bajada_mm_s']} mm/s y llega a {1000 * espesor_m:.0f} mm sobre la mesa del [g] a los "
         f"{r['t_llega_s']} s; como mucho, a {r['h_min_mm']} mm. Mano leida a {r['lecturas_mano_hz']} Hz.")
+    if r["mesa_real_sobre_la_corregida_mm"] is not None:
+        log(f"  La fuerza lo noto con la yema medida a {r['yema_al_notar_mm']} mm: la superficie real esta "
+            f"{r['mesa_real_sobre_la_corregida_mm']:+.1f} mm de donde la pone la mesa (con la correccion de "
+            f"{1000 * corr:.0f} mm). Con superficie dura, eso es lo que hay que sumar a montaje.correccion_altura_m.")
     log("  Cada senal, cuando aparece (s desde que empieza a bajar), a que altura esta la yema y cuanto despues de "
         "llegar a la mesa:")
     for k, d in r["senales"].items():
@@ -190,7 +203,9 @@ def main():
     t = mp.armar(argumentos_tirada(diana, a.escala_tiempo, a.sim), cfg=cfg)
     shutil.copy(config.RUTA_MONTAJE, os.path.join(t.reg.carpeta, "montaje.yaml"))
     t.reg.resumen["prueba_toque"] = {"diana": diana, "umbral_gf": a.umbral, "bajada_cm": a.bajada, "vel_mm_s": a.vel,
-                                     "aproximar_cm": a.aproximar, "espesor_cm": a.espesor}
+                                     "aproximar_cm": a.aproximar, "espesor_cm": a.espesor,
+                                     "correccion_altura_m": 0.0 if a.sim else
+                                     float((cfg.get("montaje") or {}).get("correccion_altura_m", 0.0))}
     for mano in t.manos.values():                    # cada lectura de la mano, a manos.csv
         leer = mano.leer
 

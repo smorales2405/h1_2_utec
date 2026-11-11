@@ -209,3 +209,17 @@ def test_distancias_bandejas_con_regla():
         assert abs(d[k][c1] * 100 - v1) < 0.06 and abs(d[k][c2] * 100 - v2) < 0.06, (k, d[k])
     texto = "\n".join(mt.texto_distancias(mon))
     assert "B roja" in texto and "izquierda (a tu dcha.)" in texto and "izquierda 3.2 cm, derecha 3.2 cm" in texto
+
+
+def test_corregir_altura_de_la_mesa():
+    """La mesa dz mas alta a lo largo de su normal (la profundidad de la D435i la pone ~10 mm baja: RESULTADOS §43): el
+    plano, el marco y los ArUco suben; el [g] original no se toca."""
+    mon = config.cargar_montaje()
+    m2 = mt.corregir_altura(mon, 0.010)
+    pl, pl2 = mt.plano(mon), mt.plano(m2)
+    P = mt.punto_en_mesa(mon, (0.48, 0.0))
+    assert abs(pl2.altura(P) + 0.010) < 1e-6                      # lo que estaba en la mesa queda 1 cm por debajo
+    T, T2 = mt.T_torso_mesa(mon), mt.T_torso_mesa(m2)
+    assert np.allclose(T2[:3, 3] - T[:3, 3], 0.010 * pl.n, atol=1e-9)
+    assert m2["mesa"]["correccion_altura_m"] == 0.010 and "correccion_altura_m" not in mon["mesa"]
+    assert np.allclose(mt.plano(mt.corregir_altura(mon, 0.0)).n, pl.n)

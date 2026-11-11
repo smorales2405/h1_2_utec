@@ -22,6 +22,9 @@ camara:
   puerto_video: 5000    # mosaico de depuracion en http://<robot>:5000 (0 = sin video)
 
 montaje:                # herramientas/marcar_montaje.py: colocar la mesa y las bandejas mirando el video
+  correccion_altura_m: 0.010  # la mesa real, por encima del plano del [g] (profundidad de la D435i, +1-2 %): tocando
+                            # una tabla de 1.8 cm con la yema, el contacto llego con la yema medida 9.8 y 10.0 mm por
+                            # encima (RESULTADOS §43). manipulacion.py la aplica en el robot (no en --sim)
   puerto_video: 5001    # http://<robot>:5001 con el objetivo pintado (0 = sin video)
   # [[min], [max]] de OpenCV (H 0-179) por color de bandeja; roja, azul y blanca de la captura real del
   # 2026-10-09 (medianas H 2 / 106, S 255; blanca S 4, V 255, y 89 en la sombra de sus paredes; en el gemelo
@@ -190,17 +193,17 @@ planificacion:          # manip/planificacion.py; alturas del punto de agarre so
 
 contacto:               # nivel 1: la yema del indice toca la diana
   vel_descenso_m_s: 0.01
-  umbral_gf: 40             # sobre la linea base: con el indice quieto (800) varia 0-1 gf y apretando su yema a mano sube
-                            # 140-200 (probar_manos.py --presionar, 2026-11-11); con 2 lecturas seguidas (hay sueltas
-                            # corruptas: -5791 gf)
+  umbral_gf: 10             # |fuerza del indice - su base|: quieto varia 0-1 gf; al tocar la mesa BAJA (-12 a -121 gf en
+                            # las cinco pruebas, RESULTADOS §43; a mano, apretando la yema, sube 140-200). En valor
+                            # absoluto y en lecturas_contacto lecturas seguidas (hay sueltas corruptas: -5791 gf)
   maximo_gf: 300            # seccion 4: fuerza de contacto <= 300 gf
-  parar_por_posicion: true  # la bajada para cuando la yema medida (encoders del brazo y cinematica) llega a la superficie:
-                            # ni el tactil ni la fuerza de los dedos ni el error del brazo notaron la mesa (§39-42)
-  altura_toque_m: 0.0       # ... a esto sobre ella
+  parar_por_posicion: true  # de limite: la bajada para cuando la yema medida (encoders y cinematica, sobre la mesa
+                            # corregida) llega a altura_toque_m sobre la superficie, si la fuerza no lo noto antes
+  altura_toque_m: -0.003    # ... 3 mm por debajo (la fuerza lo nota al tocar; esto, si no)
   superficie_m: 0.0         # lo que se toca, sobre la mesa del [g] (probar_toque.py --espesor: una tabla o espuma)
   umbral_angulo: 25         # cuentas que la mesa abre el indice (su ANGLE_ACT sube): el contacto, tambien por posicion
                             # (inspire_hand_interface detecta el contacto por la posicion o por la fuerza)
-  lecturas_contacto: 2      # ... en tantas lecturas seguidas (hay lecturas sueltas corruptas de fuerza y de posicion)
+  lecturas_contacto: 3      # ... en tantas lecturas seguidas (hay lecturas sueltas corruptas de fuerza y de posicion)
   usar_tactil: false        # el tactil no responde por Modbus TCP en las manos del robot (de 1062 taxeles, ~30
                             # cambian apretando; probar_manos.py --mapa-tactil, 2026-11-11): solo la fuerza del indice
   bajada_max_m: 0.04        # bajo la altura esperada de la diana, sin contacto -> se aborta

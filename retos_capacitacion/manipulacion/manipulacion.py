@@ -126,10 +126,17 @@ def armar(a, cfg=None, montaje=None, objetos=None, log=print):
     Con a.sim, todo simulado en la PC (sim/simulacion.py); si no, el robot real (con a.simulacro, sin publicar)."""
     cfg = cfg or config.cargar()
     montaje = montaje or config.cargar_montaje()
+    montaje_g = montaje         # tal cual el [g]: la comprobacion al empezar lo compara con la mesa en vivo (la misma
+                                # profundidad); el resto usa la mesa corregida
+    corr = float((cfg.get("montaje") or {}).get("correccion_altura_m", 0.0)) if not a.sim else 0.0
+    if corr and "mesa" in montaje:
+        # la mesa real, por encima del plano del [g] (la profundidad de la D435i): el planificador, el gemelo y el toque
+        from manip.montaje import corregir_altura
+        montaje = corregir_altura(montaje, corr)
     objetos = objetos or config.cargar_objetos()
     from manip.montaje import resolver_asignacion
     a.asignacion = resolver_asignacion(a.asignacion, montaje)       # los colores, a nombres de bandeja
-    t_montaje = montaje
+    t_montaje = montaje_g
     if getattr(a, "salida_directa", False):
         cfg["supervisor"]["salida_por_observacion"] = False
     t = Tirada()

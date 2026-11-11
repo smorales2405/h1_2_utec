@@ -216,9 +216,9 @@ class Supervisor:
         por_posicion = self.c.get("parar_por_posicion", True)
 
         def notar():
-            """Para al llegar la yema medida a la superficie (contacto.altura_toque_m sobre ella: la fuerza de los
-            dedos no recibe la carga con esta mano, RESULTADOS §39-42) o, de respaldo, por la fuerza del indice sobre
-            su base o la mesa abriendolo, en `lecturas` lecturas seguidas (hay lecturas sueltas corruptas)."""
+            """Para al notar la mesa: la fuerza del indice se aparta de su base mas de umbral_gf (al tocar BAJA:
+            RESULTADOS §43) o la mesa lo abre, en `lecturas` lecturas seguidas (hay lecturas sueltas corruptas); y,
+            de limite, al llegar la yema medida a contacto.altura_toque_m sobre la superficie."""
             e = mano.leer()
             f = float(e.fuerza[3] - e.base[3])
             abre = float(e.angulo[3]) - a0
@@ -227,7 +227,7 @@ class Supervisor:
             if por_posicion and h <= h_toque:
                 contacto.update(t=time.monotonic(), f=f, abre=abre, tactil=t, por="posicion", h=h)
                 raise Contacto()
-            por = [n for n, si in (("fuerza", f > self.c["umbral_gf"]), ("angulo", abre > umbral_ang),
+            por = [n for n, si in (("fuerza", abs(f) > self.c["umbral_gf"]), ("angulo", abre > umbral_ang),
                                    ("tactil", usar_tactil and t > self.c.get("umbral_tactil", 60))) if si]
             contacto["seguidas"] = contacto["seguidas"] + 1 if por else 0
             if contacto["seguidas"] >= lecturas:

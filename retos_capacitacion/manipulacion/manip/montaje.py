@@ -430,6 +430,28 @@ def T_torso_mesa(montaje):
     return np.array(montaje["mesa"]["T_torso_mesa"], float)
 
 
+def corregir_altura(montaje, dz_m):
+    """El montaje con la mesa dz_m mas alta (a lo largo de su normal): el plano, el marco de la mesa y los ArUco.
+    La profundidad de la D435i pone la mesa mas lejos (y mas baja) de lo que esta: al tocarla con la yema, el
+    contacto llega con la yema medida ~10 mm por encima del plano del [g] (RESULTADOS §43). Devuelve una copia."""
+    import copy
+    m = copy.deepcopy(montaje)
+    if not dz_m:
+        return m
+    me = m["mesa"]
+    n = np.asarray(me["plano"]["n"], float)
+    n = n / np.linalg.norm(n)
+    me["plano"]["d"] = float(me["plano"]["d"]) - float(dz_m) * float(np.linalg.norm(me["plano"]["n"]))
+    if "T_torso_mesa" in me:
+        T = np.array(me["T_torso_mesa"], float)
+        T[:3, 3] += dz_m * n
+        me["T_torso_mesa"] = T.tolist()
+    for i, c in (me.get("aruco_torso") or {}).items():
+        me["aruco_torso"][i] = (np.asarray(c, float) + dz_m * n).tolist()
+    me["correccion_altura_m"] = float(me.get("correccion_altura_m", 0.0)) + float(dz_m)
+    return m
+
+
 def plano(montaje):
     p = montaje["mesa"]["plano"]
     return Plano(p["n"], p["d"])

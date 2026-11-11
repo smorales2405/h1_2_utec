@@ -1186,3 +1186,32 @@ brazo queda tapado por su desfase de 8–19 mm.
 - En el gemelo, la madera de 1.8 cm: "tocada por posición" con la yema a 18.0 mm.
 - Pruebas: `test_brazo_arnes` (detener deja la consigna donde iba; congelar, en lo medido) y `test_supervisor`
   (el toque vertical en cuatro puntos de la zona). 109 de 109.
+
+## 43. El contacto sí se nota (la fuerza BAJA) y la mesa del [g] está ~10 mm baja (2026-11-11)
+
+`probar_toque.py --espesor 1.8` (tabla de madera medida con regla; `datos/tirada_20261111_095646_nivel1`; fotos
+`montajes/probar_toque2_madera*.jpeg`) con el nivel 1 por posición del §42: **"sin contacto"**: la yema medida
+paró a 22 mm (la tabla, 18) y el usuario vio la punta tocar la tabla y la mano seguir un poco.
+
+- **La fuerza del índice BAJA al tocar** (yo solo miraba si subía): en las cinco pruebas de toque,
+  −12 (espuma, 1000), −23 (espuma, 900), hasta −94 (espuma, 800), **hasta −121 (madera, 800)** y −23 gf (madera,
+  1000); sin tocar varía 0–1 gf. Con `|fuerza − base| > 10 gf` en 3 lecturas seguidas se nota en todas.
+- **La mesa del `[g]` está ~10 mm por debajo de la real:** en las dos de madera (superficie dura) la fuerza lo notó
+  con la yema medida a **+9.8 y +10.0 mm** sobre la tabla según el plano del `[g]`. Es la profundidad de la D435i
+  (la mesa más lejos y más baja: +1–2 %, el pendiente del Hito 2). Por eso la parada por posición llegaba tarde y
+  doblaba el dedo.
+- **El brazo va 13–16 mm por encima de su consigna** durante toda la bajada (error estático y retraso).
+
+Cambios:
+
+- **Contacto por `|fuerza del índice − base| > contacto.umbral_gf` (10 gf), en 3 lecturas seguidas**; la parada por
+  la yema medida queda de límite (`altura_toque_m`, 3 mm por debajo de la superficie).
+- **`montaje.correccion_altura_m: 0.010`** y `manip.montaje.corregir_altura`: en el robot, `manipulacion.py` sube la
+  mesa 10 mm a lo largo de su normal (plano, marco y ArUco) para el planificador, el gemelo y el toque. La
+  comprobación al empezar sigue con el `[g]` tal cual (la compara con la mesa en vivo, con la misma profundidad).
+  No corrige el xy (los ArUco cortados con un plano 1 cm bajo quedan algo corridos hacia el fondo): eso es el
+  pendiente de la escala de profundidad.
+- `probar_toque.py` mira la fuerza en valor absoluto (5/10/30 gf) y dice dónde estaba la yema medida cuando la notó:
+  **la superficie real respecto de la mesa corregida** (lo que habría que sumar a la corrección). Reanalizada la
+  de la madera: +9.6 mm sin corrección.
+- Pruebas: `test_montaje` (la corrección de altura). 110 de 110.

@@ -327,3 +327,21 @@ def test_detener_deja_la_consigna_donde_iba():
     b.ir_a(b.pose_brazo("izq", [0.0] * 7))
     b.rampa_peso(0.0)
     cerrar(robot, cu, srv, b)
+
+
+def test_fijar_la_consigna_con_saltos_pequenos(montaje):
+    """El toque del nivel 1: la consigna pasa a lo medido mas el error estatico (un salto de milimetros); un salto
+    grande no se acepta (seria un movimiento sin trayectoria)."""
+    robot, cu, srv, _ = montaje
+    b = cliente(srv)
+    b.rampa_peso(1.0)
+    b.ir_a(b.pose_brazo("izq", ADELANTE_IZQ))
+    q = np.array([b.recortar(j, v + 0.02) for j, v in zip(range(13, 20), ADELANTE_IZQ)])   # dentro de los limites
+    assert b.fijar(b.pose_brazo("izq", q))
+    assert np.allclose(cu.consigna()[13:20], q, atol=1e-6) and not cu.moviendo()
+    assert np.allclose(cu.consigna()[20:27], 0.0)                          # el otro brazo, donde estaba
+    assert not b.fijar(b.pose_brazo("izq", q + 0.2))                       # 0.2 rad de golpe: no
+    assert np.allclose(cu.consigna()[13:20], q, atol=1e-6)
+    b.ir_a(b.pose_brazo("izq", [0.0] * 7))
+    b.rampa_peso(0.0)
+    cerrar(robot, cu, srv, b)

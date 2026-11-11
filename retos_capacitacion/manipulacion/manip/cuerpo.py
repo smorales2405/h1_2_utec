@@ -422,6 +422,17 @@ class Cuerpo:
         with self.cerrojo:
             self._tray = None
 
+    def fijar(self, q, salto_max=0.05):
+        """Pone la consigna de esas juntas ({junta: q}) sin trayectoria, si el salto es pequeno (<= salto_max rad): el
+        toque del nivel 1 la deja en lo medido mas el error estatico del brazo, y el brazo se queda donde esta."""
+        with self.cerrojo:
+            salto = max((abs(float(v) - self.q_des[j]) for j, v in q.items()), default=0.0)
+            if salto > salto_max:
+                raise ValueError(f"fijar: salto de {salto:.3f} rad (> {salto_max})")
+            self._tray = None
+            for j, v in q.items():
+                self.q_des[j] = float(v)
+
     def consigna(self):
         with self.cerrojo:
             return self.q_des.copy()

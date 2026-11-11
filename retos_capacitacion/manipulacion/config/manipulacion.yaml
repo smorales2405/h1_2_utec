@@ -193,9 +193,9 @@ planificacion:          # manip/planificacion.py; alturas del punto de agarre so
 
 contacto:               # nivel 1: la yema del indice toca la diana
   vel_descenso_m_s: 0.01
-  umbral_gf: 10             # |fuerza del indice - su base|: quieto varia 0-1 gf; al tocar la mesa BAJA (-12 a -121 gf en
-                            # las cinco pruebas, RESULTADOS §43; a mano, apretando la yema, sube 140-200). En valor
-                            # absoluto y en lecturas_contacto lecturas seguidas (hay sueltas corruptas: -5791 gf)
+  umbral_gf: 5              # |fuerza del indice - su base|: quieto varia 0-1 gf; al tocar la mesa BAJA (-12 a -121 gf en
+                            # las cinco pruebas, RESULTADOS §43; con el indice extendido sobre madera, -6 al apoyar:
+                            # §45). En valor absoluto y en lecturas_contacto lecturas seguidas (hay sueltas corruptas)
   maximo_gf: 300            # seccion 4: fuerza de contacto <= 300 gf
   parar_por_posicion: true  # de limite: la bajada para cuando la yema medida (encoders y cinematica, sobre la mesa
                             # corregida) llega a altura_toque_m sobre la superficie, si la fuerza no lo noto antes
@@ -206,7 +206,9 @@ contacto:               # nivel 1: la yema del indice toca la diana
   lecturas_contacto: 3      # ... en tantas lecturas seguidas (hay lecturas sueltas corruptas de fuerza y de posicion)
   usar_tactil: false        # el tactil no responde por Modbus TCP en las manos del robot (de 1062 taxeles, ~30
                             # cambian apretando; probar_manos.py --mapa-tactil, 2026-11-11): solo la fuerza del indice
-  bajada_max_m: 0.04        # bajo la altura esperada de la diana, sin contacto -> se aborta
+  bajada_max_m: 0.01        # lo que la bajada se manda por debajo de la superficie, ademas del margen del brazo
+  margen_brazo_m: 0.02      # el brazo va 13-16 mm por encima de su consigna (RESULTADOS §43-44): la bajada se manda esto
+                            # mas abajo para que la yema llegue; la paran la fuerza o la yema medida (altura_toque_m)
 
 percepcion:             # manip/percepcion.py
   paso_px: 2                # se usa 1 de cada 2 pixeles de profundidad en cada eje

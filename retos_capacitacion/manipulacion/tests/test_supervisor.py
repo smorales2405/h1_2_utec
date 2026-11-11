@@ -128,8 +128,9 @@ def test_la_bajada_del_nivel1_va_a_su_velocidad(tmp_path):
     plan = pl.tocar("izq", (0.46, 0.05), pl.observacion["izq"])
     assert plan.comprobado, plan.motivo
     bajar = next(p for p in plan.puntos_de_paso if p.nombre == "bajar")
-    assert abs(bajar.duracion * 2.0 - 0.05 / 0.003) < 0.5           # 5 cm a 3 mm/s, contada la escala
+    baja = 0.04 + 0.01 + cfg["contacto"]["margen_brazo_m"]            # aproximar, bajada y el margen del brazo
+    assert abs(bajar.duracion * 2.0 - baja / 0.003) < 0.5               # a 3 mm/s, contada la escala
     yema = pl.cin_preforma(plan.detalle["preforma"]).fk("izq", bajar.q, "yema")[:3, 3]     # con los dedos del toque
-    assert abs(pl.plano.altura(yema) + 0.01) < 0.003                   # 1 cm bajo la mesa
+    assert abs(pl.plano.altura(yema) + 0.01 + cfg["contacto"]["margen_brazo_m"]) < 0.003   # bajo la mesa
     if t.mundo is not None:
         t.mundo.parar()

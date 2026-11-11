@@ -120,6 +120,11 @@ class Planificador:
         return puntos, None
 
     # --- planes ----------------------------------------------------------------------------------------
+    def _bajo_superficie(self):
+        """Hasta donde se manda la bajada del toque por debajo de la superficie: bajada_max_m mas el margen del brazo
+        (como mucho 5 cm: el limite lo ponen la fuerza y la yema medida)."""
+        return min(0.05, float(self.c["bajada_max_m"]) + float(self.c.get("margen_brazo_m", 0.0)))
+
     def cin_preforma(self, nombre):
         """Una Cinematica con los dedos en la preforma `nombre`: la yema se mueve con la flexion del indice."""
         cache = self.__dict__.setdefault("_cin_preforma", {})
@@ -173,9 +178,9 @@ class Planificador:
                 bandas = self.bandas_toque(lado, self.cin, relajadas)
                 t_sobre = TareaIK(posicion=self.punto(diana_xy, hs), marco="yema", bandas=bandas)
                 pasos = [("aproximar", TareaIK(posicion=self.punto(diana_xy, sup + ha), marco="yema", bandas=bandas)),
-                         # hasta 2 cm bajo la superficie estimada: el supervisor para antes, cuando la yema medida
-                         # llega (o al notarlo); el brazo va ~1 cm por encima de su consigna
-                         ("bajar", TareaIK(posicion=self.punto(diana_xy, sup - min(0.02, self.c["bajada_max_m"])), marco="yema", bandas=bandas)),
+                         # bajo la superficie: bajada_max_m y el margen del brazo, que va 13-16 mm por encima de su
+                         # consigna; el supervisor para antes, al notarlo o al llegar la yema medida
+                         ("bajar", TareaIK(posicion=self.punto(diana_xy, sup - self._bajo_superficie()), marco="yema", bandas=bandas)),
                          ("subir", TareaIK(posicion=self.punto(diana_xy, hs), marco="yema", bandas=bandas))]
                 variantes = self._variantes(lado, t_sobre, q0, n=8)
                 if not variantes:
@@ -194,7 +199,7 @@ class Planificador:
                     puntos = [PuntoPaso(q=q_sobre, duracion=self.duracion(q0, q_sobre), nombre="sobre")] + resto
                     # la bajada a contacto.vel_descenso_m_s (de verdad: la duracion se divide por la escala de
                     # tiempo, que brazo.ir_a vuelve a aplicar), como poco la duracion minima
-                    recorrido = ha + min(0.02, self.c["bajada_max_m"])               # desde aproximar, sobre la superficie
+                    recorrido = ha + self._bajo_superficie()                           # desde aproximar, sobre la superficie
                     for p in puntos:
                         if p.nombre == "bajar":
                             p.duracion = max(p.duracion, recorrido / float(self.c["vel_descenso_m_s"]) / max(1.0, self.escala))

@@ -214,9 +214,12 @@ def main():
             t.reg.mano(e)
             return e
         mano.leer = leer_y_apuntar
-    print(f"\n  PRUEBA DE TOQUE: diana {diana}, aproxima a {a.aproximar:g} cm sobre la superficie, baja a {a.vel:g} mm/s "
-          f"y para cuando la yema medida llega a la superficie" + (f" ({a.espesor:g} cm sobre la mesa)" if a.espesor else "") +
-          f", o con {a.umbral:g} gf en el indice, o a {a.bajada:g} cm bajo la superficie")
+    c = cfg["contacto"]
+    print(f"\n  PRUEBA DE TOQUE: diana {diana}, aproxima a {a.aproximar:g} cm sobre la superficie" +
+          (f" ({a.espesor:g} cm sobre la mesa)" if a.espesor else "") + f", baja a {a.vel:g} mm/s (mandada hasta "
+          f"{a.bajada + 100 * c.get('margen_brazo_m', 0.0):g} cm bajo la superficie: el brazo va por encima de su consigna) y "
+          f"para al apartarse {a.umbral:g} gf la fuerza del indice o, de limite, con la yema medida a "
+          f"{1000 * c.get('altura_toque_m', 0.0):+.0f} mm de la superficie")
     mp.correr(t, confirmar=not a.sim)
     try:
         r = analizar(t.reg.carpeta, a.espesor / 100.0)

@@ -206,6 +206,11 @@ class Supervisor:
 
         def altura_yema():
             return float(self.pl.plano.altura(cin_t.fk(lado, self.q(lado), "yema")[:3, 3]))
+        # el error estatico del brazo (consigna - medida, quieto en `aproximar`): al tocar, la consigna pasa a lo medido
+        # mas este error y el brazo se queda donde esta (detener lo dejaba seguir bajando lo que iba retrasado)
+        js = JUNTAS_BRAZO[lado]
+        c0 = self.brazo.consigna()
+        e_estatico = np.array([c0[j] for j in js]) - self.q(lado)
         self._a("DESCENSO", "despacio hasta la mesa (la yema medida) o hasta notarla", {
             "base_gf": base.round(0).tolist(), "indice": a0, "yema_mm": round(1000 * altura_yema(), 1),
             "para_en_mm": round(1000 * h_toque, 1)})
@@ -240,7 +245,12 @@ class Supervisor:
             resultado = "sin contacto"
         except Contacto:
             self.brazo.detener()
+            fijada = self.brazo.fijar(self.brazo.pose_brazo(lado, self.q(lado) + e_estatico))
+            if not fijada:
+                self.log("  OJO: no se pudo fijar la consigna al tocar (con --arnes: un arnes.py anterior al despliegue no "
+                         "conoce 'fijar'; reinicialo): el brazo recupera su retraso y baja unos mm mas")
             resultado = "tocada"
+            contacto["fijada"] = fijada
         q_contacto = self.q(lado)
         e = mano.leer()
         f_max = float(max(contacto["f"], e.fuerza[3] - e.base[3]))
@@ -249,6 +259,7 @@ class Supervisor:
         self._a("TOCAR", resultado, {"fuerza_gf": round(f_max), "abre": round(contacto["abre"]), "por": contacto["por"],
                                       "tactil": contacto["tactil"],
                                       "yema_al_parar_mm": None if contacto["h"] is None else round(1000 * contacto["h"], 1),
+                                      "consigna_fijada": contacto.get("fijada"),
                                       "yema_quieta_mm": round(1000 * h_quieta, 1)})
         if self._ultimo_fotograma is not None:
             self.reg.imagen(f"diana_{n}", self._ultimo_fotograma.color)

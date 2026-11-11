@@ -228,6 +228,16 @@ class BrazoArnes:
         if self.peso > 0.5:
             self._pedir({"op": "detener"})
 
+    def fijar(self, pose):
+        """La consigna de las juntas de `pose` ({junta: q}) sin trayectoria (saltos <= 0.05 rad, en arnes.py); las
+        demas, donde estan. Devuelve True si arnes.py la acepto."""
+        if self.peso < 0.5:
+            return False
+        c = self.consigna()
+        q = [self.recortar(j, pose[j]) if j in pose else c[j] for j in BRAZOS]
+        r = self._pedir({"op": "fijar", "q": q})
+        return bool(r and r.get("ok"))
+
     def parar(self):
         """Fin: deja de latir y cierra. Con el control aun dado (la tirada no acabo bien), congela y lo devuelve:
         los brazos se quedan donde esten, sostenidos por arnes.py, y se avisa."""

@@ -189,6 +189,15 @@ class Brazo:
     def detener(self):
         """Parar donde va la consigna: aqui ya lo hace ir_a al cortar su bucle (la ultima consigna enviada queda)."""
 
+    def fijar(self, pose, salto_max=0.05):
+        """La consigna de las juntas de `pose` sin trayectoria, si el salto es pequeno. True si se fijo."""
+        with self.cerrojo:
+            if max((abs(self.recortar(j, q) - self.obj[j]) for j, q in pose.items()), default=0.0) > salto_max:
+                return False
+            for j, q in pose.items():
+                self.obj[j] = self.recortar(j, q)
+        return True
+
     def congelar(self):
         """La consigna pasa a la postura medida: el brazo se queda donde esta, sin seguir empujando."""
         q = self.robot.q()

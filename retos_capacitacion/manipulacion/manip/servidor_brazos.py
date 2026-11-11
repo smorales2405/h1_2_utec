@@ -14,7 +14,9 @@ TCP en 127.0.0.1 (red.puerto_brazos), una linea JSON por peticion y otra por res
   mover {q (14), segundos, salida}   los brazos (13-26) a q con Cuerpo.mover: minima sacudida de >= 8 s, pico
                                  <= 0.5 rad/s, recortada a los limites. Uno cada vez (con otro en curso, no)
   congelar                       la consigna de los brazos a la postura medida (para el movimiento en curso)
-  detener                        para el movimiento en curso donde va la consigna (el toque del nivel 1)
+  detener                        para el movimiento en curso donde va la consigna
+  fijar {q (14)}                 la consigna de los brazos sin trayectoria, con saltos <= 0.05 rad (el toque del
+                                 nivel 1: lo medido mas el error estatico, el brazo se queda donde esta)
   soltar                         devuelve el control; los brazos se quedan donde esten
 Cada peticion del que tiene el control es su latido: sin ninguna en `latido_max_s`, los brazos se congelan y pierde
 el control (un movimiento en curso acaba solo, pero el siguiente ya no llega).
@@ -155,6 +157,15 @@ class ServidorBrazos:
             return self._estado(True)
         if op == "detener":
             self.cu.detener()
+            return self._estado(True)
+        if op == "fijar":
+            q = [float(v) for v in req["q"]]
+            if len(q) != len(BRAZOS) or not np.all(np.isfinite(q)):
+                return {"ok": False, "error": f"q tiene que ser {len(BRAZOS)} numeros (brazos 13-26)"}
+            try:
+                self.cu.fijar(dict(zip(BRAZOS, q)))
+            except ValueError as ex:
+                return {"ok": False, "error": str(ex)}
             return self._estado(True)
         if op == "soltar":
             with self.cerrojo:

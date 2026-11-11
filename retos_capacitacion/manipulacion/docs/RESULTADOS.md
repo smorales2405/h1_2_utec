@@ -1215,3 +1215,53 @@ Cambios:
   **la superficie real respecto de la mesa corregida** (lo que habría que sumar a la corrección). Reanalizada la
   de la madera: +9.6 mm sin corrección.
 - Pruebas: `test_montaje` (la corrección de altura). 110 de 110.
+
+## 44. Con la mesa corregida, la yema se quedó 3.5 mm encima: la bajada, más honda (2026-11-11)
+
+`probar_toque.py --espesor 1.8` con la corrección de 10 mm (`datos/tirada_20261111_101829_nivel1`; foto
+`montajes/probar_toque4_madera.jpeg`): **"sin contacto", la punta a unos milímetros de la tabla**. La yema medida
+acabó a 21.5 mm sobre la mesa corregida (la tabla, 18): **3.5 mm por encima, como en la foto: la corrección de la
+mesa cuadra**. Lo que faltaba es el brazo: la bajada se mandaba hasta 1 cm bajo la superficie y el brazo va
+13–16 mm por encima de su consigna (al empezar a bajar, 74.1 mm medida frente a 58 mandada).
+
+- **`contacto.margen_brazo_m` (2 cm):** la bajada se manda `bajada_max_m` (ahora 1 cm) más ese margen por debajo de
+  la superficie (antes, como mucho 2 cm y sin margen); la paran la fuerza del índice (|Δf| > 10 gf) o, de límite, la
+  yema medida 3 mm por debajo de la superficie. La velocidad de bajada cuenta el recorrido entero.
+- En el gemelo, "tocada" (por posición: allí no hay tabla). 110 de 110.
+
+## 45. Toque en la tabla: la altura ya cuadra; parar donde está la yema (2026-11-11)
+
+`probar_toque.py --espesor 1.8` con la mesa corregida y la bajada más honda (`datos/tirada_20261111_103327_nivel1`):
+**"tocada"** (por el límite de posición). El usuario: la punta se apoyó en la tabla sin doblarse unos segundos y
+luego la mano bajó un poco más y dobló algo el dedo.
+
+- **La altura de la mesa corregida cuadra:** la fuerza del índice empezó a cambiar (|Δf| > 5 gf) con la yema medida a
+  **18.4 mm** (la tabla, 18): 0.4 mm. La corrección de 10 mm vale.
+- **Con el índice extendido sobre madera la señal es pequeña:** −6 gf al apoyarse; no llegó a 10 y paró el límite
+  (la yema medida a −3 mm de la superficie).
+- **Después de parar, la yema bajó de 15 a 11.1 mm:** `detener` deja la consigna donde iba, pero bajando el brazo va
+  retrasado respecto de ella (además de su error estático) y, parado, recupera ese retraso contra la tabla.
+
+Cambios:
+
+- **`contacto.umbral_gf` a 5 gf** (quieto varía 0–1 gf; 3 lecturas seguidas): aquí habría parado al apoyar.
+- **Parar donde está la yema:** al empezar la bajada (quieto en `aproximar`) se mide el error estático del brazo
+  (consigna − medida); al notar el contacto, la consigna pasa a lo medido más ese error (`fijar`, sin trayectoria y
+  con saltos ≤ 0.05 rad: `Cuerpo.fijar`, orden `fijar` del servidor de brazos, `BrazoArnes.fijar`, `Brazo.fijar`).
+  Ni sube los 13 mm del error estático (congelar) ni sigue bajando lo retrasado (detener). `TOCAR` dice si se fijó.
+- Pruebas: `test_brazo_arnes` (fijar: saltos pequeños sí, grandes no). 111 de 111.
+
+## 46. Toque en la tabla y en la mesa: quieto y sin doblarse; la corrección, a revisar (2026-11-11)
+
+`probar_toque.py` con el umbral de 5 gf (`datos/tirada_20261111_104910_nivel1`, tabla, `--espesor 1.8`; y
+`_105405_nivel1`, la mesa sin tabla, `--espesor 0`). **En las dos, la punta se apoyó y se quedó quieta, sin doblarse.**
+
+- **Tabla:** "tocada por fuerza" (−8 gf) con la yema medida a **18.2 mm**, y 18.2 mm 0.3 s después.
+- **Mesa:** "tocada por posición" a −3.1 mm; la yema bajó luego a −4.7 mm, donde se apoyó (la fuerza no pasó de 1 gf).
+  La tabla mide 1.8 cm en total (el usuario), así que **la corrección de 10 mm es buena** (la tabla, a 18.2). En la
+  mesa desnuda la yema se hundió unos 5 mm sin fuerza: lo más probable, que el punto (0.48, 0.10) caiga sobre una de
+  las alfombrillas grises antideslizantes (goma blanda, como la espuma; la tabla apoya encima y su cara es dura). Una
+  diana sobre una alfombrilla se toca hundiéndola hasta el límite de posición (3 mm), con una fuerza despreciable.
+- **`fijar` no se aplicó** en ninguna (`consigna_fijada: false`): el servidor de brazos va dentro de `arnes.py`, que
+  no se había reiniciado tras desplegar. Aun así, en la tabla la yema no bajó; en la mesa, 1.6 mm. Ahora el supervisor
+  avisa si `arnes.py` rechaza `fijar`.

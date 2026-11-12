@@ -195,29 +195,37 @@ planificacion:          # manip/planificacion.py; alturas del punto de agarre so
   semillas: 12
 
 contacto:               # nivel 1: la yema del indice toca la diana
-  vel_descenso_m_s: 0.01
+  vel_descenso_m_s: 0.01     # la bajada hasta pausa_m sobre la superficie
+  pausa_m: 0.015             # ... alli, quieta, se reajusta la vertical (como mucho pausa_max_s)...
+  pausa_max_s: 3.0
+  vel_final_m_s: 0.004       # ... y el final, despacio: el brazo baja a saltos de 4-6 mm (rozamiento, RESULTADOS §50) y
+                             # la fuerza lo nota antes de apretar
   umbral_gf: 5              # |fuerza del indice - su base|: quieto varia 0-1 gf; al tocar la mesa BAJA (-12 a -121 gf en
                             # las cinco pruebas, RESULTADOS §43; con el indice extendido sobre madera, -6 al apoyar:
                             # §45). En valor absoluto y en lecturas_contacto lecturas seguidas (hay sueltas corruptas)
   maximo_gf: 300            # seccion 4: fuerza de contacto <= 300 gf
   parar_por_posicion: true  # de limite: la bajada para cuando la yema medida (encoders y cinematica, sobre la mesa
                             # corregida) llega a altura_toque_m sobre la superficie, si la fuerza no lo noto antes
-  altura_toque_m: -0.003    # ... 3 mm por debajo (la fuerza lo nota al tocar; esto, si no)
+  altura_toque_m: -0.010    # ... 10 mm por debajo: para la fuerza, que apretando sube enseguida (129 gf con 2 mm, §49);
+                            # rozando, no (0-1 gf). La mesa medida varia unos mm con el sitio y con cada [g]: a -3 y a
+                            # -6 mm se paro sin tocar en (0.42-0.52, 0.02-0.12) (§49-51)
   superficie_m: 0.0         # lo que se toca, sobre la mesa del [g] (probar_toque.py --espesor: una tabla o espuma)
   umbral_angulo: 25         # cuentas que la mesa abre el indice (su ANGLE_ACT sube): el contacto, tambien por posicion
                             # (inspire_hand_interface detecta el contacto por la posicion o por la fuerza)
   lecturas_contacto: 3      # ... en tantas lecturas seguidas (hay lecturas sueltas corruptas de fuerza y de posicion)
-  guiado: true              # la bajada en lazo cerrado sobre lo medido (manip/guia.py, RESULTADOS §48): la consigna va
-                            # por la recta del plan mas una correccion que integra lo que el brazo se aparta (1-2 cm,
-                            # 0.02-0.035 rad por junta en la tirada del 2026-11-12); con fijar, sin trayectoria
+  guiado: true              # la bajada en lazo cerrado sobre lo medido (manip/guia.py, RESULTADOS §48-51): la consigna
+                            # va por la recta del plan mas una correccion que integra lo que el brazo se aparta (1-2 cm,
+                            # 0.02-0.035 rad por junta), quieto y en marcha (congelada en marcha, §51, se iba 2 cm)
+  guiado_salto_max_rad: 0.04  # cada consigna, como mucho esto de la anterior (fijar rechaza > 0.05: §51)
   guiado_ganancia: 1.5      # 1/s (con el brazo de constante hasta 0.5 s, zeta >= 0.58)
   guiado_paso_max_rad: 0.005  # lo que puede cambiar la correccion en cada ciclo de 20 ms
   guiado_corr_max_rad: 0.10   # su tope por junta (3 veces lo medido)
-  ajuste_tol_m: 0.002       # antes de bajar, quieto en aproximar hasta que la yema medida esta a esto de su sitio...
+  ajuste_tol_m: 0.003       # antes de bajar, quieto en aproximar hasta que la yema medida esta a esto de la vertical de
+                            # la diana (xy; el rozamiento deja el brazo a saltos de unos mm)...
   ajuste_max_s: 5.0         # ... o este tiempo
   paso_recta_m: 0.01        # la recta de la bajada: una postura cada esto (entre ellas la yema se aparta < 1 mm)
   vel_subida_m_s: 0.02      # la vuelta por la misma recta hasta aproximar
-  mantener_s: 1.0           # al notarlo, este tiempo guiado a la altura del contacto: el brazo se queda donde toco
+  mantener_s: 1.0           # al notarlo, este tiempo guiado a la altura medida del contacto: quieto donde toco
   usar_tactil: false        # el tactil no responde por Modbus TCP en las manos del robot (de 1062 taxeles, ~30
                             # cambian apretando; probar_manos.py --mapa-tactil, 2026-11-11): solo la fuerza del indice
   bajada_max_m: 0.01        # lo que la bajada se manda por debajo de la superficie, ademas del margen del brazo

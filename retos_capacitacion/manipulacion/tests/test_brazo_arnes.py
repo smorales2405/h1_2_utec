@@ -390,3 +390,20 @@ def test_bajada_guiada():
     b.ir_a(b.pose_brazo("izq", [0.0] * 7))
     b.rampa_peso(0.0)
     cerrar(robot, cu, srv, b)
+
+
+def test_la_guia_no_salta():
+    """manip/guia.py (§51): la consigna se aparta de la anterior como mucho salto_max, tambien cuando la altura pedida
+    salta (al parar con el brazo pegado 1 cm por encima de su consigna, el codo saltaba 0.09 rad y fijar lo rechazaba);
+    y la primera parte de Q[0], donde deja el brazo ir_a."""
+    from manip.guia import Guia
+    Q = [np.zeros(7), np.r_[0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0], np.r_[0.0, 0.0, 0.0, 0.6, 0.0, 0.0, 0.0]]
+    g = Guia(Q, [0.06, 0.03, 0.0], ganancia=0.0, salto_max=0.04)
+    q = g.consigna(0.06, np.zeros(7), 0.02)
+    assert np.allclose(q, 0.0)
+    pasos = []
+    for _ in range(20):                                   # la altura salta de 6 a 0 cm: el codo, de 0 a 0.6 rad
+        q_n = g.consigna(0.0, q, 0.02)
+        pasos.append(float(np.abs(q_n - q).max()))
+        q = q_n
+    assert max(pasos) <= 0.04 + 1e-12 and abs(q[3] - 0.6) < 1e-9

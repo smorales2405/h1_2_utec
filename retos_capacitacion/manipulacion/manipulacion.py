@@ -232,6 +232,14 @@ def armar(a, cfg=None, montaje=None, objetos=None, log=print):
                      dianas=a.dianas, asignacion=a.asignacion,
                      detector_dianas=lambda f: md.detectar(f, cal, montaje, **(cfg.get("dianas") or {})), log=log)
     reg.enganchar_lowstate(robot, sup.contexto_registro, cada=10)
+    for mano in manos.values():                    # cada lectura de las manos, a manos.csv (fuerza del toque, agarres)
+        leer = mano.leer
+
+        def leer_y_apuntar(leer=leer):
+            e = leer()
+            reg.mano(e)
+            return e
+        mano.leer = leer_y_apuntar
     reg.resumen.update({"args": {k: v for k, v in vars(a).items()}, "calibracion": f"{cal.origen} {cal.fecha}",
                         "escala_tiempo": a.escala_tiempo, "reposo": {l: v.round(4).tolist() for l, v in reposo.items()}})
     t.robot, t.brazo, t.manos, t.fuente, t.lector_fsm, t.vig, t.reg, t.sup, t.cal = \

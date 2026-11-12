@@ -206,14 +206,7 @@ def main():
                                      "aproximar_cm": a.aproximar, "espesor_cm": a.espesor,
                                      "correccion_altura_m": 0.0 if a.sim else
                                      float((cfg.get("montaje") or {}).get("correccion_altura_m", 0.0))}
-    for mano in t.manos.values():                    # cada lectura de la mano, a manos.csv
-        leer = mano.leer
-
-        def leer_y_apuntar(leer=leer):
-            e = leer()
-            t.reg.mano(e)
-            return e
-        mano.leer = leer_y_apuntar
+    # cada lectura de la mano va a manos.csv (manipulacion.armar)
     c = cfg["contacto"]
     print(f"\n  PRUEBA DE TOQUE: diana {diana}, aproxima a {a.aproximar:g} cm sobre la superficie" +
           (f" ({a.espesor:g} cm sobre la mesa)" if a.espesor else "") + f", baja a {a.vel:g} mm/s (mandada hasta "

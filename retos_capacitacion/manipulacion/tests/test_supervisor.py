@@ -41,6 +41,21 @@ def test_nivel1_toca_las_dianas(tmp_path):
 
 
 @gl
+def test_nivel1_sin_fijar(tmp_path):
+    """Con un arnes.py que no acepta fijar, el toque sigue sin guiar: la bajada y la vuelta de una vez (punto a punto,
+    cada tramo duraba como poco t_min_mov_s: 3 min sobre la diana en el robot, §51) y se toca igual."""
+    t = manipulacion.armar(_args(tmp_path, dianas=[(0.46, 0.05)]), _cfg(), log=lambda *x: None)
+    movidas = []
+    mover = t.sup._mover
+    t.sup._mover = lambda lado, p, **kw: (movidas.append(p.nombre), mover(lado, p, **kw))[1]
+    t.brazo.fijar = lambda pose: False
+    motivo = manipulacion.correr(t, confirmar=False)
+    assert motivo == "completado"
+    assert [r["resultado"] for r in t.sup.resultados] == ["tocada"]
+    assert movidas.count("bajar") == 1 and movidas.count("subir") == 1
+
+
+@gl
 def test_nivel2_coloca_en_sus_bandejas(tmp_path):
     a = _args(tmp_path, nivel=2, asignacion={"tenis": "A", "cubo": "C"},
               colocacion={"tenis": ((0.43, 0.05), 0.0), "cubo": ((0.47, -0.07), 0.3)})

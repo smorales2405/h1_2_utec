@@ -1344,3 +1344,75 @@ yema en el centro de la cruz (fotos y datos):
   bandeja B (roja) del gemelo; con la derecha no hay recta. Sin las bandejas en el gemelo, la izquierda la toca
   (orientación del toque). Hoy las bandejas no están en la mesa, pero en el reto esa cruz quedaría bajo la esquina
   de la bandeja B (que ocupa x 0.50–0.62, y 0.22–0.34).
+
+## 50. El brazo baja a saltos (rozamiento): pausa a 15 mm, final despacio y sin apretar al tocar (2026-11-12)
+
+Mirando §49 a 50 Hz: **el brazo baja a saltos** de 4–6 mm a ~30 mm/s: se queda pegado mientras la consigna sigue
+bajando (p. ej. la yema quieta en 14 mm mientras la consigna pasa de 7.5 a 0.2 mm) y se suelta de golpe. En la
+bajada sin guiar de §48 pasaba igual (de 21.7 a 11.4 mm en 0.5 s): es el rozamiento estático de las juntas, no el
+lazo. De ahí los dos detalles:
+
+- **La yema baila ±5–9 mm en xy al bajar**: cada salto mueve varias juntas a la vez.
+- **Al parar sigue 2–3 mm más abajo**: la parada cae a mitad de un salto (en la diana 2, (0.435, 0.081), la medida estaba
+  2 mm por debajo de la altura objetivo y el hold la puso más abajo aún), y la corrección integrada en marcha lleva la parte
+  del rozamiento en movimiento: quieto, sobra y aprieta (la consigna seguía ~10 mm bajo la medida; 129 gf en la
+  diana 3).
+- En (0.435, 0.081) la parada por posición (−3 mm) no tocaba: la yema bajó a −6.1 y solo entonces 18 gf. Como en
+  §46 en (0.48, 0.10): ahí la mesa queda ~6 mm bajo el plano corregido.
+
+Cambios (`contacto`):
+- La corrección se integra **solo quieto**: en aproximar (`ajuste_tol_m` 3 mm en xy, antes 2 mm en 3D, que con
+  los saltos no se alcanzaba en 5 s) y en una **pausa a `pausa_m` 15 mm** sobre la superficie (`pausa_max_s` 3);
+  en marcha, al tocar y al subir se mantiene la de reposo (`Guia.consigna(integrar=False)`).
+- El **final despacio**: de la pausa a la mesa a `vel_final_m_s` 4 mm/s (antes todo a 10).
+- **Al tocar**, la consigna a la altura medida del contacto con la corrección de reposo: deja de bajar y no
+  aprieta más.
+- `altura_toque_m` −3 → **−6 mm**: la fuerza para antes donde la mesa está en su sitio (en §49 lo notó a −0.5 mm a
+  10 mm/s); la posición, donde está más baja.
+- `manos.csv` registra cada lectura de las manos en todas las tiradas (antes solo `probar_toque.py`; en §49
+  quedó vacío y no se pudo ver la fuerza al tocar).
+- En el gemelo: ajuste y pausa en 0.3 s, tocada por fuerza a −0.3 mm y quieta ahí; `manos.csv` con 1228 lecturas. Pruebas: `test_brazo_arnes` (la bajada y el hold sin integrar no cambian la corrección y siguen la vertical). 113 de 113.
+
+## 51. Con §50, 1 de 4: sin apretar no se nota, congelar la corrección desvía y la consigna saltaba (2026-11-12)
+
+`./manipulacion.sh --nivel 1 --arnes` con §50 desplegado y la cruz cercana izquierda movida
+(`datos/tirada_20261112_084915_nivel1`; `[g]` nuevo de las 08:49): dianas en (0.422, 0.024), (0.523, 0.123),
+(0.539, −0.106) y (0.606, −0.005). **Solo la 4 bien** (en su centro, 16 gf); la 1 rozada a 2 cm; la 2 y la 3 sin
+tocar (el usuario). Con `manos.csv` ya registrado:
+
+- **La fuerza del índice no cambió (0–1 gf) en las dianas 1–3**: pararon por posición a −6 mm sin apretar (la 1, quieta
+  a −10.3 mm, rozando). Rozar no da fuerza; apretar sí (16 gf en la 4 a −7.6; 129 gf con 2 mm en §49). El plano del
+  `[g]` de las 08:49 queda 3 mm más alto que el de las 05:59 y la mesa medida varía unos mm con el sitio: el límite
+  por posición no puede ser el que pare.
+- **Congelar la corrección en marcha (§50) desvió la yema** hasta 2 cm en el tramo final (la 1: de (−1.3, −3.0) mm
+  en la pausa a (4.9, 20.2) al parar); con ella integrando en marcha (§49), ≤ 5 mm.
+- **Diana 3: `fijar` rechazado por un salto de 0.092 rad** (> 0.05): el brazo, pegado, iba 1 cm por encima de su
+  consigna; al parar, la consigna a la altura medida subía de golpe 1 cm (el codo cambia 0.05–0.17 rad por cm de la
+  recta; no es un cambio de rama). Lo mismo al empezar a subir (0.084). Sin guiar, la vuelta fue punto a punto y
+  cada tramo dura como poco `t_min_mov_s` × escala = 16 s: **~3 min sobre la diana**.
+
+Cambios:
+- La corrección se integra **también en marcha** (como §49); la pausa a 15 mm y el final a 4 mm/s se quedan.
+- `Guia`: cada consigna se aparta de la anterior **como mucho `guiado_salto_max_rad` 0.04** (fijar rechaza > 0.05).
+- `altura_toque_m` −6 → **−10 mm**: que pare la fuerza, que sube enseguida al apretar.
+- Sin guiar, la bajada y la vuelta **de una vez** (al final de la recta; a aproximar), no punto a punto.
+- Pruebas: `test_la_guia_no_salta` (la altura salta de 6 a 0 cm: pasos ≤ 0.04 rad), `test_nivel1_sin_fijar` (sin
+  fijar, una bajada y una vuelta, tocada) y `test_bajada_guiada` integrando en marcha. 115 de 115.
+
+## 52. Nivel 1: las 4 cruces tocadas (2026-11-12)
+
+`./manipulacion.sh --nivel 1 --arnes` con §51 (`datos/tirada_20261112_091911_nivel1`): **4 dianas detectadas y las 4
+tocadas** (el usuario), con `fijar` aceptado en todas (sin saltos de consigna) y sin respaldo.
+
+| diana (torso) | mano | paró por | fuerza | al parar (xy mm, h mm) | quieta (xy mm, h mm) |
+|---|---|---|---|---|---|
+| (0.419, 0.025) | izq | posición | 3 gf | (−3.9, 3.9), −10.0 | (0.5, −3.2), −10.9 |
+| (0.520, 0.124) | izq | posición | 0 gf | (−7.7, 4.7), −10.0 | (−2.3, −5.3), −12.7 |
+| (0.537, −0.106) | der | posición | 1 gf | (1.8, −3.2), −10.0 | (1.5, −2.8), −10.2 |
+| (0.604, −0.004) | der | fuerza | 25 gf | (−1.6, 0.7), −8.3 | (2.0, −5.9), −10.2 |
+
+- La yema quedó a ≤ 9 mm del centro de la cruz (dentro del brazo de cinta de 1.9 cm).
+- Tres pararon por posición a −10 mm con 0–3 gf: el dedo llegó a la mesa pero rozando, sin apretar, y la fuerza del
+  índice no lo nota. Con el `[g]` de hoy la mesa real queda unos 10 mm por debajo del plano corregido en esa zona:
+  la corrección de altura (`correccion_altura_m` 10 mm, medida con la tabla en §43-45) habría que revisarla con
+  cada `[g]`. Pendiente.

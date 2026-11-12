@@ -79,9 +79,10 @@ class Supervisor:
                 extra()
         self.brazo.ir_a(self.brazo.pose_brazo(lado, punto.q), punto.duracion, chequeo, al_parar=al_parar)
 
-    def _guiar(self, lado, guia, altura, fin, extra=None, cada=0.02):
+    def _guiar(self, lado, guia, altura, fin, extra=None, cada=0.02, integrar=True):
         """La yema por la recta de `guia` (manip/guia.py) en lazo cerrado: cada `cada` s la consigna (fijar, sin
-        trayectoria) es la postura de la recta a altura(t) mas la correccion que integra lo que la medida se aparta.
+        trayectoria) es la postura de la recta a altura(t) mas la correccion que integra (con integrar) lo que la
+        medida se aparta.
         Acaba con fin(t) True (devuelve True) o si arnes.py no acepta fijar (False: con --arnes, un arnes.py anterior
         al despliegue). extra(): en cada ciclo (el contacto, que lo corta con una excepcion)."""
         t0 = time.monotonic()
@@ -92,7 +93,7 @@ class Supervisor:
                 return True
             if extra:
                 extra()
-            q = guia.consigna(altura(t), self.q(lado), cada)
+            q = guia.consigna(altura(t), self.q(lado), cada, integrar)
             if not self.brazo.fijar(self.brazo.pose_brazo(lado, q)):
                 self.log(f"  OJO: no se pudo fijar la consigna ({getattr(self.brazo, 'ultimo_rechazo', None)}): el toque "
                          "sigue sin guiar (con --arnes: un arnes.py anterior al despliegue no conoce 'fijar'; reinicialo)")
@@ -214,7 +215,6 @@ class Supervisor:
         mano.preforma(self.pl.objetos["preformas"][plan.detalle.get("preforma", "senalar")], vigilar=self.comprobar)
         pts = {p.nombre: p for p in plan.puntos_de_paso}            # 'subir': el ultimo, el alto
         bajada = [p for p in plan.puntos_de_paso if p.nombre == "bajar"]
-        vuelta = [p for p in plan.puntos_de_paso if p.nombre == "subir"][:-1]
         self._a("MOVER", f"sobre la diana {n}")
         self._mover(lado, pts["sobre"])
         self._mover(lado, pts["aproximar"])
@@ -239,22 +239,32 @@ class Supervisor:
             from .guia import Guia
             Q = [pts["aproximar"].q] + [p.q for p in bajada]
             guia = Guia(Q, [float(plano.altura(yema(q))) for q in Q], ganancia=self.c.get("guiado_ganancia", 1.5),
-                        paso_max=self.c.get("guiado_paso_max_rad", 0.005), corr_max=self.c.get("guiado_corr_max_rad", 0.15))
+                        paso_max=self.c.get("guiado_paso_max_rad", 0.005), corr_max=self.c.get("guiado_corr_max_rad", 0.15),
+                        salto_max=self.c.get("guiado_salto_max_rad", 0.04))
+        en_xy = plano.proyectar(en_mesa)
+
+        def ajustar(h, extra=None):
+            """Quieto con la yema a la altura h de la recta, integrando la correccion hasta que la yema medida esta en
+            la vertical de la diana (ajuste_tol_m en xy, 0.3 s seguidos) o como mucho `maximo` s. None si arnes.py
+            no acepta fijar; si no, {antes_mm, despues_mm, s}."""
+            r, dentro, tol = {"antes_mm": a_diana_mm()}, [0], float(self.c.get("ajuste_tol_m", 0.003))
+            maximo = float(self.c.get("ajuste_max_s", 5.0)) if h >= guia.arriba else float(self.c.get("pausa_max_s", 3.0))
+
+            def listo(t):
+                d = float(np.linalg.norm((plano.proyectar(yema()) - en_xy)[:2]))
+                dentro[0] = dentro[0] + 1 if d < tol else 0
+                return dentro[0] >= 15 or t > maximo
+            t0 = time.monotonic()
+            if not self._guiar(lado, guia, lambda t: h, listo, extra=extra, integrar=True):
+                return None
+            r.update(despues_mm=a_diana_mm(), s=round(time.monotonic() - t0, 1))
+            return r
         ajuste = {}
         if guia is not None:
             # quieto en aproximar, la yema medida a su sitio sobre la diana antes de bajar
-            ajuste["antes_mm"] = a_diana_mm()
-            dentro, tol = [0], float(self.c.get("ajuste_tol_m", 0.002))
-            p_ap = yema(pts["aproximar"].q)
-
-            def ajustada(t):
-                dentro[0] = dentro[0] + 1 if np.linalg.norm(yema() - p_ap) < tol else 0
-                return dentro[0] >= 15 or t > float(self.c.get("ajuste_max_s", 5.0))
-            t0 = time.monotonic()
-            if self._guiar(lado, guia, lambda t: guia.arriba, ajustada):
-                ajuste.update(despues_mm=a_diana_mm(), s=round(time.monotonic() - t0, 1))
-            else:
-                guia = None
+            ajuste = ajustar(guia.arriba)
+            if ajuste is None:
+                guia, ajuste = None, {}
         base = mano.linea_base(n=5)
         a0 = float(mano.leer().angulo[3])                  # el indice en su preforma, antes de bajar
         self.vig.manos_vigiladas = {lado}
@@ -285,29 +295,37 @@ class Supervisor:
             if contacto["seguidas"] >= lecturas:
                 contacto.update(t=time.monotonic(), f=f, abre=abre, tactil=t, por="+".join(por), h=h, xy=a_diana_mm())
                 raise Contacto()
-        resultado, fijada = "sin contacto", None
+        resultado, fijada, pausa = "sin contacto", None, None
         try:
             hecho = False
             if guia is not None:
-                # la consigna baja por la recta a vel_descenso_m_s, corregida con lo medido
-                v = float(self.c["vel_descenso_m_s"])
-                t_fin = (guia.arriba - guia.abajo) / v + 1.0
-                hecho = self._guiar(lado, guia, lambda t: guia.arriba - v * t, lambda t: t > t_fin, extra=notar)
+                # la consigna baja por la recta, corregida con lo medido, a vel_descenso_m_s hasta pausa_m sobre la
+                # superficie; alli, quieta, se reajusta la vertical; y el final, a vel_final_m_s (el brazo baja a
+                # saltos: al tocar, poca marcha y la fuerza lo nota antes)
+                v, v_f = float(self.c["vel_descenso_m_s"]), float(self.c.get("vel_final_m_s", self.c["vel_descenso_m_s"]))
+                h_p = min(guia.arriba, max(guia.abajo, sup + float(self.c.get("pausa_m", 0.0))))
+                hecho = self._guiar(lado, guia, lambda t: guia.arriba - v * t, lambda t: t > (guia.arriba - h_p) / v,
+                                    extra=notar)
+                if hecho and h_p < guia.arriba:
+                    pausa = ajustar(h_p, extra=notar)
+                    hecho = pausa is not None
+                if hecho:
+                    t_fin = (h_p - guia.abajo) / v_f + 1.0
+                    hecho = self._guiar(lado, guia, lambda t: h_p - v_f * t, lambda t: t > t_fin, extra=notar)
             if not hecho:
-                # sin guiar: los puntos de la recta que quedan por debajo; al notarlo se detiene donde va la
-                # consigna (congelado en lo medido, el brazo, que va ~1 cm por encima de su consigna, subiria)
-                h = altura_yema()
-                for p in bajada:
-                    if float(plano.altura(yema(p.q))) < h:
-                        self._mover(lado, p, extra=notar, al_parar="detener")
+                # sin guiar: de una vez al final de la recta (punto a punto, cada tramo dura como poco t_min_mov_s:
+                # 16 s por cm con la escala 2, §51); al notarlo se detiene donde va la consigna (congelado en lo
+                # medido, el brazo, que va ~1 cm por encima de su consigna, subiria)
+                fin = PuntoPaso(q=bajada[-1].q, duracion=sum(p.duracion for p in bajada), nombre="bajar")
+                self._mover(lado, fin, extra=notar, al_parar="detener")
         except Contacto:
             resultado = "tocada"
             if guia is not None:
-                # quieto donde toco: la recta a la altura medida del contacto, con la correccion (el brazo no sigue
-                # bajando lo que iba retrasado ni se queda corto)
+                # quieto donde toco: la recta a la altura medida del contacto (la consigna deja de bajar: no sigue lo
+                # que iba retrasado), con la correccion
                 h_c = float(contacto["h"])
                 fijada = self._guiar(lado, guia, lambda t: h_c, lambda t: t > float(self.c.get("mantener_s", 1.0)),
-                                     extra=mano.leer)              # la mano vigilada: lecturas frescas
+                                     extra=mano.leer)                    # la mano vigilada: lecturas frescas
             else:
                 self.brazo.detener()
         q_contacto = self.q(lado)
@@ -318,7 +336,7 @@ class Supervisor:
         self._a("TOCAR", resultado, {"fuerza_gf": round(f_max), "abre": round(contacto["abre"]), "por": contacto["por"],
                                       "tactil": contacto["tactil"],
                                       "yema_al_parar_mm": None if contacto["h"] is None else round(1000 * contacto["h"], 1),
-                                      "yema_diana_al_parar_mm": contacto.get("xy"), "consigna_fijada": fijada,
+                                      "yema_diana_al_parar_mm": contacto.get("xy"), "consigna_fijada": fijada, "pausa": pausa,
                                       "yema_quieta_mm": round(1000 * h_quieta, 1), "yema_diana_quieta_mm": a_diana_mm()})
         if self._ultimo_fotograma is not None:
             self.reg.imagen(f"diana_{n}", self._ultimo_fotograma.color)
@@ -332,10 +350,7 @@ class Supervisor:
             t_fin = (guia.arriba - h0) / v + 0.5
             subida = self._guiar(lado, guia, lambda t: h0 + v * t, lambda t: t > t_fin)
         if not subida:
-            h = altura_yema()
-            for p in vuelta:
-                if float(plano.altura(yema(p.q))) > h + 0.002:
-                    self._mover(lado, p)
+            self._mover(lado, pts["aproximar"])            # sin guiar: de una vez (no punto a punto, §51)
         self._mover(lado, pts["subir"])
         self._mover(lado, pts["observacion"])
         self._abrir_manos([lado])                         # en la observacion, la mano abierta (la del gemelo)

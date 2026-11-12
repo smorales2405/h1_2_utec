@@ -41,6 +41,20 @@ def test_nivel1_toca_las_dianas(tmp_path):
 
 
 @gl
+def test_medir_mesa_en_el_gemelo(tmp_path):
+    """--medir-mesa (§53): un toque por mano hasta que lo nota la fuerza; en el gemelo la mesa esta en su plano, asi
+    que la correccion sale ~0; en la simulacion no se guarda nada."""
+    import manip.config as mc
+    antes = open(mc.RUTA_MONTAJE).read()
+    t = manipulacion.armar(_args(tmp_path, nivel=0), _cfg(), log=lambda *x: None)
+    assert manipulacion.correr(t, confirmar=False) == "completado"
+    m = t.sup.medida_mesa
+    assert [(p["mano"], p["vale"]) for p in m["puntos"]] == [("izq", True), ("der", True)]
+    assert abs(m["correccion_m"]) < 0.004 and m["diferencia_mm"] < 4
+    assert open(mc.RUTA_MONTAJE).read() == antes
+
+
+@gl
 def test_nivel1_sin_fijar(tmp_path):
     """Con un arnes.py que no acepta fijar, el toque sigue sin guiar: la bajada y la vuelta de una vez (punto a punto,
     cada tramo duraba como poco t_min_mov_s: 3 min sobre la diana en el robot, §51) y se toca igual."""
@@ -57,19 +71,51 @@ def test_nivel1_sin_fijar(tmp_path):
 
 @gl
 def test_nivel2_coloca_en_sus_bandejas(tmp_path):
-    a = _args(tmp_path, nivel=2, asignacion={"tenis": "A", "cubo": "C"},
-              colocacion={"tenis": ((0.43, 0.05), 0.0), "cubo": ((0.47, -0.07), 0.3)})
+    a = _args(tmp_path, nivel=2, asignacion={"esfera": "A", "cubo": "C"},
+              colocacion={"esfera": ((0.43, 0.05), 0.0), "cubo": ((0.47, -0.07), 0.3)})
     t = manipulacion.armar(a, _cfg(), log=lambda *x: None)
     motivo = manipulacion.correr(t, confirmar=False)
     assert motivo == "completado"
-    final = {k: t.mundo.bandeja_de(k) for k in ("tenis", "cubo")}
-    assert final == {"tenis": "A", "cubo": "C"}
+    final = {k: t.mundo.bandeja_de(k) for k in ("esfera", "cubo")}
+    assert final == {"esfera": "A", "cubo": "C"}
     assert t.brazo.peso == 0.0
 
 
 @gl
+def test_coger_en_linea_recta(tmp_path):
+    """§53: los tramos finos de coger (al agarre, levantar, bajar a la bandeja y retirarse) son rectas del punto de
+    agarre con una postura por cm (entre dos IK sueltas se apartaba hasta 56 mm), y el agarre acaba justo en el."""
+    from manip.cinematica import T_punto
+    from manip.geometria import aplicar
+    a = _args(tmp_path, nivel=2, asignacion={"cubo": "C"}, colocacion={"cubo": ((0.47, -0.07), 0.3)})
+    t = manipulacion.armar(a, _cfg(), log=lambda *x: None)
+    try:
+        pl = t.sup.pl
+        esc, _ = t.sup.observar()
+        o = next(x for x in esc.objetos if x.clase == "cubo")
+        plan = pl.coger(o, "C", pl.observacion["der"])
+        assert plan.comprobado, plan.motivo
+        punto = T_punto(pl.objetos["agarres"][plan.detalle["agarre"]]["centro"], "der")
+        pts = plan.puntos_de_paso
+        for nombre in ("agarrar", "levantar", "bajar_a_bandeja", "retirar_de_bandeja"):
+            ks = [k for k, p in enumerate(pts) if p.nombre == nombre]
+            assert len(ks) >= 2 and ks == list(range(ks[0], ks[-1] + 1)), nombre
+            Q = [pts[ks[0] - 1].q] + [pts[k].q for k in ks]
+            P = np.array([aplicar(pl.cin.fk("der", q, "mano"), punto) for q in Q])
+            u = (P[-1] - P[0]) / np.linalg.norm(P[-1] - P[0])
+            for a_, b_ in zip(Q[:-1], Q[1:]):
+                for s_ in np.linspace(0, 1, 5):
+                    e = aplicar(pl.cin.fk("der", a_ + s_ * (b_ - a_), "mano"), punto) - P[0]
+                    assert np.linalg.norm(e - (e @ u) * u) < 0.0025, nombre
+        k_ag = max(k for k, p in enumerate(pts) if p.nombre == "agarrar")
+        assert np.allclose(pl.cin.fk("der", pts[k_ag].q, "mano"), plan.agarre.T_mano)
+    finally:
+        t.mundo.parar()
+
+
+@gl
 def test_salida_segura_por_giro(tmp_path):
-    a = _args(tmp_path, nivel=2, asignacion={"tenis": "A"}, colocacion={"tenis": ((0.43, 0.05), 0.0)})
+    a = _args(tmp_path, nivel=2, asignacion={"esfera": "A"}, colocacion={"esfera": ((0.43, 0.05), 0.0)})
     t = manipulacion.armar(a, _cfg(), log=lambda *x: None)
 
     def girar_al_cerrar():

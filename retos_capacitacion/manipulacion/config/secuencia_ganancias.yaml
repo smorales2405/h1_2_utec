@@ -14,7 +14,7 @@ colocacion:
   cilindro:
   - [0.42, 0.01]
   - 0.0
-  tenis:
+  esfera:
   - [0.45, 0.1]
   - 0.0
   cubo:
@@ -23,7 +23,7 @@ colocacion:
   prisma:
   - [0.5, -0.04]
   - 1.57
-asignacion: {tenis: A, cilindro: B, cubo: C, prisma: D}
+asignacion: {esfera: A, cilindro: B, cubo: C, prisma: D}
 observacion:
   izq: [0.6165, 0.4589, 1.3252, -0.5119, -1.8007, 0.094, 0.2571]
   der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
@@ -115,7 +115,7 @@ tramos:
   estado: MOVER
   nombre: sobre
   lado: izq
-  objeto: tenis
+  objeto: esfera
   base_s: 9.24
   izq: [-0.0992, 0.1826, -0.3392, -0.0775, 0.6632, 0.2855, 0.0041]
   der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
@@ -124,7 +124,7 @@ tramos:
   estado: MOVER
   nombre: aproximar
   lado: izq
-  objeto: tenis
+  objeto: esfera
   base_s: 8.0
   izq: [-0.2979, 0.2713, -0.951, 0.472, 0.1986, 0.2766, 0.7557]
   der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
@@ -133,7 +133,7 @@ tramos:
   estado: DESCENSO
   nombre: agarrar
   lado: izq
-  objeto: tenis
+  objeto: esfera
   base_s: 8.0
   izq: [-0.3199, 0.2407, -0.9575, 0.544, 0.1798, 0.299, 0.7124]
   der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
@@ -142,7 +142,7 @@ tramos:
   estado: TRANSPORTE
   nombre: levantar
   lado: izq
-  objeto: tenis
+  objeto: esfera
   base_s: 8.0
   izq: [-0.0992, 0.1826, -0.3392, -0.0775, 0.6632, 0.2855, 0.0041]
   der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
@@ -151,7 +151,7 @@ tramos:
   estado: TRANSPORTE
   nombre: sobre_bandeja
   lado: izq
-  objeto: tenis
+  objeto: esfera
   base_s: 8.0
   izq: [0.066, 0.4173, -0.173, -0.1892, 0.6675, 0.299, 0.0332]
   der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
@@ -160,7 +160,7 @@ tramos:
   estado: TRANSPORTE
   nombre: bajar_a_bandeja
   lado: izq
-  objeto: tenis
+  objeto: esfera
   base_s: 8.0
   izq: [0.0084, 0.3802, -0.2151, 0.0294, 0.6782, 0.299, -0.0055]
   der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
@@ -169,7 +169,7 @@ tramos:
   estado: VOLVER
   nombre: retirar_de_bandeja
   lado: izq
-  objeto: tenis
+  objeto: esfera
   base_s: 8.0
   izq: [0.0593, 0.4381, -0.1693, -0.1703, 0.6584, 0.2584, 0.0167]
   der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]
@@ -178,7 +178,7 @@ tramos:
   estado: VOLVER
   nombre: observacion
   lado: izq
-  objeto: tenis
+  objeto: esfera
   base_s: 9.22
   izq: [0.6165, 0.4589, 1.3252, -0.5119, -1.8007, 0.094, 0.2571]
   der: [0.6165, -0.4589, -1.3252, -0.5119, 1.8007, 0.094, -0.2571]

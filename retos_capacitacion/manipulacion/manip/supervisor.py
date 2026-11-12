@@ -22,7 +22,8 @@ import time
 
 import numpy as np
 
-from .cinematica import TareaIK, Banda
+from .cinematica import TareaIK, Banda, T_punto
+from .geometria import aplicar
 from .mensajes import JUNTAS_BRAZO, LADOS, Parada, Plan, PuntoPaso
 
 
@@ -149,7 +150,9 @@ class Supervisor:
                 raise Parada(f"reposo -> observacion no pasa la comprobacion: {malos}")
             self._a("A_OBSERVACION", "los dos brazos a la pose de observacion")
             self._ambos(planes)
-            if self.nivel == 1:
+            if self.nivel == 0:
+                self._medir_mesa()
+            elif self.nivel == 1:
                 self._nivel1()
             else:
                 self._niveles_objetos()
@@ -183,6 +186,43 @@ class Supervisor:
         self.brazo.rampa_peso(0.0)
         self._a("FIN", "peso 0.00")
 
+    # --- toque de prueba: la altura de la mesa --------------------------------------------------------
+    def _medir_mesa(self):
+        """manipulacion.py --medir-mesa (RESULTADOS §53): la yema de cada mano baja en un punto libre de la mesa
+        (prueba_mesa.puntos) hasta que la fuerza del indice la nota, mas honda que en el nivel 1 (prueba_mesa.limite_m:
+        rozando, la fuerza no cambia; apretando, sube enseguida). Lo que la yema queda por debajo (o encima) del plano
+        corregido es lo que hay que sumar a la correccion de altura de este [g]; manipulacion.py la guarda en
+        montaje.yaml (mesa.toque). Deja el resultado en self.medida_mesa."""
+        pm = self.cfg.get("prueba_mesa") or {}
+        esc, _ = self.observar()
+        medidas = []
+        for n, (lado, xy) in enumerate((pm.get("puntos") or {"izq": [0.48, 0.10], "der": [0.48, -0.10]}).items(), 1):
+            xy = tuple(float(v) for v in xy)
+            cerca = [o.clase for o in esc.objetos if math.hypot(o.p[0] - xy[0], o.p[1] - xy[1]) < float(pm.get("libre_m", 0.08))]
+            if cerca:
+                self._a("PLANIFICAR", f"punto {n} ({lado}): {cerca} a menos de {100 * float(pm.get('libre_m', 0.08)):.0f} cm; "
+                        "se salta")
+                continue
+            plan = self.pl.tocar(lado, xy, self.q(lado))
+            if not plan.comprobado:
+                self._a("PLANIFICAR", f"punto {n} con la mano {lado}: {plan.motivo}")
+                continue
+            r = self._tocar(n, xy, plan, prueba=True)
+            r["vale"] = r["resultado"] == "tocada" and "fuerza" in r.get("por", "")
+            medidas.append(r)
+        validas = [r for r in medidas if r["vale"]]
+        res = {"puntos": [{k: r.get(k) for k in ("mano", "diana", "por", "altura_mm", "fuerza_gf", "vale")} for r in medidas],
+               "correccion_antes_m": round(float(getattr(self, "correccion_altura", 0.0)), 4)}
+        if validas:
+            h = [r["altura_mm"] / 1000.0 for r in validas]
+            res["correccion_m"] = round(res["correccion_antes_m"] + float(np.mean(h)), 4)
+            res["diferencia_mm"] = round(1000 * (max(h) - min(h)), 1)
+            self._a("MESA", f"la mesa a {', '.join(f'{x * 1000:+.1f}' for x in h)} mm del plano corregido: correccion "
+                    f"{1000 * res['correccion_antes_m']:.1f} -> {1000 * res['correccion_m']:.1f} mm", res)
+        else:
+            self._a("MESA", "sin medida: ningun punto lo noto la fuerza (o no hubo plan)", res)
+        self.medida_mesa = res
+
     # --- nivel 1 --------------------------------------------------------------------------------------
     def _nivel1(self):
         dianas = list(self.dianas)
@@ -208,7 +248,7 @@ class Supervisor:
                 continue
             self.resultados.append(self._tocar(i + 1, xy, plan))
 
-    def _tocar(self, n, xy, plan):
+    def _tocar(self, n, xy, plan, prueba=False):
         lado, mano = plan.mano, self.manos[plan.mano]
         self._plan_activo = plan
         self._a("PLANIFICAR", f"diana {n} con la mano {lado}", plan.detalle)
@@ -222,6 +262,8 @@ class Supervisor:
         cin_t = self.pl.cin_preforma(plan.detalle.get("preforma", "senalar"))
         sup = float(plan.detalle.get("superficie_m", 0.0))
         h_toque = sup + float(self.c.get("altura_toque_m", 0.0))
+        if prueba:                                         # el toque de prueba: que pare la fuerza
+            h_toque = sup + float((self.cfg.get("prueba_mesa") or {}).get("limite_m", -0.025))
         plano = self.pl.plano
         en_mesa = self.pl.punto(xy, 0.0)
 
@@ -356,7 +398,8 @@ class Supervisor:
         self._abrir_manos([lado])                         # en la observacion, la mano abierta (la del gemelo)
         self._plan_activo = None
         return {"diana": list(xy), "mano": lado, "resultado": resultado, "fuerza_gf": round(f_max),
-                "q_contacto": q_contacto.round(4).tolist(), "yema_diana_mm": contacto.get("xy")}
+                "q_contacto": q_contacto.round(4).tolist(), "yema_diana_mm": contacto.get("xy"), "por": contacto["por"],
+                "altura_mm": None if contacto["h"] is None else round(1000 * contacto["h"], 1)}
 
     # --- niveles 2 y 3 ----------------------------------------------------------------------------------
     def _niveles_objetos(self):
@@ -396,6 +439,67 @@ class Supervisor:
                 self._a("PLANIFICAR", f"ningun objeto con plan valido: {sorted(vistos)}")
                 break
 
+    @staticmethod
+    def _tramos(puntos):
+        """[(nombre, [PuntoPaso])]: los puntos seguidos con el mismo nombre juntos (varios: una recta del plan)."""
+        sal = []
+        for p in puntos:
+            if sal and sal[-1][0] == p.nombre:
+                sal[-1][1].append(p)
+            else:
+                sal.append((p.nombre, [p]))
+        return sal
+
+    def _recta_guiada(self, lado, q_desde, puntos, punto_mano, guia_previa=None, seguida=True, extra=None,
+                      ajuste_inicio=False, ajuste_fin=False):
+        """Una recta del plan de coger (q_desde y `puntos`, con el mismo nombre) guiada por lo medido como la bajada
+        del toque (manip/guia.py): el punto `punto_mano` (marco de la mano) por la recta, a vel_recta_m_s de su
+        nombre; con ajuste_inicio, antes quieto hasta estar en la recta (contacto.ajuste_tol_m, perpendicular a
+        ella); con ajuste_fin, al final hasta estar en el ultimo punto. guia_previa: la del tramo anterior: su
+        correccion y, si `seguida` (sin un ir_a en medio), su ultima consigna. Devuelve la Guia (None sin guiar: con
+        fijar rechazado, o contacto.guiado false, de una vez con ir_a)."""
+        from .guia import Guia
+        nombre = puntos[-1].nombre
+        cin = self.pl.cin
+        if self.c.get("guiado", True):
+            Q = [np.asarray(q_desde, float)] + [p.q for p in puntos]
+            P = np.array([aplicar(cin.fk(lado, q, "mano"), punto_mano) for q in Q])
+            kw = {}
+            if guia_previa is not None:
+                kw = {"corr": guia_previa.corr, "ultima": guia_previa.ultima if seguida else None}
+            g = Guia.por_puntos(Q, P, ganancia=self.c.get("guiado_ganancia", 1.5), paso_max=self.c.get("guiado_paso_max_rad", 0.005),
+                                corr_max=self.c.get("guiado_corr_max_rad", 0.15), salto_max=self.c.get("guiado_salto_max_rad", 0.04), **kw)
+            u = (P[-1] - P[0]) / max(1e-9, float(np.linalg.norm(P[-1] - P[0])))
+            tol = float(self.c.get("ajuste_tol_m", 0.003))
+
+            def medido():
+                return aplicar(cin.fk(lado, self.q(lado), "mano"), punto_mano)
+
+            def quieto(h, error, maximo):
+                dentro = [0]
+
+                def listo(t):
+                    dentro[0] = dentro[0] + 1 if error() < tol else 0
+                    return dentro[0] >= 15 or t > maximo
+                return self._guiar(lado, g, lambda t: h, listo, extra=extra)
+
+            def perp():
+                e = medido() - P[0]
+                return float(np.linalg.norm(e - (e @ u) * u))
+            ok = True
+            if ajuste_inicio:
+                ok = quieto(g.H[0], perp, float(self.c.get("ajuste_max_s", 5.0)))
+            v = float((self.pl.p.get("vel_recta_m_s") or {}).get(nombre, 0.02))
+            if ok:
+                ok = self._guiar(lado, g, lambda t: g.H[0] - v * t, lambda t: t > g.largo / v + 0.5, extra=extra)
+            if ok and ajuste_fin:
+                ok = quieto(g.H[-1], lambda: float(np.linalg.norm(medido() - P[-1])), float(self.c.get("pausa_max_s", 3.0)))
+            if ok:
+                return g
+        # sin guiar: de una vez (punto a punto, cada tramo dura como poco t_min_mov_s)
+        self._mover(lado, PuntoPaso(q=puntos[-1].q, duracion=sum(p.duracion for p in puntos), nombre=nombre), extra=extra)
+        return None
+
     def _coger(self, plan, f):
         lado, mano, ag = plan.mano, self.manos[plan.mano], plan.agarre
         clase = plan.objeto.clase
@@ -404,28 +508,37 @@ class Supervisor:
         if f is not None:
             self.reg.imagen(f"agarre_{clase}_antes", f.color)
         mano.preforma(ag.preforma, vigilar=self.comprobar)
-        nombres = [p.nombre for p in plan.puntos_de_paso]
+        punto = T_punto(self.pl.objetos["agarres"][plan.detalle["agarre"]]["centro"], lado)
+        tramos = self._tramos(plan.puntos_de_paso)
+        nombres = [n for n, _ in tramos]
         k = nombres.index("agarrar")
+
+        def desde(i):
+            return tramos[i - 1][1][-1].q
         self._a("MOVER", f"a {clase}")
-        for p in plan.puntos_de_paso[:k]:
-            self._mover(lado, p)
-        self._a("DESCENSO", "al agarre")
-        self._mover(lado, plan.puntos_de_paso[k])
+        for _, pts in tramos[:k]:
+            for p in pts:
+                self._mover(lado, p)
+        self._a("DESCENSO", "al agarre" + (", guiado" if self.c.get("guiado", True) else ""))
+        g = self._recta_guiada(lado, desde(k), tramos[k][1], punto, ajuste_inicio=True, ajuste_fin=True)
         self.vig.manos_vigiladas = {lado}
         self._a("CERRAR", f"FORCE_SET {ag.force_set}")
         e = mano.cerrar(ag.force_set, vigilar=self.comprobar)
         ok, det = mano.agarre(e, ag.force_set)
+        en_agarre = np.round(1000 * (aplicar(self.pl.cin.fk(lado, self.q(lado), "mano"), punto)
+                                     - aplicar(self.pl.cin.fk(lado, tramos[k][1][-1].q, "mano"), punto)), 1)
         self._a("CERRAR", "agarre comprobado" if ok else "agarre fallido",
-                {"dedos": {int(k): v for k, v in det.items()}, "fuerza_gf": (e.fuerza - e.base).round(0).tolist(),
-                 "angulo": e.angulo.round(0).tolist()})
+                {"dedos": {int(k_): v for k_, v in det.items()}, "fuerza_gf": (e.fuerza - e.base).round(0).tolist(),
+                 "angulo": e.angulo.round(0).tolist(), "mano_desde_el_plan_mm": en_agarre.tolist()})
         fot = self.fuente.siguiente(0.5) if hasattr(self.fuente, "siguiente") else None
         if fot is not None:
             self.reg.imagen(f"agarre_{clase}_cerrado", fot.color)
+        k_lev = nombres.index("levantar")
         if not ok:
             mano.abrir(vigilar=self.comprobar)
             self.vig.manos_vigiladas = set()
             self._a("VOLVER", "agarre fallido: abrir, subir y a la observacion")
-            self._mover(lado, plan.puntos_de_paso[k + 1])
+            self._recta_guiada(lado, desde(k_lev), tramos[k_lev][1], punto, guia_previa=g)
             self._mover(lado, plan.puntos_de_paso[-1])
             self._plan_activo = None
             return False
@@ -447,15 +560,22 @@ class Supervisor:
                     raise Parada(f"{clase} se escapa de la mano: {fn.round(0).tolist()} gf")
         mano.leer()                          # la foto y el registro de arriba han envejecido la ultima lectura
         self._a("TRANSPORTE", f"a la bandeja {plan.bandeja}")
-        k_suelta = nombres.index("bajar_a_bandeja")
-        for p in plan.puntos_de_paso[k + 1:k_suelta + 1]:
-            self._mover(lado, p, extra=sujetar)
+        g = self._recta_guiada(lado, desde(k_lev), tramos[k_lev][1], punto, guia_previa=g, extra=sujetar)
+        k_baj = nombres.index("bajar_a_bandeja")
+        for _, pts in tramos[k_lev + 1:k_baj]:
+            for p in pts:
+                self._mover(lado, p, extra=sujetar)
+        g = self._recta_guiada(lado, desde(k_baj), tramos[k_baj][1], punto, guia_previa=g, seguida=False, extra=sujetar,
+                               ajuste_inicio=True)
         self._a("SOLTAR", f"{clase} en la bandeja {plan.bandeja}")
         mano.abrir(vigilar=self.comprobar)
         self.vig.manos_vigiladas = set()
         self._a("VOLVER", "retirar y a la observacion")
-        for p in plan.puntos_de_paso[k_suelta + 1:]:
-            self._mover(lado, p)
+        k_ret = nombres.index("retirar_de_bandeja")
+        self._recta_guiada(lado, desde(k_ret), tramos[k_ret][1], punto, guia_previa=g)
+        for _, pts in tramos[k_ret + 1:]:
+            for p in pts:
+                self._mover(lado, p)
         self._plan_activo = None
         return True
 

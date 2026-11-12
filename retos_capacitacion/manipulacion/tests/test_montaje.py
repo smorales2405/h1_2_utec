@@ -67,8 +67,8 @@ def test_ajustar_bandeja_vista_a_medias():
 
 def test_asignacion_por_color_o_nombre():
     mon = {"bandejas": {"A": {"color": "blanca"}, "B": {"color": "roja"}, "C": {"color": None}}}
-    assert mt.resolver_asignacion({"tenis": "blanca", "cubo": "C", "cilindro": "roja"}, mon) == \
-        {"tenis": "A", "cubo": "C", "cilindro": "B"}
+    assert mt.resolver_asignacion({"esfera": "blanca", "cubo": "C", "cilindro": "roja"}, mon) == \
+        {"esfera": "A", "cubo": "C", "cilindro": "B"}
     with pytest.raises(ValueError):
         mt.resolver_asignacion({"prisma": "verde"}, mon)
 

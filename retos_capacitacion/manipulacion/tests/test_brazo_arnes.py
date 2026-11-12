@@ -257,7 +257,7 @@ def test_tirada_de_nivel_2_con_arnes():
         cu._vivo = False
     assert motivo == "completado", (motivo, eventos)
     assert [r["resultado"] for r in t.sup.resultados] == ["colocado"] * 4
-    assert srv.controlado is None and srv.movimientos > 20
+    assert srv.controlado is None and srv.movimientos > 10   # los tramos finos de coger van con fijar (guiados, §53)
     assert np.allclose(robot.q()[13:27], 0.0, atol=1e-3)   # acaba con los brazos a 0, como empezo
 
 

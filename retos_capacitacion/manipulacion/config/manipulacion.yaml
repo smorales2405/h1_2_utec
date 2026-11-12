@@ -175,6 +175,13 @@ planificacion:          # manip/planificacion.py; alturas del punto de agarre so
   paso_comprobacion_rad: 0.03  # y uno cada esto de la junta que mas se mueve: con 8 en el tramo de 1.8 rad
                             # a la observacion, el menique a 13 mm de la mesa caia entre dos muestras (2026-11-11)
   entrada_lado_m: 0.08      # agarre de lado: se baja a esta distancia del objeto y se entra en horizontal
+  despegue_m: 0.05          # coger: si la recta de levantar no sale entera, al menos esto en recta (despegar)
+  paso_recta_m: 0.01        # coger: los tramos finos en linea recta, una postura cada esto (RESULTADOS §53)...
+  vel_recta_m_s:            # ... recorridos a esto (m/s de verdad), guiados con lo medido (contacto.guiado)
+    agarrar: 0.01           #   de aproximar al agarre (2.5 cm desde arriba, 8 cm de lado)
+    levantar: 0.02
+    bajar_a_bandeja: 0.02
+    retirar_de_bandeja: 0.03
   tol_pos_m: 0.003          # IK
   palma_abajo_tol_deg: 35
   guinada_tol_deg: 20       # el ancho de la mano a lo largo del lado largo de una caja, con esto de margen
@@ -232,6 +239,14 @@ contacto:               # nivel 1: la yema del indice toca la diana
   margen_brazo_m: 0.02      # el brazo va 13-16 mm por encima de su consigna (RESULTADOS §43-44): la recta de la bajada
                             # llega esto mas abajo (sin guiar, para que la yema llegue); la paran la fuerza o la yema
                             # medida (altura_toque_m)
+
+prueba_mesa:            # ./manipulacion.sh --medir-mesa --arnes (RESULTADOS §53): la altura real de la mesa con cada [g]
+  puntos:                   # un punto libre por mano (torso); se salta si hay un objeto a menos de libre_m
+    izq: [0.48, 0.10]
+    der: [0.48, -0.10]
+  libre_m: 0.08
+  limite_m: -0.025          # baja hasta que lo nota la fuerza (rozando no cambia; apretando sube enseguida), como mucho
+                            # esto bajo el plano corregido. Con el [g] del 2026-11-12 08:49 la mesa quedaba a ~-10 mm
 
 dianas:                 # nivel 1: manip/dianas.py
   lado_m: [0.01, 0.10]      # el tamano de la cruz en la mesa: pegatinas de 2 cm o cruces de cinta de carrocero de ~7.5 cm

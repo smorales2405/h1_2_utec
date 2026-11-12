@@ -1416,3 +1416,41 @@ tocadas** (el usuario), con `fijar` aceptado en todas (sin saltos de consigna) y
   índice no lo nota. Con el `[g]` de hoy la mesa real queda unos 10 mm por debajo del plano corregido en esa zona:
   la corrección de altura (`correccion_altura_m` 10 mm, medida con la tabla en §43-45) habría que revisarla con
   cada `[g]`. Pendiente.
+
+## 53. Hacia el nivel 2: toque de prueba, agarre guiado y la esfera gris (2026-11-12)
+
+**Toque de prueba** (`./manipulacion.sh --medir-mesa --arnes`, `prueba_mesa:`). La altura de la mesa cambia unos mm
+con cada `[g]` (el de las 08:49, 3 mm más alto que el de las 05:59) y con el sitio; con la corrección fija de 10 mm,
+en §52 la mesa real quedaba a ~−10 mm del plano corregido. Ahora la yema de cada mano baja en un punto libre
+(`puntos`: (0.48, ±0.10); se salta si hay un objeto a menos de `libre_m` 8 cm) hasta que **la fuerza** del índice la
+nota, como mucho a `limite_m` −25 mm (rozando la fuerza no cambia; apretando sube enseguida). Lo que la yema quede
+bajo el plano se suma a la corrección; la media de los dos puntos (aviso si difieren más de 6 mm) se guarda en
+`config/montaje.yaml` como `mesa.toque` (y en la carpeta de la tirada). El siguiente `[g]` reescribe la mesa y la
+borra; al empezar, cada tirada dice qué corrección usa ("altura de la mesa: …"). Un punto que para por posición no
+vale. En el gemelo: los dos por fuerza, corrección ~0, nada guardado.
+
+**Agarre guiado.** Los tramos finos de coger eran movimientos sueltos entre IK, con la desviación del toque antes
+de §48 (hasta 56 mm) y el error de 1–2 cm del brazo, suficiente para tumbar un cubo de 6 cm. Ahora (como §48–51):
+- `Planificador._rectas_agarre`: de aproximar al agarre (calculada desde el agarre hacia atrás, así acaba justo en
+  él; de lado sustituye a `entrar`), levantar, bajar a la bandeja y retirarse (la bajada al revés), en línea recta
+  del punto de agarre con la orientación del agarre, una postura por `paso_recta_m` 1 cm, a `vel_recta_m_s`
+  (agarrar 0.01, levantar y bajar 0.02, retirar 0.03). La del agarre es obligatoria; con la orientación fija, la de
+  levantar (13 cm el cilindro) o la de la bandeja a veces llegan a los límites de las juntas: entonces levantar va
+  en recta solo los primeros `despegue_m` 5 cm y de ahí a la IK, y la bandeja como antes (3 cm de holgura por
+  lado). `sobre_bandeja` se resuelve desde donde acaba levantar: desde la IK suelta, el tramo bajaba a 13.9 cm de la
+  mesa (seguridad 15) y el cilindro se quedaba sin plan.
+- `Supervisor._recta_guiada`: cada recta con `Guia` (ahora para cualquier recta: `Guia.por_puntos`; empieza con la
+  corrección del tramo anterior y su última consigna, sin saltos). Al agarre: ajuste quieto en aproximar (en la
+  recta, `ajuste_tol_m` en perpendicular), recta y ajuste en el punto de agarre; el evento CERRAR registra dónde
+  quedó la mano (`mano_desde_el_plan_mm`). Con el objeto, `sujetar` en cada ciclo. Sin `fijar`, de una vez.
+- En el gemelo, nivel 2 2/2 en sus bandejas; los tramos a < 2.5 mm de su recta.
+
+**La esfera gris** sustituye a la pelota de tenis (`objetos.yaml`: `esfera`, 6 cm, 41.4 g, base aplanada; misma
+bandeja). Masas: cilindro 32.9 g, prisma 47.8 g (el usuario). Mide como el cubo (6 cm) y **la forma no los separa
+con la profundidad real**: probé la fracción de la mitad de arriba a < 8 mm de lo más alto (en el gemelo, esfera
+0.41 frente a 0.78–0.87 de las tapas planas), pero en las capturas reales del 18-oct el cubo y el cilindro dan
+0.24–0.46 y la pelota 0.42: descartado. Los separa el color: el cubo blanco en la cámara del robot tiene S 4 (5–95 %:
+4–37) y V 255; la esfera es azulada (H ~110) y algo saturada (S ~39 en el gemelo). Cubo S ≤ 14 (sigue reconocido
+en los 48 fotogramas reales del 18-oct), esfera H 90–130, S 15–90. **Rangos estimados: hay que ajustarlos con
+imágenes de la cámara del robot.**
+- Pruebas nuevas: `test_medir_mesa_en_el_gemelo`, `test_coger_en_linea_recta` (los cuatro tramos a < 2.5 mm de su recta) y la esfera en `test_percepcion` (sintética; en la captura real del 9-oct, el cubo no sale esfera). 117 de 117.

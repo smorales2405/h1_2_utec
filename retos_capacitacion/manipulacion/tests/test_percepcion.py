@@ -42,7 +42,8 @@ def test_esfera_vista_solo_por_delante():
 
 def test_captura_real(cin):
     """Mesa del 2026-10-09: tenis y cubo; la bola roja de espuma (fuera del reto) y el borde de una bandeja
-    no son ningun objeto del reto."""
+    no son ningun objeto del reto. La pelota de tenis ya no esta en el reto (la esfera gris, 2026-11-12): para estos
+    datos se anade como estaba; y el cubo blanco no sale esfera gris."""
     cfg = config.cargar()
     f = list(FuenteDataset(os.path.join(AQUI, "datos", "captura_20261009_objetos")))[0]
     cal = cb.desde_urdf(cin, T_COLOR_PROF)
@@ -51,10 +52,13 @@ def test_captura_real(cin):
     # el plano de la mesa de esa captura con la camara del URDF (2026-10-09: 0.118 m bajo el torso, a nivel), no
     # el del montaje de hoy, que puede estar medido con otra camara (calibrada: 2.4 grados de diferencia)
     mon["mesa"]["plano"] = {"n": [0.0, 0.0, 1.0], "d": 0.118}
-    esc = Percepcion(cfg, mon, config.cargar_objetos(), cal, cin).procesar(f)
+    obj = config.cargar_objetos()
+    obj["objetos"]["tenis"] = {"forma": "esfera", "medidas_m": [0.070], "simetria_deg": 0, "altura_agarre_m": 0.035,
+                               "color": {"nombre": "amarillo", "hsv_min": [25, 80, 80], "hsv_max": [42, 255, 255]}}
+    esc = Percepcion(cfg, mon, obj, cal, cin).procesar(f)
     clases = sorted(o.clase for o in esc.objetos)
     assert clases.count("tenis") == 1 and clases.count("cubo") == 1
-    assert "prisma" not in clases and "cilindro" not in clases
+    assert "prisma" not in clases and "cilindro" not in clases and "esfera" not in clases
     tenis = next(o for o in esc.objetos if o.clase == "tenis")
     cubo = next(o for o in esc.objetos if o.clase == "cubo")
     assert 0.05 < np.linalg.norm(tenis.p[:2] - cubo.p[:2]) < 0.15     # estaban casi en contacto
@@ -75,7 +79,7 @@ def test_escenas_sinteticas(cin):
     per = Percepcion(cfg, mon, obj, cal, cin)
     Tm = mt.T_torso_mesa(mon)
     yaw_mesa = math.atan2(Tm[1, 0], Tm[0, 0])
-    colocacion = {"tenis": (0.42, -0.11, 0.0), "cubo": (0.50, 0.06, 0.4), "cilindro": (0.42, 0.09, 0.0),
+    colocacion = {"esfera": (0.42, -0.11, 0.0), "cubo": (0.50, 0.06, 0.4), "cilindro": (0.42, 0.09, 0.0),
                   "prisma": (0.50, -0.05, 1.1)}         # sin tocarse (el prisma mide 10 cm de largo)
     for clave, (x, y, yaw) in colocacion.items():
         o = obj["objetos"][clave]

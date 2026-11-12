@@ -8,19 +8,25 @@
 #   force_set: gf por DOF [menique, anular, medio, indice, pulgar flexion, pulgar rotacion]; -1 = no cierra
 #   bandeja: la que le toca, por color (o nombre A-D) de montaje.yaml; --asignacion la cambia. Orden fijado
 #            por el usuario el 2026-10-17: cilindro azul -> roja, pelota amarilla -> blanca, cubo blanco ->
-#            naranja, prisma naranja -> azul
+#            naranja, prisma naranja -> azul. La pelota de tenis se cambio el 2026-11-12 por una esfera de PLA
+#            gris de 6 cm (montajes/objetos/), con la misma bandeja.
 
 objetos:
-  tenis:
-    altura_agarre_m: 0.035       # del punto de agarre sobre la mesa
-    nombre: pelota de tenis
+  esfera:
+    altura_agarre_m: 0.030       # del punto de agarre sobre la mesa: su centro
+    nombre: esfera de PLA gris
     forma: esfera
-    medidas_m: [0.070]
-    masa_kg: 0.0587
+    medidas_m: [0.060]           # 6 cm, con la base aplanada por la impresion (el usuario, 2026-11-12)
+    masa_kg: 0.0414
     simetria_deg: 0
-    color: {nombre: amarillo, hsv_min: [25, 80, 80], hsv_max: [42, 255, 255]}
+    # gris claro algo azulado (fotos de montajes/objetos/). Mide como el cubo y la forma no los separa con la
+    # profundidad real (la tapa del cubo sale tan poco plana como una esfera, RESULTADOS §53): los separa el color.
+    # El cubo blanco, en la camara del robot (2026-10-18): S 4 (5-95 %: 4-37), V 255; esta es azulada (H ~110) y
+    # algo saturada (S ~25-45 en las fotos, 39 en el gemelo): S >= 15 la separa del cubo (S <= 14). Estimado de las
+    # fotos y del gemelo: AJUSTAR con imagenes de la camara del robot (herramientas/grabar_dataset.py)
+    color: {nombre: gris, hsv_min: [90, 15, 90], hsv_max: [130, 90, 255]}
     agarre: [arriba, lado]
-    force_set: [300, 300, 300, 300, 350, -1]   # sin datos de banco: medir
+    force_set: [300, 300, 300, 300, 350, -1]   # rigida y lisa: sin datos de banco, medir
     preforma: abierta_opuesta
     bandeja: blanca
   cubo:
@@ -31,7 +37,7 @@ objetos:
     masa_kg: 0.0605
     simetria_deg: 90
     guinada_tol_deg: 30          # si no hay plan alineado (6 cm de cara: a 30 grados, 6.9 de cuerda)
-    color: {nombre: blanco, hsv_min: [0, 0, 160], hsv_max: [179, 50, 255]}
+    color: {nombre: blanco, hsv_min: [0, 0, 160], hsv_max: [179, 14, 255]}   # S <= 14: no la esfera gris azulada
     agarre: [arriba, lado]
     force_set: [-1, -1, 300, 300, 350, -1]     # tres dedos: 295/179/341 gf estable en banco; dos dedos gira
     preforma: tres_dedos
@@ -41,7 +47,7 @@ objetos:
     nombre: cilindro de PLA
     forma: cilindro
     medidas_m: [0.050, 0.080]
-    masa_kg: null                              # pesar
+    masa_kg: 0.0329                            # el usuario, 2026-11-12
     simetria_deg: 0
     color: {nombre: azul, hsv_min: [95, 100, 50], hsv_max: [130, 255, 255]}
     agarre: [lado, arriba]
@@ -53,7 +59,7 @@ objetos:
     nombre: prisma de PLA
     forma: caja
     medidas_m: [0.100, 0.040, 0.040]
-    masa_kg: null                              # pesar
+    masa_kg: 0.0478                            # el usuario, 2026-11-12
     simetria_deg: 180
     guinada_tol_deg: 35          # si no hay plan alineado (4 cm de ancho: a 35 grados, 4.9 de cuerda)
     color: {nombre: naranja, hsv_min: [3, 120, 100], hsv_max: [24, 255, 255]}

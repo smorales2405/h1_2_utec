@@ -3,7 +3,7 @@
 
     ./manipulacion.sh --nivel 1 --simulacro            # hito 3: todo el lazo sin publicar en rt/arm_sdk
     ./manipulacion.sh --nivel 1                        # primeras tiradas: --escala-tiempo 2 por defecto
-    ./manipulacion.sh --nivel 2 --asignacion tenis=blanca cubo=naranja   # por color o por nombre (A-D)
+    ./manipulacion.sh --nivel 2 --asignacion esfera=blanca cubo=naranja   # por color o por nombre (A-D)
     python3 manipulacion.py --nivel 2 --sim            # en la PC: robot, manos y camara simulados (gemelo)
     python3 manipulacion.py --nivel 2 --sim --visor    # lo mismo en una ventana de MuJoCo, a velocidad real
     python3 manipulacion.py --nivel 2 --sim --arnes    # empezando de pie en el arnes con los brazos a 0
@@ -45,9 +45,9 @@ from manip.vigilante import Vigilante  # noqa: E402
 # --sim sin --colocacion: los cuatro objetos en la zona de recogida, cada uno en el lado de su bandeja (nivel 2):
 # cilindro (roja) y prisma (azul) a la izquierda, pelota (blanca) y cubo (naranja) a la derecha
 COLOCACION_SIM = {"cilindro": ((0.42, 0.04), 0.0), "prisma": ((0.50, 0.10), 1.57),
-                  "tenis": ((0.43, -0.11), 0.0), "cubo": ((0.50, -0.04), 0.3)}
+                  "esfera": ((0.43, -0.11), 0.0), "cubo": ((0.50, -0.04), 0.3)}
 # la de objetos.yaml (usuario, 2026-10-17), por color de bandeja
-ASIGNACION_SIM = {"cilindro": "roja", "tenis": "blanca", "cubo": "naranja", "prisma": "azul"}
+ASIGNACION_SIM = {"cilindro": "roja", "esfera": "blanca", "cubo": "naranja", "prisma": "azul"}
 
 
 class FsmFija:
@@ -69,7 +69,10 @@ class FsmFija:
 
 def leer_args(cfg, objetos):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--nivel", type=int, choices=[1, 2, 3, 4], required=True)
+    ap.add_argument("--nivel", type=int, choices=[1, 2, 3, 4])
+    ap.add_argument("--medir-mesa", action="store_true",
+                    help="toque de prueba (sin --nivel): la yema de cada mano toca un punto libre de la mesa hasta que lo "
+                         "nota la fuerza y se guarda la correccion de altura de este [g] en config/montaje.yaml")
     ap.add_argument("--simulacro", action="store_true", help="no publica en rt/arm_sdk; la mano abre y cierra en el aire")
     ap.add_argument("--sim", action="store_true", help="en la PC: robot, manos y camara simulados")
     ap.add_argument("--escala-tiempo", type=float, default=2.0, help="duraciones x esto (2 en las primeras tiradas)")
@@ -91,6 +94,10 @@ def leer_args(cfg, objetos):
     ap.add_argument("--salida-directa", action="store_true",
                     help="salida segura del PDF tal cual: sin pasar por la observacion y el reposo (para comparar)")
     a = ap.parse_args()
+    if a.medir_mesa == (a.nivel is not None):
+        sys.exit("O --nivel 1-4 o --medir-mesa.")
+    if a.medir_mesa:
+        a.nivel = 0                          # el supervisor: el toque de prueba
     if (a.visor or a.parada_en) and not a.sim:
         sys.exit("--visor y --parada-en son de la simulacion de la PC: con --sim.")
     if a.recuperar and (not a.arnes or a.sim or a.simulacro):
@@ -129,6 +136,9 @@ def armar(a, cfg=None, montaje=None, objetos=None, log=print):
     montaje_g = montaje         # tal cual el [g]: la comprobacion al empezar lo compara con la mesa en vivo (la misma
                                 # profundidad); el resto usa la mesa corregida
     corr = float((cfg.get("montaje") or {}).get("correccion_altura_m", 0.0)) if not a.sim else 0.0
+    toque = (montaje.get("mesa") or {}).get("toque") if not a.sim else None
+    if toque and toque.get("correccion_m") is not None:
+        corr = float(toque["correccion_m"])        # la medida con el toque de prueba para este [g]
     if corr and "mesa" in montaje:
         # la mesa real, por encima del plano del [g] (la profundidad de la D435i): el planificador, el gemelo y el toque
         from manip.montaje import corregir_altura
@@ -226,11 +236,12 @@ def armar(a, cfg=None, montaje=None, objetos=None, log=print):
     vig = Vigilante(robot, cfg, brazo, manos, lector_fsm, edad_fotograma=edad, giro=giro)
     if a.simulacro or a.sim:
         vig.err_max = float("inf")          # el brazo no se mueve (simulacro) o va siempre a su consigna (sim)
-    nombre = f"nivel{a.nivel}" + ("_simulacro" if a.simulacro else "") + ("_sim" if a.sim else "")
+    nombre = (f"nivel{a.nivel}" if a.nivel else "medir_mesa") + ("_simulacro" if a.simulacro else "") + ("_sim" if a.sim else "")
     reg = Registro(getattr(a, "datos", None) or config.ruta_datos(cfg), "tirada", nombre)
     sup = Supervisor(cfg, robot, brazo, manos, per, pl, fuente, vig, reg, nivel=a.nivel, simulacro=a.simulacro or a.sim,
                      dianas=a.dianas, asignacion=a.asignacion,
                      detector_dianas=lambda f: md.detectar(f, cal, montaje, **(cfg.get("dianas") or {})), log=log)
+    sup.correccion_altura = corr
     reg.enganchar_lowstate(robot, sup.contexto_registro, cada=10)
     for mano in manos.values():                    # cada lectura de las manos, a manos.csv (fuerza del toque, agarres)
         leer = mano.leer
@@ -246,6 +257,10 @@ def armar(a, cfg=None, montaje=None, objetos=None, log=print):
         robot, brazo, manos, fuente, lector_fsm, vig, reg, sup, cal
     t.giro = giro
     t.montaje = t_montaje
+    t.correccion_altura = corr
+    t.texto_altura = ("la del toque de prueba de las " + str(toque.get("fecha", "?")) if toque and toque.get("correccion_m")
+                      is not None else "la de config (sin toque de prueba para este [g]: ./manipulacion.sh --medir-mesa --arnes)")
+    reg.resumen["correccion_altura_m"] = corr
     if getattr(a, "visor", False):
         from sim.visor import Visor
         t.visor = Visor(t.mundo, texto=lambda: _texto_visor(t), al_espacio=lambda: vig.pedir_parada("tecla ESPACIO (visor)"))
@@ -312,6 +327,8 @@ def correr(t, confirmar=True):
           f"{' SIMULADO en la PC' if a.sim else ''}; duraciones x{a.escala_tiempo}.")
     if not getattr(a, "sin_comprobar_montaje", False) and not getattr(a, "recuperar", False):
         problemas, informe = comprobar_montaje(t)
+        if not a.sim:
+            informe = list(informe) + [f"altura de la mesa: el [g] {1000 * t.correccion_altura:+.1f} mm, {t.texto_altura}"]
         print("\n  Montaje:\n" + "\n".join(f"    {x}" for x in informe))
         if problemas:
             print("\n  El montaje no esta como en config/montaje.yaml:\n" + "\n".join(f"    - {p}" for p in problemas)
@@ -370,6 +387,8 @@ def correr(t, confirmar=True):
     t.reg.cerrar(motivo=motivo, resultados=t.sup.resultados, duracion_tirada_s=round(time.monotonic() - t0, 1),
                  objetos_al_final=final)
     print(f"\n{motivo}. Resultados: {t.sup.resultados}\nRegistro: {t.reg.carpeta}")
+    if a.nivel == 0:
+        guardar_medida_mesa(t)
     if t.mundo is not None:
         print("Objetos al final:", final)
         if t.visor is not None:
@@ -381,6 +400,43 @@ def correr(t, confirmar=True):
             t.visor.cerrar()
         t.mundo.parar()
     return motivo
+
+
+def guardar_medida_mesa(t):
+    """--medir-mesa: la correccion de altura medida, en config/montaje.yaml (mesa.toque: la borra el siguiente [g] de
+    marcar_montaje.py, que reescribe la mesa) y en la carpeta de la tirada. En --sim y --simulacro solo se dice."""
+    import datetime
+    m = getattr(t.sup, "medida_mesa", None) or {}
+    for p in m.get("puntos", []):
+        print(f"  {p['mano']} en {np.round(p['diana'], 3).tolist()}: " + (
+            f"la mesa a {p['altura_mm']:+.1f} mm del plano corregido ({p['fuerza_gf']} gf)" if p["vale"] else
+            f"no vale (paro por {p['por'] or 'nada'}, {p['fuerza_gf']} gf)"))
+    if m.get("correccion_m") is None:
+        print("  Sin medida de la altura de la mesa: no se guarda nada.")
+        return
+    print(f"  Correccion de altura: {1000 * m['correccion_antes_m']:.1f} -> {1000 * m['correccion_m']:.1f} mm"
+          + (f"; entre los puntos hay {m['diferencia_mm']:.1f} mm (mas de 6: revisar)" if m["diferencia_mm"] > 6 else ""))
+    if t.a.sim or t.a.simulacro:
+        print("  (simulacion: no se guarda)")
+        return
+    ruta = config.RUTA_MONTAJE
+    with open(ruta) as fh:
+        texto = fh.read()
+    cab = []
+    for x in texto.splitlines():                     # el comentario de arriba se conserva
+        if not x.startswith("#"):
+            break
+        cab.append(x[2:] if x.startswith("# ") else x[1:])
+    cabecera = "\n".join(cab)
+    mon = config.cargar_montaje()
+    if mon.get("fecha") != t.montaje.get("fecha"):
+        print(f"  ATENCION: {ruta} cambio durante la tirada (otro [g]): no se guarda.")
+        return
+    mon["mesa"]["toque"] = {"fecha": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), "correccion_m": m["correccion_m"],
+                            "puntos": m["puntos"], "tirada": os.path.basename(t.reg.carpeta)}
+    config.guardar_yaml(ruta, mon, cabecera)
+    config.guardar_yaml(os.path.join(t.reg.carpeta, "montaje.yaml"), mon, cabecera)
+    print(f"  Guardada en {ruta} (mesa.toque); las tiradas siguientes la usan hasta el proximo [g].")
 
 
 def main():

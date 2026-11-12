@@ -43,7 +43,7 @@ def postura_arnes(cfg):
 COLOR_BANDEJA = {"blanca": (0.92, 0.92, 0.90), "roja": (0.85, 0.08, 0.08), "azul": (0.05, 0.25, 0.85),
                  "naranja": (1.0, 0.45, 0.05)}
 COLORES_OBJETO = {"amarillo": (0.85, 0.95, 0.15), "blanco": (0.95, 0.95, 0.93), "azul": (0.05, 0.22, 0.80),
-                  "naranja": (1.0, 0.42, 0.05)}
+                  "naranja": (1.0, 0.42, 0.05), "gris": (0.66, 0.70, 0.78)}     # gris: la esfera de PLA (2026-11-12)
 NEGRO_MESA = (0.03, 0.03, 0.035, 1.0)
 GRIS_ALFOMBRA = (0.17, 0.17, 0.18, 1.0)
 LEJOS = np.array([0.0, 0.0, -5.0])     # donde se guardan los objetos que no estan en la mesa

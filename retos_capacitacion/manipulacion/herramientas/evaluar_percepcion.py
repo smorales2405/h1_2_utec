@@ -4,7 +4,7 @@ la verdad (verdad.json del gemelo, o la regla: --regla clase=x,y en m del torso)
 imagenes con los objetos dibujados.
 
     python3 herramientas/evaluar_percepcion.py datos/dataset_<fecha>_sintetico_objetos
-    python3 herramientas/evaluar_percepcion.py datos/dataset_<fecha>_objetos_a --regla tenis=0.45,0.05 cubo=0.47,-0.08
+    python3 herramientas/evaluar_percepcion.py datos/dataset_<fecha>_objetos_a --regla esfera=0.45,0.05 cubo=0.47,-0.08
 """
 
 import argparse

@@ -45,7 +45,7 @@ GENERAL = (np.array([0.32, 0.0, -0.05]), 2.3, 195.0, -33.0)      # todo el robot
 AZIMUT_CERCA = {"izq": 215.0, "der": 145.0}     # de cerca, por delante y del lado del brazo que trabaja
 T_TRANSICION = 1.2              # s de video de una toma a la siguiente
 
-NOMBRE = {"cilindro": "el cilindro", "prisma": "el prisma", "tenis": "la pelota", "cubo": "el cubo"}
+NOMBRE = {"cilindro": "el cilindro", "prisma": "el prisma", "esfera": "la esfera", "cubo": "el cubo"}
 MANO = {"izq": "izquierda", "der": "derecha"}
 
 

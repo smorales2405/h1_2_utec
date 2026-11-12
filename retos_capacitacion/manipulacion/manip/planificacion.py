@@ -260,17 +260,24 @@ class Planificador:
                         d = d / max(np.linalg.norm(d), 1e-6) * self.p["entrada_lado_m"]
                         pasos = [("sobre", t(xy + d, ht)), ("aproximar", t(xy + d, alt)), ("entrar", t(xy, alt))]
                     else:
+                        d = np.zeros(2)
                         pasos = [("sobre", t(xy, ht)), ("aproximar", t(xy, ha))]
                     pasos += [("agarrar", t(xy, alt)), ("levantar", t(xy, ht)), ("sobre_bandeja", t(sobre_b, ht)),
                               ("bajar_a_bandeja", t(sobre_b, hsu)), ("retirar_de_bandeja", t(sobre_b, ht))]
                     puntos, falla = self._cadena(lado, q0, pasos, q_agarre=q_ag)
+                    if puntos is not None:
+                        # los tramos finos en linea recta (como la bajada del toque, RESULTADOS §48 y §53)
+                        ag = self.punto(xy, alt)
+                        ap = self.punto(xy + d, alt) if tipo == "lado" else self.punto(xy, ha)
+                        puntos, falla = self._rectas_agarre(lado, puntos, q_ag, fija, ap - ag, self.punto(xy, ht) - ag,
+                                                            self.punto(sobre_b, hsu) - self.punto(sobre_b, ht),
+                                                            t(sobre_b, ht), t(sobre_b, hsu))
                     if puntos is None:
                         ultimo = ultimo or Plan(objeto=objeto, mano=lado, tarea="coger", puntos_de_paso=[],
                                                 bandeja=bandeja, motivo=f"{tipo}: sin IK en '{falla}'")
                         continue
-                    k_ag = [p.nombre for p in puntos].index("agarrar")
                     agarre = Agarre(preforma=self.objetos["preformas"][o["preforma"]], force_set=o["force_set"],
-                                    speed=self.cfg["mano"]["speed_cierre"], T_mano=self.cin.fk(lado, puntos[k_ag].q, "mano"))
+                                    speed=self.cfg["mano"]["speed_cierre"], T_mano=self.cin.fk(lado, q_ag, "mano"))
                     plan = Plan(objeto=objeto, mano=lado, tarea="coger", puntos_de_paso=puntos, agarre=agarre,
                                 bandeja=bandeja, detalle={"clase": objeto.clase, "agarre": tipo})
                     self._añadir_reposo(plan, punto=punto)
@@ -286,6 +293,61 @@ class Planificador:
                                 motivo="sin agarre posible (IK)")
         ultimo.detalle["rechazos"] = rechazos
         return ultimo
+
+    def _recta(self, lado, q0, delta, nombre, bandas):
+        """Los PuntoPaso de la recta que lleva la mano `delta` (torso) desde q0 con su orientacion (Cinematica.recta,
+        una postura por paso_recta_m), a planificacion.vel_recta_m_s[nombre] de verdad. None si no llega."""
+        p0 = self.cin.fk(lado, q0, "mano")[:3, 3]
+        L = self.cin.recta(lado, q0, p0 + delta, "mano", paso=self.p.get("paso_recta_m", 0.01), bandas=bandas)
+        if L is None:
+            return None
+        v = float((self.p.get("vel_recta_m_s") or {}).get(nombre, 0.02))
+        t = float(np.linalg.norm(delta)) / len(L) / v / max(1.0, self.escala)
+        return [PuntoPaso(q=q, duracion=t, nombre=nombre) for q in L]
+
+    def _rectas_agarre(self, lado, puntos, q_ag, bandas, d_aprox, d_levantar, d_bajar, t_sobre_bandeja, t_bajar):
+        """coger() con los tramos finos en linea recta, la mano con la orientacion del agarre (entre dos IK sueltas se
+        apartaba de la recta hasta 56 mm, §48). d_*: lo que se mueve el punto de agarre en cada uno.
+        - De aproximar al agarre: obligatoria (calculada desde q_ag hacia atras: acaba justo en el agarre).
+        - Levantar: entera si sale; si no (limites de las juntas con la orientacion fija), los primeros
+          planificacion.despegue_m en recta (despegar sin arrastrar) y de ahi a la IK de 'levantar'; si tampoco, como
+          antes (§53).
+        - Bajar a la bandeja y retirarse (la bajada al reves): en recta si sale; si no, como antes (la bandeja tiene
+          3 cm de holgura a cada lado).
+        (puntos, None) o (None, el tramo que no sale)."""
+        n = {p.nombre: p for p in puntos}
+        atras = self._recta(lado, q_ag, d_aprox, "agarrar", bandas)
+        if atras is None:
+            return None, "agarrar"
+        sube = self._recta(lado, q_ag, d_levantar, "levantar", bandas)
+        if sube is None:
+            largo = float(np.linalg.norm(d_levantar))
+            corta = min(largo, float(self.p.get("despegue_m", 0.05)))
+            sube = self._recta(lado, q_ag, d_levantar * corta / largo, "levantar", bandas) or []
+            ik = n["levantar"]
+            sube.append(PuntoPaso(q=ik.q, duracion=self.duracion(sube[-1].q if sube else q_ag, ik.q), nombre="levantar"))
+        # sobre la bandeja, desde donde acaba levantar (no desde la IK suelta de 'levantar': desde otra postura de
+        # la misma posicion, el tramo bajaba de la altura de seguridad, §53)
+        q_sb = self._ik(lado, t_sobre_bandeja, sube[-1].q)
+        if q_sb is None:
+            return None, "sobre_bandeja"
+        baja = self._recta(lado, q_sb, d_bajar, "bajar_a_bandeja", bandas)
+        if baja is None:
+            q_b = self._ik(lado, t_bajar, q_sb)
+            if q_b is None:
+                return None, "bajar_a_bandeja"
+            baja = [PuntoPaso(q=q_b, duracion=self.duracion(q_sb, q_b), nombre="bajar_a_bandeja")]
+        ap = PuntoPaso(q=atras[-1].q, duracion=self.duracion(n["sobre"].q, atras[-1].q), nombre="aproximar")
+        al_agarre = [PuntoPaso(q=p.q, duracion=atras[0].duracion, nombre="agarrar") for p in reversed(atras[:-1])]
+        al_agarre.append(PuntoPaso(q=np.array(q_ag, float), duracion=atras[0].duracion, nombre="agarrar"))
+        sb = PuntoPaso(q=q_sb, duracion=self.duracion(sube[-1].q, q_sb), nombre="sobre_bandeja")
+        v = self.p.get("vel_recta_m_s") or {}
+        t_r = baja[0].duracion * float(v.get("bajar_a_bandeja", 0.02)) / float(v.get("retirar_de_bandeja", 0.03))
+        if len(baja) == 1:
+            t_r = baja[0].duracion
+        retira = [PuntoPaso(q=p.q, duracion=t_r, nombre="retirar_de_bandeja") for p in reversed(baja[:-1])]
+        retira.append(PuntoPaso(q=q_sb, duracion=t_r, nombre="retirar_de_bandeja"))
+        return [n["sobre"], ap] + al_agarre + sube + [sb] + baja + retira, None
 
     def _variantes(self, lado, tarea, q0, n=3):
         """Hasta n soluciones distintas de la IK (la mas cercana a q0 primero)."""
@@ -355,7 +417,7 @@ class Planificador:
             punto_ag = T_punto(self.objetos["agarres"][plan.detalle["agarre"]]["centro"], lado)
         nombres = [p.nombre for p in puntos]
         k_desde = nombres.index(sujeto_desde) if sujeto_desde in nombres else None
-        k_hasta = nombres.index(sujeto_hasta) if sujeto_hasta in nombres else None
+        k_hasta = len(nombres) - 1 - nombres[::-1].index(sujeto_hasta) if sujeto_hasta in nombres else None
         h_min_fuera, d_min = np.inf, np.inf
         q_prev = None if q_inicio is None else np.asarray(q_inicio, float)
         detalle = []

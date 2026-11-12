@@ -21,19 +21,32 @@ import numpy as np
 
 
 class Guia:
-    def __init__(self, Q, H, ganancia=1.5, paso_max=0.005, corr_max=0.15, salto_max=0.04):
-        """Q: [q7] de la recta, de arriba abajo; H: la altura de la yema de cada uno (estrictamente decreciente).
+    def __init__(self, Q, H, ganancia=1.5, paso_max=0.005, corr_max=0.15, salto_max=0.04, corr=None, ultima=None):
+        """Q: [q7] de la recta; H: la coordenada de cada postura a lo largo de ella, estrictamente decreciente (en
+        el toque, la altura de la yema; en cualquier recta, menos lo recorrido: Guia.por_puntos).
         ganancia: 1/s; paso_max: rad por ciclo que puede cambiar la correccion; corr_max: rad, su tope por junta;
-        salto_max: rad, lo que una consigna se aparta como mucho de la anterior (la primera, de Q[0]: el brazo llega
-        a aproximar con ir_a)."""
+        salto_max: rad, lo que una consigna se aparta como mucho de la anterior. corr: la correccion con la que se
+        empieza (la del tramo anterior: el error del brazo es parecido); ultima: la consigna de ahora (por defecto
+        Q[0]: el brazo llega al principio de la recta con ir_a)."""
         self.Q, self.H = np.asarray(Q, float), np.asarray(H, float)
         if len(self.H) < 2 or np.any(np.diff(self.H) >= 0):
             raise ValueError("la recta tiene que bajar")
         self.k, self.paso_max, self.corr_max = float(ganancia), float(paso_max), float(corr_max)
-        self.corr = np.zeros(self.Q.shape[1])
+        self.corr = np.zeros(self.Q.shape[1]) if corr is None else np.clip(np.asarray(corr, float), -corr_max, corr_max)
         self.salto_max = float(salto_max)
-        self.ultima = self.Q[0].copy()
+        self.ultima = self.Q[0].copy() if ultima is None else np.asarray(ultima, float).copy()
 
+    @classmethod
+    def por_puntos(cls, Q, P, **kw):
+        """La recta de las posturas Q por los puntos P (torso) del marco que se guia: la coordenada, menos lo
+        recorrido desde P[0] (0 al principio, -largo al final)."""
+        P = np.asarray(P, float)
+        s = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(P, axis=0), axis=1))])
+        return cls(Q, -s, **kw)
+
+    @property
+    def largo(self):
+        return float(self.H[0] - self.H[-1])
     @property
     def arriba(self):
         return float(self.H[0])

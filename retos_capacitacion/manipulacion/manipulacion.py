@@ -323,7 +323,8 @@ def correr(t, confirmar=True):
     """Comprueba el montaje, pide la palabra (salvo en la PC), ejecuta la tirada y cierra todo. Devuelve el
     motivo de fin."""
     a, cfg = t.a, t.cfg
-    print(f"\n  Nivel {a.nivel}{' en SIMULACRO (no se publica en rt/arm_sdk)' if a.simulacro else ''}"
+    print(f"\n  {'Nivel ' + str(a.nivel) if a.nivel else 'Toque de prueba de la mesa'}"
+          f"{' en SIMULACRO (no se publica en rt/arm_sdk)' if a.simulacro else ''}"
           f"{' SIMULADO en la PC' if a.sim else ''}; duraciones x{a.escala_tiempo}.")
     if not getattr(a, "sin_comprobar_montaje", False) and not getattr(a, "recuperar", False):
         problemas, informe = comprobar_montaje(t)

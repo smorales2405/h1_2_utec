@@ -128,6 +128,8 @@ class Supervisor:
         if f is None:
             raise Parada("camara sin fotogramas al observar")
         self._ultimo_fotograma = f
+        self._n_observar = getattr(self, "_n_observar", 0) + 1
+        self.reg.imagen(f"observar_{self._n_observar}", f.color)        # lo que vio (§55: sin ella no se sabia por que)
         q = self.robot.q()
         esc = self.per.procesar(f, {l: q[JUNTAS_BRAZO[l]] for l in LADOS})
         self.pl.poner_escena(esc)
@@ -251,11 +253,12 @@ class Supervisor:
     def _tocar(self, n, xy, plan, prueba=False):
         lado, mano = plan.mano, self.manos[plan.mano]
         self._plan_activo = plan
-        self._a("PLANIFICAR", f"diana {n} con la mano {lado}", plan.detalle)
+        que = "punto" if prueba else "diana"
+        self._a("PLANIFICAR", f"{que} {n} con la mano {lado}", plan.detalle)
         mano.preforma(self.pl.objetos["preformas"][plan.detalle.get("preforma", "senalar")], vigilar=self.comprobar)
         pts = {p.nombre: p for p in plan.puntos_de_paso}            # 'subir': el ultimo, el alto
         bajada = [p for p in plan.puntos_de_paso if p.nombre == "bajar"]
-        self._a("MOVER", f"sobre la diana {n}")
+        self._a("MOVER", f"sobre {'el punto' if prueba else 'la diana'} {n}")
         self._mover(lado, pts["sobre"])
         self._mover(lado, pts["aproximar"])
         # la yema medida: los encoders del brazo y la cinematica con los dedos de la preforma, sobre la mesa del [g]
@@ -381,7 +384,7 @@ class Supervisor:
                                       "yema_diana_al_parar_mm": contacto.get("xy"), "consigna_fijada": fijada, "pausa": pausa,
                                       "yema_quieta_mm": round(1000 * h_quieta, 1), "yema_diana_quieta_mm": a_diana_mm()})
         if self._ultimo_fotograma is not None:
-            self.reg.imagen(f"diana_{n}", self._ultimo_fotograma.color)
+            self.reg.imagen(f"{que}_{n}", self._ultimo_fotograma.color)
         self.vig.manos_vigiladas = set()
         self._a("VOLVER", "subir y a la observacion")
         subida = False
@@ -410,7 +413,10 @@ class Supervisor:
             esc, f = self.observar()
             vistos = {o.clase: o for o in esc.objetos if o.clase in pendientes and o.confianza >= self.cfg["percepcion"]["confianza_min"]}
             if not vistos:
-                self._a("PLANIFICAR", f"no veo ninguno de {sorted(pendientes)}")
+                c_min = self.cfg["percepcion"]["confianza_min"]
+                dudosos = [f"{o.clase} ({o.confianza:.2f}) en ({o.p[0]:.3f}, {o.p[1]:+.3f})" for o in esc.objetos]
+                self._a("PLANIFICAR", f"no veo ninguno de {sorted(pendientes)} con confianza >= {c_min}"
+                        + (f"; vistos: {', '.join(dudosos)}" if dudosos else ""))
                 break
             hecho = False
             # agrupados por brazo: primero los del brazo en curso (al empezar, el del objeto mas cercano); dentro de

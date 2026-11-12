@@ -1454,3 +1454,32 @@ con la profundidad real**: probé la fracción de la mitad de arriba a < 8 mm de
 en los 48 fotogramas reales del 18-oct), esfera H 90–130, S 15–90. **Rangos estimados: hay que ajustarlos con
 imágenes de la cámara del robot.**
 - Pruebas nuevas: `test_medir_mesa_en_el_gemelo`, `test_coger_en_linea_recta` (los cuatro tramos a < 2.5 mm de su recta) y la esfera en `test_percepcion` (sintética; en la captura real del 9-oct, el cubo no sale esfera). 117 de 117.
+
+## 54. Toque de prueba en el robot y el color de la esfera (2026-11-12)
+
+- **Bandejas**: con el `[g]` de la mesa de las 10:36 (con las bandejas puestas; el plano se ajusta sin su huella),
+  B y D guardadas (medidas); A y C no se ven con los brazos a 0 (las manos las tapan, como el 10-nov): colocadas con
+  regla (`distancias_bandejas.py`), el robot usa su objetivo.
+- **`--medir-mesa`** (`datos/tirada_20261112_104248_medir_mesa`): **los dos puntos pararon por fuerza**: izq en
+  (0.48, 0.10) a −13.1 mm del plano corregido (54 gf; quieta a −15.4), der en (0.48, −0.10) a −10.1 mm (11 gf).
+  Corrección de este `[g]`: +10.0 → **−1.6 mm** (el plano del `[g]` queda 1.6 mm por encima de la mesa real). Entre
+  los dos puntos, 3 mm.
+- **Color de la esfera** (`datos/dataset_20261112_104835_esfera_cubo`, 50 fotogramas, la esfera a la izquierda y el
+  cubo a la derecha): en la cámara del robot la esfera sale más oscura que en las fotos: H 93–107, S 24–59,
+  V 47–136 (5–95 %); el cubo S 4–8 (sus caras en sombra, cálidas, hasta 75) y V 255. Ya con los rangos de §53, 50/50
+  esfera y 50/50 cubo; con el de la esfera ajustado a lo medido (H 85–115, S 15–90, V ≥ 35) la esfera tiene 0.94 de
+  su color (antes 0.73: el V ≥ 90 dejaba fuera la sombra) y 0 del cubo; el cubo, 0.53 del suyo y 0 del de la esfera.
+- El toque de prueba ya no se anuncia como "Nivel 0" ni habla de dianas.
+
+## 55. Primer nivel 2 en el robot: el cubo visto con poca confianza (2026-11-12)
+
+Tres `./manipulacion.sh --nivel 2 --arnes` con el cubo en la mesa (`datos/tirada_20261112_105616_nivel2`,
+`…105756…`, `…105933…`): "no veo ninguno de [...]". En las dos primeras **sí lo vio, como cubo, con confianza 0.31 y
+0.41**, por debajo de `percepcion.confianza_min` 0.5; en la tercera, en (0.595, −0.044) (3.5 cm pasada la zona),
+"desconocido". Causa: el rango del cubo de §53 (S ≤ 14, para separarlo de la esfera) deja fuera sus caras en sombra,
+cálidas (H 11–53, S hasta 75): solo la mitad de sus puntos casaban con su color. Ahora el cubo es H 0–60, S ≤ 80,
+V ≥ 60 (lo separa de la esfera el tono, 93–107): confianza del cubo 0.48 → **0.84** en `esfera_cubo` (mínimo 0.79) y
+0.54 → 0.81 en `objetos_a` del 18-oct; esfera, prisma, cilindro y pelota igual que antes (todos bien).
+
+- Cada observación guarda su imagen (`observar_N.png`): en estas tiradas no quedó ninguna.
+- El aviso dice lo que se vio y con qué confianza ("vistos: cubo (0.41) en (…)").

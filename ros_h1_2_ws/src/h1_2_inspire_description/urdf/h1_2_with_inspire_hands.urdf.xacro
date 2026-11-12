@@ -8,6 +8,11 @@
      through a virtual camera; see "Hand mounting points" in the README. -->
 <robot name="h1_2_with_inspire_hands" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
+  <!-- How the coupled phalanges follow the actuated joints: mimic (default, <mimic> tags) or
+       software (no <mimic>; scripts/hand_coupling_node.py publishes all 12 joints per hand from
+       the curves in config/hand_coupling.yaml). Example: xacro this_file coupling:=software -->
+  <xacro:arg name="coupling" default="mimic"/>
+
   <xacro:include filename="$(find h1_2_inspire_description)/urdf/h1_2_body.urdf.xacro"/>
   <xacro:include filename="$(find h1_2_inspire_description)/urdf/inspire_hand_left.urdf.xacro"/>
   <xacro:include filename="$(find h1_2_inspire_description)/urdf/inspire_hand_right.urdf.xacro"/>

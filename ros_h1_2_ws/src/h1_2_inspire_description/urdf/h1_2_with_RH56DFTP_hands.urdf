@@ -867,10 +867,28 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/base_link.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_hand_base_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_hand_base_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_hand_base_silver.STL"/>
+      </geometry>
+      <material name="inspire_silver">
+        <color rgba="0.60 0.61 0.64 1"/>
       </material>
     </visual>
     <collision>
@@ -889,10 +907,10 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/left_thumb_swing.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_thumb_swing_silver.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_silver">
+        <color rgba="0.60 0.61 0.64 1"/>
       </material>
     </visual>
     <collision>
@@ -903,11 +921,11 @@
     </collision>
   </link>
   <joint name="left_thumb_swing_joint" type="revolute">
-    <origin rpy="0 -0 0.224255962277" xyz="-0.035227 0.0908 -0.040206"/>
+    <origin rpy="0 0 0.264255962277" xyz="-0.035227 0.0908 -0.040206"/>
     <parent link="left_hand_base_link"/>
     <child link="left_thumb_swing"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.19" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.2" velocity="100"/>
   </joint>
   <link name="left_thumb_1">
     <inertial>
@@ -918,10 +936,28 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/left_thumb_1.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_thumb_1_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_thumb_1_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_thumb_1_silver.STL"/>
+      </geometry>
+      <material name="inspire_silver">
+        <color rgba="0.60 0.61 0.64 1"/>
       </material>
     </visual>
     <collision>
@@ -932,11 +968,11 @@
     </collision>
   </link>
   <joint name="left_thumb_1_joint" type="revolute">
-    <origin rpy="1.57080000191 0.0322660551661 0.037536118561" xyz="-0.0096402 -0.0097687 0.00125"/>
+    <origin rpy="1.57080004631 0.157966055165 0.0375365851163" xyz="-0.0096402 -0.0097687 0.00125"/>
     <parent link="left_thumb_swing"/>
     <child link="left_thumb_1"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="0.66" velocity="100"/>
+    <limit effort="1" lower="0" upper="0.624" velocity="100"/>
   </joint>
   <link name="left_thumb_2">
     <inertial>
@@ -947,10 +983,19 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/left_thumb_2.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_thumb_2_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_thumb_2_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
       </material>
     </visual>
     <collision>
@@ -961,12 +1006,12 @@
     </collision>
   </link>
   <joint name="left_thumb_2_joint" type="revolute">
-    <origin rpy="0 0 -0.0129064220665" xyz="-0.0385855343215257 0.0137354280979689 -0.00085000000007604"/>
+    <origin rpy="0 0 0.194493577934" xyz="-0.0385855343215257 0.0137354280979689 -0.00085000000007604"/>
     <parent link="left_thumb_1"/>
     <child link="left_thumb_2"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="0.264" velocity="100"/>
-    <mimic joint="left_thumb_1_joint" multiplier="0.40" offset="0"/>
+    <limit effort="1" lower="0" upper="0.375024" velocity="100"/>
+    <mimic joint="left_thumb_1_joint" multiplier="0.601" offset="0"/>
   </joint>
   <link name="left_thumb_3">
     <inertial>
@@ -977,10 +1022,28 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/left_thumb_3.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_thumb_3_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_thumb_3_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_thumb_3_silver.STL"/>
+      </geometry>
+      <material name="inspire_silver">
+        <color rgba="0.60 0.61 0.64 1"/>
       </material>
     </visual>
     <collision>
@@ -991,12 +1054,12 @@
     </collision>
   </link>
   <joint name="left_thumb_3_joint" type="revolute">
-    <origin rpy="0 0 -0.0193596330998" xyz="-0.0204656980659991 0.00837680232935447 0.000199999999999881"/>
+    <origin rpy="0 0 0.0674403669002" xyz="-0.0204656980659991 0.00837680232935447 0.000199999999999881"/>
     <parent link="left_thumb_2"/>
     <child link="left_thumb_3"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="0.396" velocity="100"/>
-    <mimic joint="left_thumb_1_joint" multiplier="0.60" offset="0"/>
+    <limit effort="1" lower="0" upper="0.361296" velocity="100"/>
+    <mimic joint="left_thumb_1_joint" multiplier="0.579" offset="0"/>
   </joint>
   <link name="left_index_1">
     <inertial>
@@ -1007,10 +1070,19 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/left_index_1.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_index_1_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_index_1_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
       </material>
     </visual>
     <collision>
@@ -1021,11 +1093,11 @@
     </collision>
   </link>
   <joint name="left_index_1_joint" type="revolute">
-    <origin rpy="1.60570928804 -0.0230624359379 -1.57160543366" xyz="-0.048156 0.11125 0.045404"/>
+    <origin rpy="1.60572019555 0.0340027756015 -1.56961223797" xyz="-0.048156 0.11125 0.045404"/>
     <parent link="left_hand_base_link"/>
     <child link="left_index_1"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.62" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.517" velocity="100"/>
   </joint>
   <link name="left_index_2">
     <inertial>
@@ -1036,10 +1108,28 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/left_index_2.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_index_2_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_index_2_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_index_2_silver.STL"/>
+      </geometry>
+      <material name="inspire_silver">
+        <color rgba="0.60 0.61 0.64 1"/>
       </material>
     </visual>
     <collision>
@@ -1050,12 +1140,12 @@
     </collision>
   </link>
   <joint name="left_index_2_joint" type="revolute">
-    <origin rpy="0 -0 0.0242303183457" xyz="0.00259487212105013 0.0326721877470773 -0.000299999999999988"/>
+    <origin rpy="0 0 0.0134303183457" xyz="0.00259487212105013 0.0326721877470773 -0.000299999999999988"/>
     <parent link="left_index_1"/>
     <child link="left_index_2"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.377" velocity="100"/>
-    <mimic joint="left_index_1_joint" multiplier="0.85" offset="0"/>
+    <limit effort="1" lower="0" upper="1.35013" velocity="100"/>
+    <mimic joint="left_index_1_joint" multiplier="0.890" offset="0"/>
   </joint>
   <link name="left_middle_1">
     <inertial>
@@ -1066,10 +1156,19 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/left_middle_1.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_middle_1_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_middle_1_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
       </material>
     </visual>
     <collision>
@@ -1080,11 +1179,11 @@
     </collision>
   </link>
   <joint name="left_middle_1_joint" type="revolute">
-    <origin rpy="1.57080000168 -0.0302474957799 -1.57080011114" xyz="-0.026577 0.11125 0.046044"/>
+    <origin rpy="1.57080000132 0.0268525042197 -1.57079990134" xyz="-0.026577 0.11125 0.046044"/>
     <parent link="left_hand_base_link"/>
     <child link="left_middle_1"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.62" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.517" velocity="100"/>
   </joint>
   <link name="left_middle_2">
     <inertial>
@@ -1095,10 +1194,28 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/left_middle_2.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_middle_2_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_middle_2_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_middle_2_silver.STL"/>
+      </geometry>
+      <material name="inspire_silver">
+        <color rgba="0.60 0.61 0.64 1"/>
       </material>
     </visual>
     <collision>
@@ -1109,12 +1226,12 @@
     </collision>
   </link>
   <joint name="left_middle_2_joint" type="revolute">
-    <origin rpy="0 -0 0.0317598705691" xyz="0.0028436 0.032651 -0.0003"/>
+    <origin rpy="0 0 0.0209598705691" xyz="0.0028436 0.032651 -0.0003"/>
     <parent link="left_middle_1"/>
     <child link="left_middle_2"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.377" velocity="100"/>
-    <mimic joint="left_middle_1_joint" multiplier="0.85" offset="0"/>
+    <limit effort="1" lower="0" upper="1.35013" velocity="100"/>
+    <mimic joint="left_middle_1_joint" multiplier="0.890" offset="0"/>
   </joint>
   <link name="left_ring_1">
     <inertial>
@@ -1125,10 +1242,19 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/left_ring_1.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_ring_1_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_ring_1_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
       </material>
     </visual>
     <collision>
@@ -1139,11 +1265,11 @@
     </collision>
   </link>
   <joint name="left_ring_1_joint" type="revolute">
-    <origin rpy="1.51838056831 -0.0272178525657 -1.56937222492" xyz="-0.004945 0.11125 0.045939"/>
+    <origin rpy="1.51837669915 0.0298037635211 -1.57236350197" xyz="-0.004945 0.11125 0.045939"/>
     <parent link="left_hand_base_link"/>
     <child link="left_ring_1"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.62" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.517" velocity="100"/>
   </joint>
   <link name="left_ring_2">
     <inertial>
@@ -1154,10 +1280,28 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/left_ring_2.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_ring_2_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_ring_2_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_ring_2_silver.STL"/>
+      </geometry>
+      <material name="inspire_silver">
+        <color rgba="0.60 0.61 0.64 1"/>
       </material>
     </visual>
     <collision>
@@ -1168,12 +1312,12 @@
     </collision>
   </link>
   <joint name="left_ring_2_joint" type="revolute">
-    <origin rpy="0 -0 0.0286180295277" xyz="0.0031431 0.032624 -0.0003"/>
+    <origin rpy="0 0 0.0178180295277" xyz="0.0031431 0.032624 -0.0003"/>
     <parent link="left_ring_1"/>
     <child link="left_ring_2"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.377" velocity="100"/>
-    <mimic joint="left_ring_1_joint" multiplier="0.85" offset="0"/>
+    <limit effort="1" lower="0" upper="1.35013" velocity="100"/>
+    <mimic joint="left_ring_1_joint" multiplier="0.890" offset="0"/>
   </joint>
   <link name="left_little_1">
     <inertial>
@@ -1184,10 +1328,19 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/left_little_1.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_little_1_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_little_1_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
       </material>
     </visual>
     <collision>
@@ -1198,11 +1351,11 @@
     </collision>
   </link>
   <joint name="left_little_1_joint" type="revolute">
-    <origin rpy="1.46609698912 -0.00756999419343 -1.57000452558" xyz="0.016446 0.11125 0.042817"/>
+    <origin rpy="1.46597260093 0.0492171254337 -1.57597596558" xyz="0.016446 0.11125 0.042817"/>
     <parent link="left_hand_base_link"/>
     <child link="left_little_1"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.62" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.517" velocity="100"/>
   </joint>
   <link name="left_little_2">
     <inertial>
@@ -1213,10 +1366,28 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/left_little_2.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_little_2_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_little_2_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_little_2_silver.STL"/>
+      </geometry>
+      <material name="inspire_silver">
+        <color rgba="0.60 0.61 0.64 1"/>
       </material>
     </visual>
     <collision>
@@ -1227,12 +1398,12 @@
     </collision>
   </link>
   <joint name="left_little_2_joint" type="revolute">
-    <origin rpy="0 -0 0.00799225759443" xyz="0.0023072 0.032694 -0.0003"/>
+    <origin rpy="0 0 -0.00280774240557" xyz="0.0023072 0.032694 -0.0003"/>
     <parent link="left_little_1"/>
     <child link="left_little_2"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.377" velocity="100"/>
-    <mimic joint="left_little_1_joint" multiplier="0.85" offset="0"/>
+    <limit effort="1" lower="0" upper="1.35013" velocity="100"/>
+    <mimic joint="left_little_1_joint" multiplier="0.890" offset="0"/>
   </joint>
   <link name="right_hand_base_link">
     <inertial>
@@ -1243,10 +1414,28 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/base_link.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_hand_base_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_hand_base_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_hand_base_silver.STL"/>
+      </geometry>
+      <material name="inspire_silver">
+        <color rgba="0.60 0.61 0.64 1"/>
       </material>
     </visual>
     <collision>
@@ -1265,10 +1454,10 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/right_thumb_swing.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_thumb_swing_silver.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_silver">
+        <color rgba="0.60 0.61 0.64 1"/>
       </material>
     </visual>
     <collision>
@@ -1279,11 +1468,11 @@
     </collision>
   </link>
   <joint name="right_thumb_swing_joint" type="revolute">
-    <origin rpy="0 -0 -0.224255962277" xyz="-0.035227 -0.0908 -0.040206"/>
+    <origin rpy="0 0 -0.264255962277" xyz="-0.035227 -0.0908 -0.040206"/>
     <parent link="right_hand_base_link"/>
     <child link="right_thumb_swing"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1" lower="0" upper="1.19" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.2" velocity="100"/>
   </joint>
   <link name="right_thumb_1">
     <inertial>
@@ -1294,10 +1483,28 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/right_thumb_1.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_thumb_1_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_thumb_1_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_thumb_1_silver.STL"/>
+      </geometry>
+      <material name="inspire_silver">
+        <color rgba="0.60 0.61 0.64 1"/>
       </material>
     </visual>
     <collision>
@@ -1308,11 +1515,11 @@
     </collision>
   </link>
   <joint name="right_thumb_1_joint" type="revolute">
-    <origin rpy="-1.57080000191 0.0322660551661 -0.037536118561" xyz="-0.0096402 0.0097687 0.00125"/>
+    <origin rpy="-1.57080004631 0.157966055165 -0.0375365851163" xyz="-0.0096402 0.0097687 0.00125"/>
     <parent link="right_thumb_swing"/>
     <child link="right_thumb_1"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="0.66" velocity="100"/>
+    <limit effort="1" lower="0" upper="0.624" velocity="100"/>
   </joint>
   <link name="right_thumb_2">
     <inertial>
@@ -1323,10 +1530,19 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/right_thumb_2.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_thumb_2_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_thumb_2_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
       </material>
     </visual>
     <collision>
@@ -1337,12 +1553,12 @@
     </collision>
   </link>
   <joint name="right_thumb_2_joint" type="revolute">
-    <origin rpy="0 0 0.0129064220665" xyz="-0.0385855343215257 -0.0137354280979689 -0.00085000000007604"/>
+    <origin rpy="0 0 -0.194493577934" xyz="-0.0385855343215257 -0.0137354280979689 -0.00085000000007604"/>
     <parent link="right_thumb_1"/>
     <child link="right_thumb_2"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="0.264" velocity="100"/>
-    <mimic joint="right_thumb_1_joint" multiplier="0.40" offset="0"/>
+    <limit effort="1" lower="0" upper="0.375024" velocity="100"/>
+    <mimic joint="right_thumb_1_joint" multiplier="0.601" offset="0"/>
   </joint>
   <link name="right_thumb_3">
     <inertial>
@@ -1353,10 +1569,28 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/right_thumb_3.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_thumb_3_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_thumb_3_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_thumb_3_silver.STL"/>
+      </geometry>
+      <material name="inspire_silver">
+        <color rgba="0.60 0.61 0.64 1"/>
       </material>
     </visual>
     <collision>
@@ -1367,12 +1601,12 @@
     </collision>
   </link>
   <joint name="right_thumb_3_joint" type="revolute">
-    <origin rpy="0 0 0.0193596330998" xyz="-0.0204656980659991 -0.00837680232935447 0.000199999999999881"/>
+    <origin rpy="0 0 -0.0674403669002" xyz="-0.0204656980659991 -0.00837680232935447 0.000199999999999881"/>
     <parent link="right_thumb_2"/>
     <child link="right_thumb_3"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="0.396" velocity="100"/>
-    <mimic joint="right_thumb_1_joint" multiplier="0.60" offset="0"/>
+    <limit effort="1" lower="0" upper="0.361296" velocity="100"/>
+    <mimic joint="right_thumb_1_joint" multiplier="0.579" offset="0"/>
   </joint>
   <link name="right_index_1">
     <inertial>
@@ -1383,10 +1617,19 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/right_index_1.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_index_1_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_index_1_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
       </material>
     </visual>
     <collision>
@@ -1397,11 +1640,11 @@
     </collision>
   </link>
   <joint name="right_index_1_joint" type="revolute">
-    <origin rpy="-1.60570928804 -0.0230624359379 1.57160543366" xyz="-0.048156 -0.11125 0.045404"/>
+    <origin rpy="-1.60572019555 0.0340027756015 1.56961223797" xyz="-0.048156 -0.11125 0.045404"/>
     <parent link="right_hand_base_link"/>
     <child link="right_index_1"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.62" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.517" velocity="100"/>
   </joint>
   <link name="right_index_2">
     <inertial>
@@ -1412,10 +1655,28 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/right_index_2.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_index_2_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_index_2_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_index_2_silver.STL"/>
+      </geometry>
+      <material name="inspire_silver">
+        <color rgba="0.60 0.61 0.64 1"/>
       </material>
     </visual>
     <collision>
@@ -1426,12 +1687,12 @@
     </collision>
   </link>
   <joint name="right_index_2_joint" type="revolute">
-    <origin rpy="0 -0 -0.0242303183457" xyz="0.00259487212105013 -0.0326721877470773 -0.000299999999999988"/>
+    <origin rpy="0 0 -0.0134303183457" xyz="0.00259487212105013 -0.0326721877470773 -0.000299999999999988"/>
     <parent link="right_index_1"/>
     <child link="right_index_2"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.377" velocity="100"/>
-    <mimic joint="right_index_1_joint" multiplier="0.85" offset="0"/>
+    <limit effort="1" lower="0" upper="1.35013" velocity="100"/>
+    <mimic joint="right_index_1_joint" multiplier="0.890" offset="0"/>
   </joint>
   <link name="right_middle_1">
     <inertial>
@@ -1442,10 +1703,19 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/right_middle_1.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_middle_1_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_middle_1_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
       </material>
     </visual>
     <collision>
@@ -1456,11 +1726,11 @@
     </collision>
   </link>
   <joint name="right_middle_1_joint" type="revolute">
-    <origin rpy="-1.57080000168 -0.0302474957799 1.57080011114" xyz="-0.026577 -0.11125 0.046044"/>
+    <origin rpy="-1.57080000132 0.0268525042197 1.57079990134" xyz="-0.026577 -0.11125 0.046044"/>
     <parent link="right_hand_base_link"/>
     <child link="right_middle_1"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.62" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.517" velocity="100"/>
   </joint>
   <link name="right_middle_2">
     <inertial>
@@ -1471,10 +1741,28 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/right_middle_2.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_middle_2_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_middle_2_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_middle_2_silver.STL"/>
+      </geometry>
+      <material name="inspire_silver">
+        <color rgba="0.60 0.61 0.64 1"/>
       </material>
     </visual>
     <collision>
@@ -1485,12 +1773,12 @@
     </collision>
   </link>
   <joint name="right_middle_2_joint" type="revolute">
-    <origin rpy="0 -0 -0.0317598705691" xyz="0.0028436 -0.032651 -0.0003"/>
+    <origin rpy="0 0 -0.0209598705691" xyz="0.0028436 -0.032651 -0.0003"/>
     <parent link="right_middle_1"/>
     <child link="right_middle_2"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.377" velocity="100"/>
-    <mimic joint="right_middle_1_joint" multiplier="0.85" offset="0"/>
+    <limit effort="1" lower="0" upper="1.35013" velocity="100"/>
+    <mimic joint="right_middle_1_joint" multiplier="0.890" offset="0"/>
   </joint>
   <link name="right_ring_1">
     <inertial>
@@ -1501,10 +1789,19 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/right_ring_1.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_ring_1_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_ring_1_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
       </material>
     </visual>
     <collision>
@@ -1515,11 +1812,11 @@
     </collision>
   </link>
   <joint name="right_ring_1_joint" type="revolute">
-    <origin rpy="-1.51838056831 -0.0272178525657 1.56937222492" xyz="-0.004945 -0.11125 0.045939"/>
+    <origin rpy="-1.51837669915 0.0298037635211 1.57236350197" xyz="-0.004945 -0.11125 0.045939"/>
     <parent link="right_hand_base_link"/>
     <child link="right_ring_1"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.62" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.517" velocity="100"/>
   </joint>
   <link name="right_ring_2">
     <inertial>
@@ -1530,10 +1827,28 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/right_ring_2.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_ring_2_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_ring_2_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_ring_2_silver.STL"/>
+      </geometry>
+      <material name="inspire_silver">
+        <color rgba="0.60 0.61 0.64 1"/>
       </material>
     </visual>
     <collision>
@@ -1544,12 +1859,12 @@
     </collision>
   </link>
   <joint name="right_ring_2_joint" type="revolute">
-    <origin rpy="0 -0 -0.0286180295277" xyz="0.0031431 -0.032624 -0.0003"/>
+    <origin rpy="0 0 -0.0178180295277" xyz="0.0031431 -0.032624 -0.0003"/>
     <parent link="right_ring_1"/>
     <child link="right_ring_2"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.377" velocity="100"/>
-    <mimic joint="right_ring_1_joint" multiplier="0.85" offset="0"/>
+    <limit effort="1" lower="0" upper="1.35013" velocity="100"/>
+    <mimic joint="right_ring_1_joint" multiplier="0.890" offset="0"/>
   </joint>
   <link name="right_little_1">
     <inertial>
@@ -1560,10 +1875,19 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/right_little_1.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_little_1_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_little_1_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
       </material>
     </visual>
     <collision>
@@ -1574,11 +1898,11 @@
     </collision>
   </link>
   <joint name="right_little_1_joint" type="revolute">
-    <origin rpy="-1.46609698912 -0.00756999419343 1.57000452558" xyz="0.016446 -0.11125 0.042817"/>
+    <origin rpy="-1.46597260093 0.0492171254337 1.57597596558" xyz="0.016446 -0.11125 0.042817"/>
     <parent link="right_hand_base_link"/>
     <child link="right_little_1"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.62" velocity="100"/>
+    <limit effort="1" lower="0" upper="1.517" velocity="100"/>
   </joint>
   <link name="right_little_2">
     <inertial>
@@ -1589,10 +1913,28 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/right_little_2.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_little_2_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_little_2_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_right/visual/right_little_2_silver.STL"/>
+      </geometry>
+      <material name="inspire_silver">
+        <color rgba="0.60 0.61 0.64 1"/>
       </material>
     </visual>
     <collision>
@@ -1603,12 +1945,12 @@
     </collision>
   </link>
   <joint name="right_little_2_joint" type="revolute">
-    <origin rpy="0 -0 -0.00799225759443" xyz="0.0023072 -0.032694 -0.0003"/>
+    <origin rpy="0 0 0.00280774240557" xyz="0.0023072 -0.032694 -0.0003"/>
     <parent link="right_little_1"/>
     <child link="right_little_2"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1" lower="0" upper="1.377" velocity="100"/>
-    <mimic joint="right_little_1_joint" multiplier="0.85" offset="0"/>
+    <limit effort="1" lower="0" upper="1.35013" velocity="100"/>
+    <mimic joint="right_little_1_joint" multiplier="0.890" offset="0"/>
   </joint>
   <!-- Left hand attached to left_wrist_yaw_link -->
   <joint name="left_inspire_hand_mount_joint" type="fixed">

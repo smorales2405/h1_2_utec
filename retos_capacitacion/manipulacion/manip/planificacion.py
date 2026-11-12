@@ -129,8 +129,7 @@ class Planificador:
         """Una Cinematica con los dedos en la preforma `nombre`: la yema se mueve con la flexion del indice."""
         cache = self.__dict__.setdefault("_cin_preforma", {})
         if nombre not in cache:
-            from sim.escena import angle_set_a_rad
-            from .cinematica import DOF_MANO, Cinematica
+            from .cinematica import DOF_MANO, Cinematica, angle_set_a_rad
             rad = angle_set_a_rad([1000 if v is None or v < 0 else v for v in self.objetos["preformas"][nombre]])
             cache[nombre] = Cinematica.desde_config(self.cfg, dedos={l: dict(zip(DOF_MANO, rad)) for l in ("izq", "der")})
         return cache[nombre]
@@ -365,7 +364,7 @@ class Planificador:
         """La mano del gemelo en la preforma (ANGLE_SET), para comprobar colisiones con los dedos como iran."""
         if self.gemelo is None:
             return
-        from sim.escena import angle_set_a_rad
+        from .cinematica import angle_set_a_rad
         a = [1000 if v is None or v < 0 else v for v in angle_set]
         self.gemelo[0].poner_mano(lado, angle_set_a_rad(a))
 

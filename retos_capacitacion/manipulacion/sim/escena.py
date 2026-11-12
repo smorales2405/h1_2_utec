@@ -21,7 +21,7 @@ import mujoco
 import numpy as np
 
 from manip import config
-from manip.cinematica import DOF_MANO, MIMIC, PREFIJO
+from manip.cinematica import PREFIJO, angle_set_a_rad, juntas_mano  # noqa: F401  (angle_set_a_rad: lo usa sim/simulacion.py)
 from manip.geometria import T, aplicar, inv
 from manip.mensajes import LADOS
 
@@ -317,7 +317,6 @@ class Estado:
 
     def __init__(self, m, info):
         self.m, self.d = m, mujoco.MjData(m)
-        self.mimic = mm.Mimic(m)
         self.adr = {}
         for j in range(m.njnt):
             self.adr[mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_JOINT, j)] = m.jnt_qposadr[j]
@@ -334,8 +333,9 @@ class Estado:
             self.d.qpos[self.adr[nombre_junta(lado, i)]] = q7[i]
 
     def poner_mano(self, lado, rad6):
-        """rad6: las 6 juntas actuadas en el orden de DOF_MANO (0 = abierta)."""
-        for k, v in zip(DOF_MANO, rad6):
+        """rad6: las 6 juntas actuadas en el orden de DOF_MANO (0 = abierta). Las acopladas, en sus curvas medidas
+        (juntas_mano, como la Cinematica; la restriccion polinomica del modelo solo actua al integrar)."""
+        for k, v in juntas_mano(rad6).items():
             self.d.qpos[self.adr[f"{PREFIJO[lado]}_{k}_joint"]] = v
 
     def poner_objeto(self, clave, p=None, R=None):
@@ -345,17 +345,7 @@ class Estado:
         self.d.mocap_quat[i] = [1, 0, 0, 0] if R is None else _quat(R)
 
     def adelante(self):
-        self.mimic.aplicar(self.d.qpos)
         mujoco.mj_forward(self.m, self.d)
 
 
-def angle_set_a_rad(a6):
-    """ANGLE_SET (0 cerrado, 1000 abierto) -> rad de las 6 juntas actuadas, a tramos como
-    selector_poses_manos/conversion_angle_set.py (medido con fotos a 0, 500 y 1000)."""
-    s = 1.0 - np.clip(np.asarray(a6, float), 0, 1000) / 1000.0
-    medio = np.array([1.05, 1.05, 1.05, 1.05, 0.38, 0.61])
-    total = np.array([1.62, 1.62, 1.62, 1.62, 0.66, 1.19])
-    return np.where(s <= 0.5, medio * s / 0.5, medio + (total - medio) * (s - 0.5) / 0.5)
-
-
-__all__ = ["construir", "Estado", "angle_set_a_rad", "MIMIC", "inv", "T"]
+__all__ = ["construir", "Estado", "angle_set_a_rad", "inv", "T"]

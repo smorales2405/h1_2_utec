@@ -43,7 +43,7 @@ import editor_poses_mujoco_h1_2_manos as ed
 
 gm = ed.gm
 CLAVES = ed.CLAVES
-from conversion_angle_set import rad_a_angle_set   # noqa: E402  (en sys.path desde el editor)
+from conversion_angle_set import Q as Q_CURVA, S as S_CURVA, rad_a_angle_set   # noqa: E402  (en sys.path desde el editor)
 
 SEL = ed.constantes_del_selector("Kp", "Kd", "DURACION_MINIMA_PRIMER_MOVIMIENTO", "HZ_MANO", "FMAX_MANO",
                                  "TOL_LLEGADA", "T_LLEGADA_MAX")
@@ -85,14 +85,15 @@ def recortar(j, q, lim):
 
 class ManoSim:
     """Una mano Inspire vista desde el selector: recibe posturas a HZ_MANO y su firmware las sigue con
-    RETARDO_MANO de retraso y a velocidad limitada (servo de posición sobre esa consigna)."""
+    RETARDO_MANO de retraso y a velocidad constante en ANGLE_SET (servo de posición sobre esa consigna); cada
+    junta pasa de s a rad por su curva medida (conversion_angle_set)."""
 
     def __init__(self, m, lado):
         self.lado = lado
         prefijo = gm.LADOS[lado]
         self.qadr = np.array([m.jnt_qposadr[m.joint(f"{prefijo}_{k}_joint").id] for k in CLAVES])
         self.act = np.array([m.actuator(f"{prefijo}_{k}").id for k in CLAVES])
-        self.vel = np.array([mod.VEL_MANO[k] for k in CLAVES])
+        self.vel_s = np.array([1.0 / mod.T_RECORRIDO_MANO[k] for k in CLAVES])      # s por segundo
         # cuerpos de cada DOF, para la fuerza de contacto
         piezas = {0: ("little_1", "little_2"), 1: ("ring_1", "ring_2"), 2: ("middle_1", "middle_2"),
                   3: ("index_1", "index_2"), 4: ("thumb_1", "thumb_2", "thumb_3"), 5: ("thumb_swing",)}
@@ -101,7 +102,8 @@ class ManoSim:
 
     def reiniciar(self):
         self.q_cmd = np.zeros(6)                # lo último que mandó el selector
-        self.consigna = np.zeros(6)             # lo que persigue el firmware
+        self.consigna = np.zeros(6)             # lo que persigue el firmware (rad)
+        self.s_consigna = np.zeros(6)           # la misma, en s = 1 - ANGLE_SET/1000
         self.historial = deque([(-1.0, np.zeros(6))])
         self.fases, self.duraciones = [], []
         self.detenida = ""
@@ -112,6 +114,7 @@ class ManoSim:
     def poner(self, q, d):
         """Coloca la mano en q (rad, orden CLAVES) sin moverla: postura, orden y consigna."""
         self.q_cmd, self.consigna = q.copy(), q.copy()
+        self.s_consigna = self._s(q)
         self.historial = deque([(-1.0, q.copy())])
         d.qpos[self.qadr] = q
 
@@ -176,12 +179,18 @@ class ManoSim:
                 self._siguiente_fase(t)
 
     def servo(self, t, dt, d):
-        """Cada paso de física: la orden de hace RETARDO_MANO, seguida a velocidad limitada."""
+        """Cada paso de física: la orden de hace RETARDO_MANO, seguida a velocidad constante en s."""
         while len(self.historial) > 1 and self.historial[1][0] <= t - mod.RETARDO_MANO:
             self.historial.popleft()
-        destino = self.historial[0][1]
-        self.consigna += np.clip(destino - self.consigna, -self.vel * dt, self.vel * dt)
+        s_destino = self._s(self.historial[0][1])
+        self.s_consigna += np.clip(s_destino - self.s_consigna, -self.vel_s * dt, self.vel_s * dt)
+        self.consigna = np.array([np.interp(self.s_consigna[i], S_CURVA, Q_CURVA[i]) for i in range(6)])
         d.ctrl[self.act] = self.consigna
+
+    @staticmethod
+    def _s(q):
+        """rad de las 6 actuadas (orden CLAVES) -> s, por las curvas medidas."""
+        return np.array([np.interp(q[i], Q_CURVA[i], S_CURVA) for i in range(6)])
 
 
 class Simulador:

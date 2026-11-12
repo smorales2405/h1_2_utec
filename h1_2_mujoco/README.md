@@ -55,9 +55,14 @@ en radianes del URDF (0 = abierta); entre paréntesis, el ANGLE_SET que manda el
 | Gesto | meñique, anular, medio | índice | pulgar flexión (`thumb_1`) | pulgar rotación (`thumb_swing`) |
 |---|---|---|---|---|
 | `abierta` | 0 (1000) | 0 (1000) | 0 (1000) | 0 (1000) |
-| `cerrada` | 1.62 (0) | 1.62 (0) | 0.492 (300) | 0 (1000) |
-| `pulgar_arriba` | 1.62 (0) | 1.62 (0) | 0 (1000) | 0 (1000) |
-| `senalar` | 1.62 (0) | 0 (1000) | 0.66 (0) | 0.61 (500) |
+| `cerrada` | 1.517 (0) | 1.517 (0) | 0.477 (300) | 0 (1000) |
+| `pulgar_arriba` | 1.517 (0) | 1.517 (0) | 0 (1000) | 0 (1000) |
+| `senalar` | 1.517 (0) | 0 (1000) | 0.624 (0) | 0.68 (500) |
+
+El paso de radianes a ANGLE_SET son las curvas medidas en la mano real (acople por software de
+`h1_2_inspire_description`, `config/hand_coupling.yaml`), con q = 0 en la mano abierta real. Hasta el
+2026-11-12 el cero era el del manual y la tabla tenía tres puntos (dedos 1.62, flexión 0.66, rotación 1.19
+cerradas): las rutinas de `poses/` se convirtieron conservando el ANGLE_SET que manda el selector.
 
 **`cerrada` sigue el orden de `puno()`** (`code_cap/caja_cuadrado.py`): abre la flexión del pulgar, lleva
 su rotación a su sitio, cierra los cuatro dedos y flexiona el pulgar. El resto de posturas van de una
@@ -96,9 +101,9 @@ El del selector de `code_cap`, con una clave `manos` por paso:
 **Límites de la comprobación:**
 - MuJoCo choca con la **envolvente convexa** de cada malla: en zonas cóncavas (hueco de la palma, torso)
   puede avisar de más, nunca de menos.
-- El modelo no es el robot: el acoplamiento de los dedos es lineal (0.85) y el real no (a medio recorrido
-  la punta del modelo va ~13° más doblada); los ceros de la mano tienen ~3° de error (3-6° en la rotación
-  del pulgar); en el robot el brazo cede hasta ~0.15 rad por gravedad. De ahí el margen.
+- El modelo no es el robot: las falanges acopladas siguen a su junta actuada con una cuártica ajustada a
+  las curvas medidas (a menos de 0.007 rad de ellas; las curvas, a 0.05 rad rms de las fotos); en el robot
+  el brazo cede hasta ~0.15 rad por gravedad. De ahí el margen.
 - Los brazos siguen en el robot el mismo camino que en `p` (los dos interpolan en línea recta). La mano real
   no exactamente: su control interno va con retraso. En las manos, lo fiable son los pasos capturados.
 
@@ -176,7 +181,8 @@ Al asentarse, la terminal dice a qué altura queda la pelvis y si los pies tocan
   `frictionloss` 0.2 y los límites de par de cada motor).
 - Cada mano recibe postura a 25 Hz y la sigue como su firmware, con lo medido en la caracterización
   (`inspire_hand_interface/Caracterizacion`): ~65 ms de retardo y velocidad constante con `SPEED_SET` 1000
-  (dedos 1.62 rad en 0.6 s, flexión del pulgar 0.66 rad en 0.28 s, rotación 1.19 rad en 0.5 s). `cerrada`
+  (de abierta a cerrada: dedos en 0.6 s, flexión del pulgar en 0.28 s, rotación en 0.5 s). La velocidad
+  constante es la del actuador, en ANGLE_SET; cada junta la sigue por su curva medida. `cerrada`
   va por fases, esperando a que cada una termine. Si un dedo empuja más de 800 gf, se abre y la mano se para.
 
 **Qué informa**, por paso: los contactos (brazo con cuerpo, mano con cualquier parte, con el suelo) con su
@@ -196,10 +202,13 @@ que ya se tocan en la pose cero no colisionan.
 |---|---|
 | `editor_mujoco.sh` | lanzador (busca un python con `mujoco`; `PY=/ruta/python` para otro) |
 | `editor_gui.sh` / `editor_gui.py` | la interfaz gráfica (Qt) |
+| `ver_manos.py` | visor quieto para mirar las manos: `python3 ver_manos.py --angle-set=1000,1000,500,500,1000,0` (orden del SDK), `0.6` (los 6 DOF a s = 0.6), `der`, `--mimic` |
 | `editor_poses_mujoco_h1_2_manos.py` | el editor |
 | `simulador_fisica.py` | el modo física (`--fisica`) |
-| `modelo_h1_2_manos.py` | carga el URDF en MuJoCo (sin modificarlo), juntas mimic, colisiones y el modelo con física |
+| `modelo_h1_2_manos.py` | carga el URDF en MuJoCo (sin modificarlo), el acople de las falanges, colisiones y el modelo con física |
 
 Necesita `mujoco` ≥ 3.2 (probado con 3.14.0, el `python3` de este PC), el URDF
-`ros_h1_2_ws/src/h1_2_inspire_description/urdf/h1_2_with_RH56DFTP_hands.urdf` y, para los límites de los
+`ros_h1_2_ws/src/h1_2_inspire_description/urdf/h1_2_with_RH56DFTP_hands_software_coupling.urdf` (sin
+`<mimic>`; `URDF_MIMIC` en `modelo_h1_2_manos.py` es la variante con `<mimic>`, lineal), con las curvas de
+`config/hand_coupling.yaml` y `scripts/hand_coupling.py` del mismo paquete, y, para los límites de los
 brazos y los gestos, `h1_2_joint_control/scripts/selector_poses_manos/`. No usa el SDK de Unitree.

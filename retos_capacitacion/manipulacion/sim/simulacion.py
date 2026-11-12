@@ -164,7 +164,6 @@ class MundoSimulado:
         cache = self.__dict__.setdefault("_cin_dedos_cache", {})
         if clave not in cache:
             from manip.cinematica import DOF_MANO, Cinematica
-            from sim.escena import angle_set_a_rad
             rad = angle_set_a_rad(list(clave))
             cache[clave] = Cinematica.desde_config(self.cfg, dedos={l: dict(zip(DOF_MANO, rad)) for l in ("izq", "der")})
         return cache[clave]

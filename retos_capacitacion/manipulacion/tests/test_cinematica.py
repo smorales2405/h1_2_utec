@@ -24,7 +24,7 @@ def test_yema_en_la_mano(cin):
         M = cin.fk(lado, q0, "mano")
         Y = cin.fk(lado, q0, "yema")
         p = aplicar(inv(M), Y[:3, 3])
-        assert np.allclose(p, [0.2914, -s * 0.0085, 0.0358], atol=1e-3)
+        assert np.allclose(p, [0.2907, -s * 0.0139, 0.0358], atol=1e-3)     # indice abierto (ANGLE_SET 1000)
 
 
 def test_camara_del_urdf(cin):

@@ -1,13 +1,15 @@
 """Cinematica de los brazos sobre el URDF del repo (pinocchio 3 en el PC2 y 4 en la PC): FK e IK propia.
 
 Modelo reducido a las 14 juntas de los brazos: piernas, cintura y dedos quedan fijos en la configuracion
-de referencia (la cintura en la q que se sujeta, los dedos en el gesto que se de, con sus juntas mimic).
+de referencia (la cintura en la q que se sujeta, los dedos en el gesto que se de, con sus falanges acopladas sobre
+las curvas medidas en la mano real: juntas_mano).
 Todo sale en el marco del torso (torso_link): los brazos cuelgan de el y la camara tambien, asi que nada
 depende de las piernas.
 
 Marcos (por lado, "izq" / "der"):
   mano   *_wrist_yaw_link: dedos en +x, indice en +z; palma hacia -y en la izquierda y +y en la derecha
-  yema   punta del indice, medida en la malla de *_index_2 (con el indice extendido: x 0.291 en mano con la mano montada en x=0.161; 0.295 con el 0.165 de antes)
+  yema   punta del indice, medida en la malla de *_index_2 (con el indice abierto, ANGLE_SET 1000: (0.2907, -+0.0139, 0.0358)
+         en mano, con la mano montada en x=0.161; hasta el 2026-11-12, con el cero del manual, (0.2914, -+0.0085, 0.0358))
 El punto de agarre (objetos.yaml) y el marcador del dorso (calibracion) son transformaciones en `mano`.
 
 IK: minimos cuadrados amortiguados con limites (web n URDF, con margen) desde varias semillas. La tarea
@@ -17,6 +19,8 @@ orientaciones: con tolerancia, porque la muneca solo cabecea +-27 grados.
 """
 
 import math
+import os
+import sys
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -29,9 +33,8 @@ from .mensajes import JUNTAS_BRAZO, LADOS
 
 PREFIJO = {"izq": "left", "der": "right"}
 NOMBRES_BRAZO = ("shoulder_pitch", "shoulder_roll", "shoulder_yaw", "elbow", "wrist_roll", "wrist_pitch", "wrist_yaw")
+# Las 6 juntas actuadas de la mano, en el orden de ANGLE_SET (q = 0: la mano abierta real, ANGLE_SET 1000)
 DOF_MANO = ("little_1", "ring_1", "middle_1", "index_1", "thumb_1", "thumb_swing")
-MIMIC = {"little_2": ("little_1", 0.85), "ring_2": ("ring_1", 0.85), "middle_2": ("middle_1", 0.85),
-         "index_2": ("index_1", 0.85), "thumb_2": ("thumb_1", 0.40), "thumb_3": ("thumb_1", 0.60)}
 # Punta del indice en *_index_2 (malla; el dedo va por +y en la izquierda y por -y en la derecha)
 YEMA_LOCAL = {"izq": np.array([0.0079, 0.0517, -0.0075]), "der": np.array([0.0079, -0.0517, -0.0075])}
 # Ejes de la mano en `mano` (*_wrist_yaw_link)
@@ -54,6 +57,36 @@ SEMILLAS_IZQ = [
     [-0.20, 0.00, 0.03, 1.20, 0.00, -0.41, 0.31],
     [-0.40, 0.10, 0.30, 1.00, -1.50, 0.00, 0.00],
 ]
+
+
+_ACOPLE = None
+
+
+def acople():
+    """El acople de la mano del paquete h1_2_inspire_description (hand_coupling.HandCoupling): las curvas de las 12
+    juntas de cada mano en funcion de ANGLE_SET, medidas en fotos de la mano real. En el PC2, la copia de modelo/."""
+    global _ACOPLE
+    if _ACOPLE is None:
+        ruta = os.path.join(config.ruta_repo(), config.RELATIVO_ACOPLE)
+        if ruta not in sys.path:
+            sys.path.insert(0, ruta)
+        from hand_coupling import HandCoupling
+        _ACOPLE = HandCoupling()
+    return _ACOPLE
+
+
+def angle_set_a_rad(a6):
+    """ANGLE_SET (o ANGLE_ACT) de una mano, orden del SDK (0 cerrado, 1000 abierto) -> rad de las 6 juntas actuadas,
+    en el orden de DOF_MANO, por las curvas medidas."""
+    q = acople().joints_from_angle_set(a6, "left")
+    return np.array([q[f"left_{k}_joint"] for k in DOF_MANO])
+
+
+def juntas_mano(rad6):
+    """Las 6 actuadas (DOF_MANO, rad) -> {sufijo: rad} de las 12 juntas de la mano: las acopladas (*_2, thumb_2,
+    thumb_3) en su curva, a la altura de la actuada."""
+    q = acople().couple(dict(zip(DOF_MANO, (float(v) for v in rad6))), "left")
+    return {k[len("left_"):-len("_joint")]: v for k, v in q.items()}
 
 
 def espejo(q7):
@@ -132,10 +165,8 @@ class Cinematica:
         for lado in LADOS:
             d = dict.fromkeys(DOF_MANO, 0.0)
             d.update((dedos or {}).get(lado, {}))
-            for k, v in d.items():
+            for k, v in juntas_mano([d[k] for k in DOF_MANO]).items():
                 poner(f"{PREFIJO[lado]}_{k}_joint", v)
-            for k, (origen, mult) in MIMIC.items():
-                poner(f"{PREFIJO[lado]}_{k}_joint", mult * d[origen])
         mantener = {nombre_junta(lado, i) for lado in LADOS for i in range(7)}
         bloquear = [j for j in range(1, completo.njoints) if completo.names[j] not in mantener]
         self.model = pin.buildReducedModel(completo, bloquear, q_ref)

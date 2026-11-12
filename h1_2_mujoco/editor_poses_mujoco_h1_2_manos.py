@@ -250,7 +250,7 @@ class Editor:
                 jid = mujoco.mj_name2id(self.m, mujoco.mjtObj.mjOBJ_JOINT, f"{prefijo}_{k}_joint")
                 if jid < 0:
                     raise RuntimeError(f"el modelo no tiene la junta {prefijo}_{k}_joint")
-                if abs(self.m.jnt_range[jid][1] - qmax) > 1e-6:
+                if abs(self.m.jnt_range[jid][1] - qmax) > 1e-3:       # el URDF redondea a 3 decimales
                     raise RuntimeError(f"{prefijo}_{k}_joint: el URDF cierra en {self.m.jnt_range[jid][1]} "
                                        f"y conversion_angle_set en {qmax}")
                 self.qadr_mano[lado][k] = self.m.jnt_qposadr[jid]

@@ -40,15 +40,18 @@ DEDOS = ("little_1", "ring_1", "middle_1", "index_1")
 NOMBRE_DOF = {"little_1": "meñique", "ring_1": "anular", "middle_1": "medio", "index_1": "índice",
               "thumb_1": "pulgar flex.", "thumb_swing": "pulgar rot."}
 
+# En ANGLE_SET (conversion_angle_set): cerrada [0, 0, 0, 0, 300, 1000], pulgar_arriba [0, 0, 0, 0, 1000, 1000],
+# senalar [0, 0, 0, 1000, 0, 500]. En rad, con las curvas medidas (hasta el 2026-11-12, con el cero del manual y la
+# tabla de tres puntos, eran 1.62 los dedos, 0.492 y 0.66 la flexion y 0.61 la rotacion: el mismo ANGLE_SET).
 GESTOS = {
     "abierta":       {"little_1": 0.0, "ring_1": 0.0, "middle_1": 0.0, "index_1": 0.0,
                       "thumb_1": 0.0, "thumb_swing": 0.0},
-    "cerrada":       {"little_1": 1.62, "ring_1": 1.62, "middle_1": 1.62, "index_1": 1.62,
-                      "thumb_1": 0.492, "thumb_swing": 0.0},
-    "pulgar_arriba": {"little_1": 1.62, "ring_1": 1.62, "middle_1": 1.62, "index_1": 1.62,
+    "cerrada":       {"little_1": 1.517, "ring_1": 1.517, "middle_1": 1.517, "index_1": 1.517,
+                      "thumb_1": 0.4769, "thumb_swing": 0.0},
+    "pulgar_arriba": {"little_1": 1.517, "ring_1": 1.517, "middle_1": 1.517, "index_1": 1.517,
                       "thumb_1": 0.0, "thumb_swing": 0.0},
-    "senalar":       {"little_1": 1.62, "ring_1": 1.62, "middle_1": 1.62, "index_1": 0.0,
-                      "thumb_1": 0.66, "thumb_swing": 0.61},
+    "senalar":       {"little_1": 1.517, "ring_1": 1.517, "middle_1": 1.517, "index_1": 0.0,
+                      "thumb_1": 0.6239, "thumb_swing": 0.68},
 }
 ALIAS = {"señalar": "senalar"}
 

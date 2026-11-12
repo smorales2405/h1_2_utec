@@ -3,6 +3,11 @@
      Adds a world link and a fixed base joint so RViz can display the hand alone. -->
 <robot name="inspire_hand_left" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
+  <!-- How the coupled phalanges follow the actuated joints: mimic (default, <mimic> tags) or
+       software (no <mimic>; scripts/hand_coupling_node.py publishes all 12 joints per hand from
+       the curves in config/hand_coupling.yaml). Example: xacro this_file coupling:=software -->
+  <xacro:arg name="coupling" default="mimic"/>
+
   <link name="world"/>
 
   <joint name="L_hand_base_joint" type="fixed">

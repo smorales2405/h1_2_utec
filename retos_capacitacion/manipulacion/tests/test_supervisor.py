@@ -175,7 +175,12 @@ def test_el_toque_con_el_indice_vertical(tmp_path):
         bajo = np.degrees(np.arcsin(-(R @ EJE_DEDO_YEMA[lado])[2]))
         assert 55 <= bajo <= 90, (lado, xy, bajo)
         palma = pl.cin_preforma("senalar").fk(lado, q_apr, "mano")[:3, :3] @ EJE_PALMA[lado]
-        assert palma[0] < -0.6, (lado, xy, palma)                         # la palma al robot, el dorso al frente
+        # la palma al robot, el dorso al frente (palma_min 0.7; relajada, 0.4). En (0.40, -0.20), junto a la bandeja C,
+        # con el modelo de la mano del 2026-11-12 (el indice abierto algo doblado, como el real) la orientacion de la
+        # configuracion deja el indice a 5 mm de la bandeja: va la relajada (RESULTADOS §56)
+        relajada = plan.detalle["orientacion"] == "relajada"
+        assert not relajada or (lado, xy) == ("der", (0.40, -0.20)), (lado, xy)
+        assert palma[0] < (-0.3 if relajada else -0.6), (lado, xy, palma)
         pl.mano_gemelo(lado, [1000] * 6)
     if t.mundo is not None:
         t.mundo.parar()

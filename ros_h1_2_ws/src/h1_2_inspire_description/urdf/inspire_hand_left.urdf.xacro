@@ -1,11 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Inspire RH56DFTP left hand — fragment included by combined and standalone files.
      Root link: left_hand_base_link
+     Every link has one visual per colour (black, white, silver), each on its own
+     mesh in meshes/hand_left/visual/, and the whole link mesh as collision; see
+     "Hand colours" in the README.
      Actuated joints (6): left_thumb_swing_joint, left_thumb_1_joint,
        left_index_1_joint, left_middle_1_joint, left_ring_1_joint, left_little_1_joint
-     Mimic joints: left_thumb_2_joint (0.40×), left_thumb_3_joint (0.60×),
-       left_index_2_joint (0.85×), left_middle_2_joint (0.85×),
-       left_ring_2_joint (0.85×), left_little_2_joint (0.85×)
+     Coupled joints (6): left_thumb_2_joint, left_thumb_3_joint, left_index_2_joint,
+       left_middle_2_joint, left_ring_2_joint, left_little_2_joint. How they follow the
+       actuated joints depends on the xacro argument `coupling`:
+         coupling:=mimic (default)  <mimic> tags: thumb_2 = 0.601 x thumb_1,
+             thumb_3 = 0.579 x thumb_1, finger *_2 = 0.890 x *_1. Linear, so an
+             approximation of the real hand (fingertips within 3 mm of it).
+         coupling:=software  no <mimic>: the 12 joints are independent and the code
+             that publishes them computes each one from the command with the curves
+             measured on the real hand (config/hand_coupling.yaml, read by
+             scripts/hand_coupling.py and scripts/hand_coupling_node.py). Every
+             joint's limits are its curve's range, from the same file.
+       See "Software coupling" in the README.
      Palm mass is set from a scale reading of the real hand: 0.840 kg for the
      whole hand, wrist flange included. The 12 digits keep their exported
      0.143381 kg, so the palm carries 0.840 - 0.143381 = 0.696619 kg. The
@@ -17,46 +29,68 @@
      the tensor is scaled by 0.696619/0.314091 = 2.217891, which keeps the
      vendor's mass distribution. Both palms carry the same values, mirrored.
 
-     q=0 is the hand FULLY OPEN and the upper limit is FULLY CLOSED on every
-     actuated joint, so all six close as q grows.
+     q=0 is the hand FULLY OPEN (ANGLE_SET = 1000) and the upper limit is FULLY
+     CLOSED (ANGLE_SET = 0) on all 12 joints, so every joint closes as q grows.
 
-     The ZEROS follow the RH56DFTP user manual, section 2.6.11 (printed pages
-     21 and 22), which defines one chord angle per DOF against the metacarpal
-     plane: alpha = 176 deg (fingers), theta = 70 deg (thumb bending) and
-     beta = 165 deg (thumb rotation) at ANGLE_SET = 1000. Every joint origin was
-     rotated so that q=0 lands on those angles. Photos of the real hand agree
-     to within about 3 deg (thumb rotation: 3 to 6 deg).
+     ZEROS and UPPER LIMITS come from photos of the real hand at nine ANGLE_SET
+     values per DOF (1000, 875, ... 0; inspire_hand_interface/Caracterizacion/
+     imagenes/angulos limite/*_positions). This model was rendered in MuJoCo
+     through a virtual camera fitted to each photo, and the joint values were
+     swept until the rendered silhouette matched the photographed one
+     (config/hand_coupling_measurements.yaml). Every joint origin is rotated so
+     that q=0 is where the photos put that joint at ANGLE_SET = 1000.
 
-     The UPPER LIMITS do not follow the manual: the real hand stops short of
-     the manual's closed angles. They were measured on photos of the real hand
-     at ANGLE_SET = 0, 500 and 1000 (inspire_hand_interface/Caracterizacion/
-     imagenes/angulos limite). This model was rendered in MuJoCo through a
-     virtual camera fitted to each photo, and the joint values were swept
-     until the rendered silhouette matched the photographed one.
+     The RH56DFTP user manual, section 2.6.11 (printed pages 21 and 22), gives
+     one chord angle per DOF against the metacarpal plane: alpha (fingers),
+     theta (thumb bending) and beta (thumb rotation). Open, it says 176, 70 and
+     165 deg; this model gives 172.3, 71.4 and 162.7 at q=0. Closed, the real
+     hand stops short of the manual's angles (table below).
 
-     | DOF            | q_max (rad) | real closed angle | manual closed |
-     | fingers        | 1.620       | alpha 31 to 37    | alpha 20      |
-     | thumb bending  | 0.660       | theta about 19    | theta -13     |
-     | thumb rotation | 1.190       | beta 96 to 97     | beta 90       |
+     Earlier versions put q=0 on the manual's open angles. The photographed
+     open hand then sat at finger *_1 0.0571, *_2 0.0108, thumb_1 0.1257,
+     thumb_2 -0.2074, thumb_3 -0.0868 and thumb_swing 0.0400 rad, and the
+     origins were rotated by exactly those angles about each joint's axis. No
+     pose changed, only the numbers that name it: q_now = q_before - offset.
 
-     The four fingers share one q_max that minimises the error over the four
-     photos (per finger 1.58 to 1.74). The finger mimic multiplier is 0.85,
-     not the vendor's 1.05, which folded the distal phalanx into the palm.
-     0.85 reproduces the closed pose to 0.5 deg of fingertip orientation. The
-     real coupling is not linear (about 0.65 at mid travel, 0.82 closed), so
-     at ANGLE_SET = 500 the modelled fingertip is about 13 deg too bent. The
-     thumb multipliers 0.40 and 0.60 cannot be resolved from the photos and
-     stay as exported.
+     The table and everything below in this comment describe coupling:=mimic.
+     With q=0 on the photographed open hand, its q_max and multipliers put
+     each digit exactly where the photos put it both fully open and fully
+     closed:
 
-     The SDK scale is NOT linear in the finger proximal joints: at
-     ANGLE_SET = 500 they have already covered 64 percent of their travel.
-     Interpolate between the measured points, with s = 1 - ANGLE_SET/1000:
+     | DOF            | q_max (rad) | multiplier      | closed angle   | manual closed |
+     | fingers        | 1.517       | *_2: 0.890      | alpha 34 to 40 | alpha 20      |
+     | thumb bending  | 0.624       | thumb_2: 0.601  | theta 19.8     | theta -13     |
+     |                |             | thumb_3: 0.579  |                |               |
+     | thumb rotation | 1.200       |                 | beta 94.0      | beta 90       |
 
-     | s            | 0 | 0.5        | 1     |
-     | finger *_1   | 0 | 1.05       | 1.620 |
-     | thumb_1      | 0 | 0.38       | 0.660 |
-     | thumb_swing  | 0 | 0.61       | 1.190 |  -->
+     The real coupling is not linear (finger q2/q1 about 0.67 at mid travel and
+     0.89 closed) and a mimic is. So the table below does not give the real
+     proximal angle: it gives the actuated value that best places the fingertip
+     at each command (at ANGLE_SET = 500 the real finger sits at 0.975 / 0.658,
+     the table gives 0.889 with 0.791 distal). At its points the fingertips
+     land within 2.0 mm (fingers) and 0.2 mm (thumb) of the real ones, exactly
+     on them fully open and fully closed; between points, within 3.1 mm. The
+     vendor's finger multiplier 1.05 folded the distal phalanx into the palm;
+     the earlier values, with q=0 on the manual's angles (1.574 / 0.865 and
+     0.75 / 0.224 / 0.367, and before them 1.62 / 0.85 and 0.66 / 0.40 / 0.60),
+     left the fingertips up to 7 and 14 mm off.
+
+     The SDK scale is NOT linear in the joints. With coupling:=software the
+     mapping ANGLE_SET -> joints is config/hand_coupling.yaml. For
+     coupling:=mimic, interpolate the actuated joints linearly between these
+     points, with s = 1 - ANGLE_SET/1000 (thumb rotation within 3.5 deg):
+
+     | s            | 0 | 0.25  | 0.5   | 0.75  | 1     |
+     | finger *_1   | 0 | 0.519 | 0.889 | 1.194 | 1.517 |
+     | thumb_1      | 0 | 0.159 | 0.334 | 0.497 | 0.624 |
+     | thumb_swing  | 0 | 0.320 | 0.680 | 1.000 | 1.200 |  -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- coupling:=mimic (default) | software. Unknown values stop xacro with a KeyError. -->
+  <xacro:arg name="coupling" default="mimic"/>
+  <xacro:property name="hand_coupling_software" value="${dict(mimic=False, software=True)['$(arg coupling)']}"/>
+  <xacro:property name="hand_coupling_limits"
+                  value="${xacro.load_yaml('$(find h1_2_inspire_description)/config/hand_coupling.yaml')['limits']}"/>
 
   <link name="left_hand_base_link">
     <inertial>
@@ -68,10 +102,28 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/base_link.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_hand_base_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_hand_base_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_hand_base_silver.STL"/>
+      </geometry>
+      <material name="inspire_silver">
+        <color rgba="0.60 0.61 0.64 1"/>
       </material>
     </visual>
     <collision>
@@ -92,10 +144,10 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/left_thumb_swing.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_thumb_swing_silver.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_silver">
+        <color rgba="0.60 0.61 0.64 1"/>
       </material>
     </visual>
     <collision>
@@ -106,11 +158,12 @@
     </collision>
   </link>
   <joint name="left_thumb_swing_joint" type="revolute">
-    <origin xyz="-0.035227 0.0908 -0.040206" rpy="0 -0 0.224255962277"/>
+    <origin xyz="-0.035227 0.0908 -0.040206" rpy="0 0 0.264255962277"/>
     <parent link="left_hand_base_link"/>
     <child link="left_thumb_swing"/>
     <axis xyz="0 0 1"/>
-    <limit lower="0" upper="1.19" effort="1" velocity="100"/>
+    <limit lower="${hand_coupling_limits['thumb_swing'][0] if hand_coupling_software else 0}"
+           upper="${hand_coupling_limits['thumb_swing'][1] if hand_coupling_software else 1.2}" effort="1" velocity="100"/>
   </joint>
 
   <link name="left_thumb_1">
@@ -123,10 +176,28 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/left_thumb_1.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_thumb_1_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_thumb_1_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_thumb_1_silver.STL"/>
+      </geometry>
+      <material name="inspire_silver">
+        <color rgba="0.60 0.61 0.64 1"/>
       </material>
     </visual>
     <collision>
@@ -137,11 +208,12 @@
     </collision>
   </link>
   <joint name="left_thumb_1_joint" type="revolute">
-    <origin xyz="-0.0096402 -0.0097687 0.00125" rpy="1.57080000191 0.0322660551661 0.037536118561"/>
+    <origin xyz="-0.0096402 -0.0097687 0.00125" rpy="1.57080004631 0.157966055165 0.0375365851163"/>
     <parent link="left_thumb_swing"/>
     <child link="left_thumb_1"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="0.66" effort="1" velocity="100"/>
+    <limit lower="${hand_coupling_limits['thumb_1'][0] if hand_coupling_software else 0}"
+           upper="${hand_coupling_limits['thumb_1'][1] if hand_coupling_software else 0.624}" effort="1" velocity="100"/>
   </joint>
 
   <link name="left_thumb_2">
@@ -154,10 +226,19 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/left_thumb_2.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_thumb_2_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_thumb_2_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
       </material>
     </visual>
     <collision>
@@ -168,12 +249,15 @@
     </collision>
   </link>
   <joint name="left_thumb_2_joint" type="revolute">
-    <origin xyz="-0.0385855343215257 0.0137354280979689 -0.00085000000007604" rpy="0 0 -0.0129064220665"/>
+    <origin xyz="-0.0385855343215257 0.0137354280979689 -0.00085000000007604" rpy="0 0 0.194493577934"/>
     <parent link="left_thumb_1"/>
     <child link="left_thumb_2"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="0.264" effort="1" velocity="100"/>
-    <mimic joint="left_thumb_1_joint" multiplier="0.40" offset="0"/>
+    <limit lower="${hand_coupling_limits['thumb_2'][0] if hand_coupling_software else 0}"
+           upper="${hand_coupling_limits['thumb_2'][1] if hand_coupling_software else 0.375024}" effort="1" velocity="100"/>
+    <xacro:unless value="${hand_coupling_software}">
+      <mimic joint="left_thumb_1_joint" multiplier="0.601" offset="0"/>
+    </xacro:unless>
   </joint>
 
   <link name="left_thumb_3">
@@ -186,10 +270,28 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/left_thumb_3.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_thumb_3_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_thumb_3_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_thumb_3_silver.STL"/>
+      </geometry>
+      <material name="inspire_silver">
+        <color rgba="0.60 0.61 0.64 1"/>
       </material>
     </visual>
     <collision>
@@ -200,12 +302,15 @@
     </collision>
   </link>
   <joint name="left_thumb_3_joint" type="revolute">
-    <origin xyz="-0.0204656980659991 0.00837680232935447 0.000199999999999881" rpy="0 0 -0.0193596330998"/>
+    <origin xyz="-0.0204656980659991 0.00837680232935447 0.000199999999999881" rpy="0 0 0.0674403669002"/>
     <parent link="left_thumb_2"/>
     <child link="left_thumb_3"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="0.396" effort="1" velocity="100"/>
-    <mimic joint="left_thumb_1_joint" multiplier="0.60" offset="0"/>
+    <limit lower="${hand_coupling_limits['thumb_3'][0] if hand_coupling_software else 0}"
+           upper="${hand_coupling_limits['thumb_3'][1] if hand_coupling_software else 0.361296}" effort="1" velocity="100"/>
+    <xacro:unless value="${hand_coupling_software}">
+      <mimic joint="left_thumb_1_joint" multiplier="0.579" offset="0"/>
+    </xacro:unless>
   </joint>
 
   <link name="left_index_1">
@@ -218,10 +323,19 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/left_index_1.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_index_1_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_index_1_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
       </material>
     </visual>
     <collision>
@@ -232,11 +346,12 @@
     </collision>
   </link>
   <joint name="left_index_1_joint" type="revolute">
-    <origin xyz="-0.048156 0.11125 0.045404" rpy="1.60570928804 -0.0230624359379 -1.57160543366"/>
+    <origin xyz="-0.048156 0.11125 0.045404" rpy="1.60572019555 0.0340027756015 -1.56961223797"/>
     <parent link="left_hand_base_link"/>
     <child link="left_index_1"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.62" effort="1" velocity="100"/>
+    <limit lower="${hand_coupling_limits['index_1'][0] if hand_coupling_software else 0}"
+           upper="${hand_coupling_limits['index_1'][1] if hand_coupling_software else 1.517}" effort="1" velocity="100"/>
   </joint>
 
   <link name="left_index_2">
@@ -249,10 +364,28 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/left_index_2.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_index_2_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_index_2_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_index_2_silver.STL"/>
+      </geometry>
+      <material name="inspire_silver">
+        <color rgba="0.60 0.61 0.64 1"/>
       </material>
     </visual>
     <collision>
@@ -263,12 +396,15 @@
     </collision>
   </link>
   <joint name="left_index_2_joint" type="revolute">
-    <origin xyz="0.00259487212105013 0.0326721877470773 -0.000299999999999988" rpy="0 -0 0.0242303183457"/>
+    <origin xyz="0.00259487212105013 0.0326721877470773 -0.000299999999999988" rpy="0 0 0.0134303183457"/>
     <parent link="left_index_1"/>
     <child link="left_index_2"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.377" effort="1" velocity="100"/>
-    <mimic joint="left_index_1_joint" multiplier="0.85" offset="0"/>
+    <limit lower="${hand_coupling_limits['index_2'][0] if hand_coupling_software else 0}"
+           upper="${hand_coupling_limits['index_2'][1] if hand_coupling_software else 1.35013}" effort="1" velocity="100"/>
+    <xacro:unless value="${hand_coupling_software}">
+      <mimic joint="left_index_1_joint" multiplier="0.890" offset="0"/>
+    </xacro:unless>
   </joint>
 
   <link name="left_middle_1">
@@ -281,10 +417,19 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/left_middle_1.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_middle_1_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_middle_1_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
       </material>
     </visual>
     <collision>
@@ -295,11 +440,12 @@
     </collision>
   </link>
   <joint name="left_middle_1_joint" type="revolute">
-    <origin xyz="-0.026577 0.11125 0.046044" rpy="1.57080000168 -0.0302474957799 -1.57080011114"/>
+    <origin xyz="-0.026577 0.11125 0.046044" rpy="1.57080000132 0.0268525042197 -1.57079990134"/>
     <parent link="left_hand_base_link"/>
     <child link="left_middle_1"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.62" effort="1" velocity="100"/>
+    <limit lower="${hand_coupling_limits['middle_1'][0] if hand_coupling_software else 0}"
+           upper="${hand_coupling_limits['middle_1'][1] if hand_coupling_software else 1.517}" effort="1" velocity="100"/>
   </joint>
 
   <link name="left_middle_2">
@@ -312,10 +458,28 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/left_middle_2.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_middle_2_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_middle_2_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_middle_2_silver.STL"/>
+      </geometry>
+      <material name="inspire_silver">
+        <color rgba="0.60 0.61 0.64 1"/>
       </material>
     </visual>
     <collision>
@@ -326,12 +490,15 @@
     </collision>
   </link>
   <joint name="left_middle_2_joint" type="revolute">
-    <origin xyz="0.0028436 0.032651 -0.0003" rpy="0 -0 0.0317598705691"/>
+    <origin xyz="0.0028436 0.032651 -0.0003" rpy="0 0 0.0209598705691"/>
     <parent link="left_middle_1"/>
     <child link="left_middle_2"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.377" effort="1" velocity="100"/>
-    <mimic joint="left_middle_1_joint" multiplier="0.85" offset="0"/>
+    <limit lower="${hand_coupling_limits['middle_2'][0] if hand_coupling_software else 0}"
+           upper="${hand_coupling_limits['middle_2'][1] if hand_coupling_software else 1.35013}" effort="1" velocity="100"/>
+    <xacro:unless value="${hand_coupling_software}">
+      <mimic joint="left_middle_1_joint" multiplier="0.890" offset="0"/>
+    </xacro:unless>
   </joint>
 
   <link name="left_ring_1">
@@ -344,10 +511,19 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/left_ring_1.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_ring_1_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_ring_1_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
       </material>
     </visual>
     <collision>
@@ -358,11 +534,12 @@
     </collision>
   </link>
   <joint name="left_ring_1_joint" type="revolute">
-    <origin xyz="-0.004945 0.11125 0.045939" rpy="1.51838056831 -0.0272178525657 -1.56937222492"/>
+    <origin xyz="-0.004945 0.11125 0.045939" rpy="1.51837669915 0.0298037635211 -1.57236350197"/>
     <parent link="left_hand_base_link"/>
     <child link="left_ring_1"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.62" effort="1" velocity="100"/>
+    <limit lower="${hand_coupling_limits['ring_1'][0] if hand_coupling_software else 0}"
+           upper="${hand_coupling_limits['ring_1'][1] if hand_coupling_software else 1.517}" effort="1" velocity="100"/>
   </joint>
 
   <link name="left_ring_2">
@@ -375,10 +552,28 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/left_ring_2.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_ring_2_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_ring_2_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_ring_2_silver.STL"/>
+      </geometry>
+      <material name="inspire_silver">
+        <color rgba="0.60 0.61 0.64 1"/>
       </material>
     </visual>
     <collision>
@@ -389,12 +584,15 @@
     </collision>
   </link>
   <joint name="left_ring_2_joint" type="revolute">
-    <origin xyz="0.0031431 0.032624 -0.0003" rpy="0 -0 0.0286180295277"/>
+    <origin xyz="0.0031431 0.032624 -0.0003" rpy="0 0 0.0178180295277"/>
     <parent link="left_ring_1"/>
     <child link="left_ring_2"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.377" effort="1" velocity="100"/>
-    <mimic joint="left_ring_1_joint" multiplier="0.85" offset="0"/>
+    <limit lower="${hand_coupling_limits['ring_2'][0] if hand_coupling_software else 0}"
+           upper="${hand_coupling_limits['ring_2'][1] if hand_coupling_software else 1.35013}" effort="1" velocity="100"/>
+    <xacro:unless value="${hand_coupling_software}">
+      <mimic joint="left_ring_1_joint" multiplier="0.890" offset="0"/>
+    </xacro:unless>
   </joint>
 
   <link name="left_little_1">
@@ -407,10 +605,19 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/left_little_1.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_little_1_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_little_1_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
       </material>
     </visual>
     <collision>
@@ -421,11 +628,12 @@
     </collision>
   </link>
   <joint name="left_little_1_joint" type="revolute">
-    <origin xyz="0.016446 0.11125 0.042817" rpy="1.46609698912 -0.00756999419343 -1.57000452558"/>
+    <origin xyz="0.016446 0.11125 0.042817" rpy="1.46597260093 0.0492171254337 -1.57597596558"/>
     <parent link="left_hand_base_link"/>
     <child link="left_little_1"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.62" effort="1" velocity="100"/>
+    <limit lower="${hand_coupling_limits['little_1'][0] if hand_coupling_software else 0}"
+           upper="${hand_coupling_limits['little_1'][1] if hand_coupling_software else 1.517}" effort="1" velocity="100"/>
   </joint>
 
   <link name="left_little_2">
@@ -438,10 +646,28 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/left_little_2.STL"/>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_little_2_black.STL"/>
       </geometry>
-      <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+      <material name="inspire_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_little_2_white.STL"/>
+      </geometry>
+      <material name="inspire_white">
+        <color rgba="0.93 0.93 0.93 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://h1_2_inspire_description/meshes/hand_left/visual/left_little_2_silver.STL"/>
+      </geometry>
+      <material name="inspire_silver">
+        <color rgba="0.60 0.61 0.64 1"/>
       </material>
     </visual>
     <collision>
@@ -452,12 +678,15 @@
     </collision>
   </link>
   <joint name="left_little_2_joint" type="revolute">
-    <origin xyz="0.0023072 0.032694 -0.0003" rpy="0 -0 0.00799225759443"/>
+    <origin xyz="0.0023072 0.032694 -0.0003" rpy="0 0 -0.00280774240557"/>
     <parent link="left_little_1"/>
     <child link="left_little_2"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.377" effort="1" velocity="100"/>
-    <mimic joint="left_little_1_joint" multiplier="0.85" offset="0"/>
+    <limit lower="${hand_coupling_limits['little_2'][0] if hand_coupling_software else 0}"
+           upper="${hand_coupling_limits['little_2'][1] if hand_coupling_software else 1.35013}" effort="1" velocity="100"/>
+    <xacro:unless value="${hand_coupling_software}">
+      <mimic joint="left_little_1_joint" multiplier="0.890" offset="0"/>
+    </xacro:unless>
   </joint>
 
 </robot>

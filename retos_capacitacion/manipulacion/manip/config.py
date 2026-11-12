@@ -14,7 +14,10 @@ CONFIG = os.path.join(RAIZ, "config")
 RUTA_CONFIG = os.path.join(CONFIG, "manipulacion.yaml")
 RUTA_MONTAJE = os.path.join(CONFIG, "montaje.yaml")
 RUTA_OBJETOS = os.path.join(CONFIG, "objetos.yaml")
-RELATIVO_URDF = "ros_h1_2_ws/src/h1_2_inspire_description/urdf/h1_2_with_RH56DFTP_hands.urdf"
+# Sin <mimic>: las falanges acopladas siguen las curvas medidas en la mano real (acople por software del paquete,
+# config/hand_coupling.yaml y scripts/hand_coupling.py; manip.cinematica.juntas_mano)
+RELATIVO_URDF = "ros_h1_2_ws/src/h1_2_inspire_description/urdf/h1_2_with_RH56DFTP_hands_software_coupling.urdf"
+RELATIVO_ACOPLE = "ros_h1_2_ws/src/h1_2_inspire_description/scripts"
 
 
 def _leer(ruta):

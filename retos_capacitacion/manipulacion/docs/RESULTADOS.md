@@ -1483,3 +1483,31 @@ V ≥ 60 (lo separa de la esfera el tono, 93–107): confianza del cubo 0.48 →
 
 - Cada observación guarda su imagen (`observar_N.png`): en estas tiradas no quedó ninguna.
 - El aviso dice lo que se vio y con qué confianza ("vistos: cubo (0.41) en (…)").
+
+## 56. El modelo nuevo de las manos: cero en la mano abierta y acople medido (2026-11-12)
+
+El paquete `h1_2_inspire_description` trae la revisión de las manos (colores, conector y **acople por software**,
+sección *Software coupling* de su README): `q = 0` es la mano abierta real (ANGLE_SET 1000) en las 12 juntas de
+cada mano, y cada falange sigue su propia curva medida en nueve fotos por DOF (`config/hand_coupling.yaml`,
+`scripts/hand_coupling.py`). Antes el cero era el del manual, la tabla ANGLE_SET → rad tenía tres puntos y las
+falanges iban con `<mimic>` lineal (0.85, 0.40, 0.60).
+
+- **El reto usa el URDF sin `<mimic>`** (`h1_2_with_RH56DFTP_hands_software_coupling.urdf`). `Cinematica` pone las
+  12 juntas de cada mano con las curvas (`juntas_mano`), y `angle_set_a_rad` sale de ellas (antes, en `sim/escena.py`,
+  la tabla de tres puntos). En el gemelo, `Estado.poner_mano` pone las 12 juntas con esas mismas curvas, sin `Mimic`.
+  En física (`cuerpo_simulado`), las falanges siguen una restricción polinómica de MuJoCo, a menos de 0.007 rad de
+  la curva. `desplegar.sh` lleva al PC2 `scripts/hand_coupling.py` y `config/`.
+- **La yema del índice abierto** queda en (0.2907, ∓0.0139, 0.0358) en `mano` (antes 0.2914, ∓0.0085, 0.0358):
+  **5.4 mm más hacia la palma**, que en el toque, con la palma abajo, es hacia abajo (el índice real a ANGLE_SET 1000
+  está 0.057 / 0.011 rad doblado respecto del cero del manual). El cuerpo, la muñeca y el marco `mano` no cambian
+  (Pinocchio: los 116 frames del URDF anterior en q y del nuevo en q − desplazamiento coinciden a 6e-12 m; masa
+  68.664 kg las dos). **La corrección de la mesa (`--medir-mesa`, §54) se midió con la yema anterior: hay que
+  repetirla.** La punta del pulgar se mueve 3–7 mm según la preforma; el punto de agarre está en `mano` y no cambia.
+- **Toque:** en (0.40, −0.20), la esquina junto a la bandeja C, con la orientación de la configuración el índice
+  pasa a 5 mm de la bandeja: el planificador usa la relajada (palma al robot ≥ 0.4 en vez de 0.7).
+  `test_el_toque_con_el_indice_vertical` la acepta solo ahí. Las cuatro cruces del nivel 1 (§48–52) se planifican
+  igual que con el modelo anterior (mano y orientación).
+- **Fuera del reto:** `h1_2_mujoco` (editor, modo física, `ver_manos.py`) usa el mismo URDF.
+  `selector_poses_manos/conversion_angle_set.py` lleva las curvas (q_max 1.517 / 0.624 / 1.200), y las rutinas se
+  convirtieron conservando el ANGLE_SET que manda el selector.
+- Pruebas: 117 de 117 (en HEAD, antes del cambio, también 117).

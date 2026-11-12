@@ -25,6 +25,7 @@ import numpy as np
 from .cinematica import TareaIK, Banda, T_punto
 from .geometria import aplicar
 from .mensajes import JUNTAS_BRAZO, LADOS, Parada, Plan, PuntoPaso
+from .planificacion import centro_agarre
 
 
 # puntos de paso a la altura de seguridad o de transporte: su tramo desde la observacion (o hacia ella) es limpio
@@ -123,18 +124,38 @@ class Supervisor:
             self.brazo.ir_a(pose, dur, comprobar or self.comprobar)
 
     # --- percepcion -----------------------------------------------------------------------------------
-    def observar(self):
+    def _fotogramas(self, n):
+        """Hasta n fotogramas seguidos y distintos (el primero, fresco); como mucho ~1.5 s."""
         f = self.fuente.fresco(timeout_s=3.0)
         if f is None:
+            return []
+        fs, limite = [f], time.monotonic() + 1.5
+        while len(fs) < n and time.monotonic() < limite:
+            g = self.fuente.siguiente(0.5)
+            if g is None:
+                break
+            if g is fs[-1] or g.t_rx == fs[-1].t_rx:      # el lector continuo devuelve el ultimo hasta que llega otro
+                time.sleep(0.01)
+                continue
+            fs.append(g)
+        return fs
+
+    def observar(self):
+        fs = self._fotogramas(int(self.cfg["percepcion"].get("fotogramas_observar", 1)))
+        if not fs:
             raise Parada("camara sin fotogramas al observar")
+        f = fs[-1]
         self._ultimo_fotograma = f
         self._n_observar = getattr(self, "_n_observar", 0) + 1
         self.reg.imagen(f"observar_{self._n_observar}", f.color)        # lo que vio (§55: sin ella no se sabia por que)
         q = self.robot.q()
-        esc = self.per.procesar(f, {l: q[JUNTAS_BRAZO[l]] for l in LADOS})
+        esc = self.per.procesar_varios(fs, {l: q[JUNTAS_BRAZO[l]] for l in LADOS})
         self.pl.poner_escena(esc)
-        self._a("OBSERVAR", f"{len(esc.objetos)} objetos", {"objetos": [(o.clase, round(o.confianza, 2), np.round(o.p, 3).tolist())
-                                                                          for o in esc.objetos], "ms": round(esc.ms, 1)})
+        # el yaw, en grados (modulo la simetria de la clase): §57, sin el no se sabia con que giro se planifico
+        self._a("OBSERVAR", f"{len(esc.objetos)} objetos", {
+            "objetos": [(o.clase, round(o.confianza, 2), np.round(o.p, 3).tolist(), round(math.degrees(o.yaw), 1))
+                        + (("tapa en color",) if o.por_color else ()) for o in esc.objetos],
+            "fotogramas": len(fs), "ms": round(esc.ms, 1)})
         return esc, f
 
     # --- tirada ---------------------------------------------------------------------------------------
@@ -514,7 +535,7 @@ class Supervisor:
         if f is not None:
             self.reg.imagen(f"agarre_{clase}_antes", f.color)
         mano.preforma(ag.preforma, vigilar=self.comprobar)
-        punto = T_punto(self.pl.objetos["agarres"][plan.detalle["agarre"]]["centro"], lado)
+        punto = T_punto(centro_agarre(self.pl.objetos, clase, plan.detalle["agarre"]), lado)
         tramos = self._tramos(plan.puntos_de_paso)
         nombres = [n for n, _ in tramos]
         k = nombres.index("agarrar")
@@ -552,6 +573,19 @@ class Supervisor:
         # mano vigilada, una lectura mas vieja que eso es "mano sin respuesta")
         t_sujetar, t_leer = [time.monotonic()], [time.monotonic()]
         cada_leer = min(0.2, self.vig.mano_max_s / 2)
+        # si el objeto se escapa (Mano.escapado en dos lecturas seguidas) el brazo no se para: sigue su plan, sin
+        # movimientos que no se hayan comprobado; al acabar de levantar abre y vuelve a la observacion, y mas tarde
+        # suelta en la bandeja como siempre. El intento cuenta como fallido (antes era una Parada que no saltaba)
+        escape = {"seguidas": 0, "en": None}
+
+        def vigilar_escape(e2):
+            if escape["en"] is not None:
+                return
+            escape["seguidas"] = escape["seguidas"] + 1 if mano.escapado(e2, ag.force_set) else 0
+            if escape["seguidas"] >= 2:
+                escape["en"] = self.estado
+                self._a(self.estado, f"{clase} se escapa de la mano",
+                        {"angulo": e2.angulo.round(0).tolist(), "fuerza_gf": (e2.fuerza - e2.base).round(0).tolist()})
 
         def sujetar():
             ahora = time.monotonic()
@@ -560,20 +594,28 @@ class Supervisor:
                 t_sujetar[0] = ahora
             if ahora - t_leer[0] > cada_leer:
                 t_leer[0] = ahora
-                e2 = mano.leer()
-                fn = (e2.fuerza - e2.base)[:5]
-                if float(fn.sum()) < 0.3 * float((e.fuerza - e.base)[:5].sum()):
-                    raise Parada(f"{clase} se escapa de la mano: {fn.round(0).tolist()} gf")
+                vigilar_escape(mano.leer())
         mano.leer()                          # la foto y el registro de arriba han envejecido la ultima lectura
         self._a("TRANSPORTE", f"a la bandeja {plan.bandeja}")
         g = self._recta_guiada(lado, desde(k_lev), tramos[k_lev][1], punto, guia_previa=g, extra=sujetar)
+        vigilar_escape(mano.leer())
+        if escape["en"] is None:
+            vigilar_escape(mano.leer())      # (dos lecturas seguidas)
+        if escape["en"] is not None:
+            mano.abrir(vigilar=self.comprobar)
+            self.vig.manos_vigiladas = set()
+            self._a("VOLVER", f"{clase} se escapo al levantar: abrir y a la observacion")
+            self._mover(lado, plan.puntos_de_paso[-1])
+            self._plan_activo = None
+            return False
         k_baj = nombres.index("bajar_a_bandeja")
         for _, pts in tramos[k_lev + 1:k_baj]:
             for p in pts:
                 self._mover(lado, p, extra=sujetar)
         g = self._recta_guiada(lado, desde(k_baj), tramos[k_baj][1], punto, guia_previa=g, seguida=False, extra=sujetar,
                                ajuste_inicio=True)
-        self._a("SOLTAR", f"{clase} en la bandeja {plan.bandeja}")
+        self._a("SOLTAR", f"{clase} en la bandeja {plan.bandeja}" if escape["en"] is None
+                else f"abrir sobre la bandeja {plan.bandeja}: {clase} se escapo en {escape['en']}")
         mano.abrir(vigilar=self.comprobar)
         self.vig.manos_vigiladas = set()
         self._a("VOLVER", "retirar y a la observacion")
@@ -583,7 +625,7 @@ class Supervisor:
             for p in pts:
                 self._mover(lado, p)
         self._plan_activo = None
-        return True
+        return escape["en"] is None
 
     # --- salida segura ----------------------------------------------------------------------------------
     def salida_segura(self, motivo):

@@ -168,7 +168,8 @@ planificacion:          # manip/planificacion.py; alturas del punto de agarre so
   altura_segura_m: 0.15     # ningun punto de paso por debajo, salvo el descenso final
   altura_transporte_m: 0.18 # los puntos de paso altos van aqui: entre ellos el brazo no baja de la de seguridad
   altura_suelta_m: 0.10     # el objeto por encima de las paredes de 4 cm de la bandeja
-  altura_aproximacion_m: 0.06   # donde empieza el descenso final
+  altura_aproximacion_m: 0.06   # donde empieza el descenso final...
+  descenso_agarre_m: 0.025  # ...y como poco esto sobre el agarre (el cubo, cogido a 5.5 cm, empieza a 8)
   holgura_m: 0.02           # distancia minima del robot a mesa, bandejas y cuerpo en el gemelo
   holgura_agarre_m: 0.005   # en el descenso final y el agarre, los dedos pueden acercarse mas a la mesa
   muestras_tramo: 8         # puntos por tramo en la comprobacion contra el gemelo (como minimo)
@@ -184,7 +185,10 @@ planificacion:          # manip/planificacion.py; alturas del punto de agarre so
     retirar_de_bandeja: 0.03
   tol_pos_m: 0.003          # IK
   palma_abajo_tol_deg: 35
-  guinada_tol_deg: 20       # el ancho de la mano a lo largo del lado largo de una caja, con esto de margen
+  guinada_tols_deg: [5, 10, 15, 20]  # el ancho de la mano a lo largo de un lado de la caja: se prueba con estas
+                            # tolerancias, en orden, y luego con la del objeto (objetos.yaml); gana la primera con plan.
+                            # La IK se queda en el borde de la banda: con 20 y 30 de entrada, el cubo se cogio a 35
+                            # grados (con la palma a 35) y se escapo (RESULTADOS §57)
   dedos_abajo_deg: [15, 55] # agarre de lado: los dedos inclinados hacia abajo
   yema_abajo_tol_deg: 45
   toque:                    # nivel 1 (RESULTADOS §39-42): ni la fuerza del indice ni nada noto la mesa (con el dedo
@@ -268,7 +272,9 @@ percepcion:             # manip/percepcion.py
   movido_m: 0.02            # un objeto se da por movido si su centro cambia mas que esto...
   movido_deg: 10.0          # ...o gira mas que esto
   confianza_min: 0.5
-  color_min: 0.35           # fraccion de la mancha del color de la clase...
+  fotogramas_observar: 5    # cada observacion junta tantos fotogramas seguidos (mediana de la posicion, el yaw mas
+                            # central): con uno, el yaw del cubo quieto iba de -12 a +21 grados (RESULTADOS §57)
+  color_min: 0.35          # fraccion de la mancha del color de la clase...
   geometria_min: 0.3        # ...y parecido de alto y planta: si falta uno, es desconocido
 
 calibracion:
@@ -276,6 +282,23 @@ calibracion:
   diccionario: DICT_4X4_50
   ids: {izq: 0, der: 1}
   poses_min: 15
+
+camara_externa:            # Logitech BRIO en la laptop, de frente al robot (herramientas/camara_externa.py, §60): solo PC
+  nombre: BRIO
+  ancho: 1920               # 1080p con el zoom de la camara sobre su sensor 4K (a x2.2, ~1 pixel del sensor por pixel)
+  alto: 1080
+  fps: 30
+  crf: 26                   # H.264: ~1-4 Mbit/s
+  carpeta: datos/externa
+  controles:                # en este orden (v4l2-ctl): el zoom antes que pan/tilt; el foco fijo (el automatico busca al
+                            # pasar el brazo; a ~1.4 m, de 0 a 20 la nitidez es la misma)
+    zoom_absolute: 218
+    pan_absolute: 0
+    tilt_absolute: 0        # con la camara inclinada a mano (2026-11-13); antes -10 grados, el tope digital
+    focus_automatic_continuous: 0
+    focus_absolute: 5
+    auto_exposure: 3
+    exposure_dynamic_framerate: 0   # 30 fps fijos
 
 registro:
   carpeta: datos

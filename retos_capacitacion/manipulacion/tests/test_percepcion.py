@@ -95,3 +95,53 @@ def test_escenas_sinteticas(cin):
         sim = math.radians(obj["objetos"][clave]["simetria_deg"])
         if sim > 0:
             assert abs(math.degrees(envolver_simetria(o.yaw - (yaw + yaw_mesa), sim))) < 3.0, clave
+
+
+@gl
+def test_la_tapa_del_cubo_en_color_corrige_la_profundidad(cin):
+    """§59: la profundidad del cubo blanco real tiene un hueco en la tapa y lo ponia hasta 2.5 cm al lado; la tapa en
+    la imagen de color (retroproyectada a 6 cm sobre la mesa) lo devuelve a su sitio. Aqui, la estimacion de la
+    profundidad movida 2 cm a la derecha y 1 cm hacia delante, y girada 10 grados."""
+    from sim.camara_virtual import CamaraVirtual
+    from sim.escena import Estado, construir
+    from manip import montaje as mt
+    cfg = config.cargar()
+    cal = cb.desde_urdf(cin, T_COLOR_PROF)
+    mon = config.cargar_montaje()
+    obj = config.cargar_objetos()
+    m, info = construir(montaje=mon, cal=cal)
+    est = Estado(m, info)
+    cam = CamaraVirtual(m, info, cal, ruido_mm=2.0)
+    per = Percepcion(cfg, mon, obj, cal, cin)
+    Tm = mt.T_torso_mesa(mon)
+    yaw_mesa = math.atan2(Tm[1, 0], Tm[0, 0])
+    c = mt.punto_en_mesa(mon, (0.52, -0.04), 0.03)
+    est.poner_objeto("cubo", c, Tm[:3, :3] @ rpy_a_R(0, 0, 0.1))
+    est.adelante()
+    f = cam.fotograma(est)
+    plano = per._plano(per._nube_torso(f)[1])
+    r = per._tapa_en_color(f, c + np.array([0.01, -0.02, 0.0]), obj["objetos"]["cubo"], plano)
+    assert r is not None
+    assert np.linalg.norm(r[0][:2] - c[:2]) < 0.004, r[0]
+    assert abs(math.degrees(envolver_simetria(r[1] - (0.1 + yaw_mesa), math.pi / 2))) < 2.0
+    # sin tapa_color en la clase, no se toca
+    assert per._tapa_en_color(f, c, obj["objetos"]["esfera"], plano) is None
+
+def test_varios_fotogramas_se_juntan():
+    """§57: por clase, la mediana de la posicion y el yaw mas central (modulo la simetria, tambien al saltar de +45
+    a -45 en el cubo); lo visto en menos de la mitad de los fotogramas no cuenta; lo desconocido, el del ultimo."""
+    from types import SimpleNamespace
+    from manip.mensajes import Objeto
+
+    def ob(clase, x, yaw_deg, conf=0.9):
+        return Objeto(id=-1, clase=clase, p=np.array([x, -0.02, -0.06]), yaw=math.radians(yaw_deg),
+                      medidas=np.array([0.06, 0.06, 0.06]), confianza=conf)
+    yo = SimpleNamespace(objetos=config.cargar_objetos()["objetos"])
+    listas = [[ob("cubo", 0.520, -4)], [ob("cubo", 0.522, 21), ob("prisma", 0.4, 0)], [ob("cubo", 0.521, -3)],
+              [ob("cubo", 0.519, -12)], [ob("cubo", 0.523, -4, 0.8), ob("desconocido", 0.6, 0, 0.0)]]
+    sal = {o.clase: o for o in Percepcion._fusionar(yo, listas)}
+    assert set(sal) == {"cubo", "desconocido"}
+    assert sal["cubo"].p[0] == pytest.approx(0.521) and math.degrees(sal["cubo"].yaw) == pytest.approx(-4)
+    assert sal["cubo"].confianza == pytest.approx(0.9)
+    cerca_de_45 = [[ob("cubo", 0.52, y)] for y in (44, -44, 43, -45, 30)]
+    assert abs(envolver_simetria(Percepcion._fusionar(yo, cerca_de_45)[0].yaw - math.radians(44), math.pi / 2)) < 0.02

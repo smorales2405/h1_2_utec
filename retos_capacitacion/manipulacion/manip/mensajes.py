@@ -122,6 +122,7 @@ class Objeto:
     movido: bool = False
     n_puntos: int = 0
     pixel: Optional[Tuple[int, int]] = None   # centro en la imagen de color (para dibujar)
+    por_color: bool = False     # centro y yaw de la tapa en la imagen de color (percepcion._tapa_en_color)
 
 
 @dataclass

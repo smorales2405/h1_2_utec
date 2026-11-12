@@ -1511,3 +1511,209 @@ falanges iban con `<mimic>` lineal (0.85, 0.40, 0.60).
   `selector_poses_manos/conversion_angle_set.py` lleva las curvas (q_max 1.517 / 0.624 / 1.200), y las rutinas se
   convirtieron conservando el ANGLE_SET que manda el selector.
 - Pruebas: 117 de 117 (en HEAD, antes del cambio, también 117).
+
+## 57. Nivel 2 en el robot: el cubo cogido girado y la vigilancia del escape (2026-11-12)
+
+`./manipulacion.sh --nivel 2 --arnes` (`datos/tirada_20261112_231953_nivel2`, con el modelo nuevo de §56 y su
+`--medir-mesa`: +2.8 mm). El cubo, visto con 0.88 en (0.522, −0.015), se planificó con la mano derecha y se cogió con
+tres dedos (`agarre comprobado`: medio 214, índice 257 y pulgar 563 gf), pero **se escapó a los ~2 s de levantar** y
+quedó 3 cm a la derecha, en (0.526, −0.044). El brazo lo "llevó" a la bandeja D y lo dio por colocado. Fotos del
+usuario en `montajes/nivel 2/`: la mano en diagonal sobre el cubo.
+
+- **La mano iba girada ~35°** respecto de las caras del cubo, y la palma a 34.9° de la vertical (su tolerancia, 35).
+  Sale de la FK de la q medida y de la consigna: el ancho de la mano (meñique → índice) a 125° en planta. El cubo
+  estaba alineado con la mesa (`observar_1.png`). Dos causas:
+  1. El planificador pedía el ancho de la mano a lo largo de una cara con 20° de tolerancia (y la del objeto, 30°, si
+     no había plan) y la palma con 35°. **La IK se para en cuanto entra en las bandas**, así que el agarre queda en su
+     borde. En el gemelo, con el cubo en el mismo sitio: 8–19° del cubo y la palma a 30–33°.
+  2. **El yaw del cubo salía de un solo fotograma de profundidad** (el rectángulo mínimo de la tapa). Con el cubo
+     quieto, de −12 a +21° (`esfera_cubo`, 50 fotogramas, desviación 6°). No se registraba.
+- **Guiñada en escalones** (`planificacion.guinada_tols_deg: [5, 10, 15, 20]` y luego la del objeto): gana la primera
+  tolerancia con plan. En el gemelo, en 6 puntos de la zona con el cubo a −4, 0 y 20°, el agarre queda a 2–7° del cubo
+  en casi toda la zona. En el centro (0.522, −0.015) queda a 10.5° con el cubo a 0° y a 17° con el cubo a −4°: es el
+  punto más difícil para la derecha (más estricto, el hombro roza el torso). Planificar tarda 2–9 s en la PC (antes
+  2–3). Con la palma también a 15–20°, la derecha casi nunca tiene plan: la palma se queda en 35°.
+- **Observación con 5 fotogramas** (`percepcion.fotogramas_observar`, `Percepcion.procesar_varios`): por clase, la
+  mediana de la posición y el yaw más central (módulo la simetría); lo visto en menos de la mitad de los fotogramas no
+  cuenta. El yaw del cubo con 5 fotogramas: −3.2…−3.8° en `esfera_cubo` y −1.4…−6.4° en `objetos_a_regla` (con uno:
+  −12…+21° y −12…+1°). En los tres datasets el cubo sale a ~−4°; si es un sesgo de la calibración, no se ha
+  comprobado. El evento OBSERVAR registra el yaw (en grados) y cuántos fotogramas se juntaron.
+- **La vigilancia del transporte no saltó.** Pedía que la suma de las fuerzas de los cinco dedos bajara del 30 % de la
+  del cierre, pero en `tres_dedos` el meñique y el anular recogidos marcan ~460 gf sin tocar nada: la suma bajó de
+  1462 a ~750 gf. Tras el escape, en ~0.6 s, el medio cerró hasta 1, el índice hasta su consigna (487) y el pulgar
+  hasta 305. Ahora `Mano.escapado`: el pulgar, o todos los dedos que agarran, en su consigna ("vacío" de `agarre`) en
+  dos lecturas seguidas. El brazo no se para, porque sigue el plan comprobado:
+  - si se escapa al levantar, abre arriba, vuelve a la observación y el intento cuenta como fallido (se reintenta,
+    `intentos_por_objeto` 2);
+  - si se escapa más tarde, abre sobre la bandeja y también cuenta como fallido.
+
+  Antes era una Parada (salida segura) que no llegaba a saltar.
+- Pruebas nuevas: `test_el_objeto_que_se_escapa` (mano simulada), `test_varios_fotogramas_se_juntan`,
+  `test_el_cubo_se_coge_alineado` (a ≤ 10° del yaw visto) y `test_el_cubo_que_se_escapa_al_levantar_se_reintenta`.
+  121 de 121.
+- Pendiente: probarlo en el robot. Si el agarre alineado aún resbala, cerrar con los cuatro dedos y el pulgar (la otra
+  opción del usuario; en banco, el cubo con tres dedos fue estable a ~300 gf, §34).
+
+## 58. Segundo cubo: la pinza de tres dedos no estaba centrada en el cubo (2026-11-13)
+
+`./manipulacion.sh --nivel 2 --arnes` con §57 (`datos/tirada_20261113_003250_nivel2`). El cubo, visto con 5
+fotogramas en (0.514, 0.000) y yaw 0.7°, se planificó en 9.2 s (intento 10 de la IK: tolerancia 20°). Lo cogió y lo
+levantó "a las justas" (el usuario), y **se escapó llegando a la bandeja D**. La vigilancia nueva lo vio
+("cubo se escapa de la mano" a los 116.6 s) y abrió sobre la bandeja: intento fallido. En la siguiente observación ya
+no había cubo en la zona.
+
+- **La mano, a 17° del cubo** (ancho a 107.5° en planta, palma a 33°): en el centro de la mesa (y ≈ 0) la derecha no
+  alinea mejor (§57).
+- **El índice resbaló por el borde.** Al cerrar: medio 723 (435 gf), índice 615 (314 gf), pulgar 391 (557 gf). Al
+  levantar, el índice siguió cerrando hasta su tope (487, en ~4 s) y desde ahí el cubo quedó sujeto solo por el medio
+  contra el pulgar (650/550 gf), que es la pinza de dos dedos que en banco lo hacía girar (§34). Aguantó 17 s.
+- **Causa: el punto de agarre era el de los cuatro dedos.** `agarres.arriba` pone el centro del objeto en z +0.010
+  (hacia el índice), centrado en los cuatro dedos (de −0.029 el meñique a +0.034 el índice). Con `tres_dedos` el
+  meñique y el anular van recogidos, y en las mallas, con la mano cerrando sobre el cubo, las yemas quedan en z +0.034
+  el índice, +0.011 el medio y **+0.032 el pulgar** (enfrente del índice, no del medio). El cubo de 6 cm iba de −0.020 a
+  +0.040: el pulgar y el índice apretaban a 6–8 mm de su borde, y la pinza (del pulgar a la resultante de índice y
+  medio) pasaba a ~1.6 cm del centro de masas. El usuario lo vio así: los dedos deben tocar el cubo centrados, no a
+  un lado. En la mano izquierda las yemas están en las mismas z.
+- **Ahora** `objetos.yaml` admite un centro por objeto (`centro_agarre`, `planificacion.centro_agarre`). El cubo y
+  el prisma (los dos con `tres_dedos`) lo tienen en z **+0.026**: la pinza, con las fuerzas medidas (resultante de
+  índice y medio en +0.021, pulgar en +0.032). El índice queda 2.2 cm dentro de la cara y el medio 1.5 cm. La esfera
+  y el cilindro siguen con el de los cuatro dedos.
+- En el gemelo, la alineación también mejora porque la mano se aparta 1.6 cm: en el sitio de §57, (0.522, −0.015), de
+  10–17° a 5–8°; en el de esta tirada, con la derecha, 12.5° (en el robot fueron 17°). En el resto de la zona, 2–12°.
+- **La tirada usó la corrección de la mesa de la configuración (+10 mm), no la medida.** El `[g]` nuevo borra el toque
+  de prueba del anterior (+2.8 mm): sin repetir `--medir-mesa`, el agarre pudo ir hasta ~7 mm más alto en el cubo.
+- Si aún resbala: cerrar con los cuatro dedos y el pulgar (`abierta_opuesta`, FORCE_SET en los cuatro dedos y sin
+  `centro_agarre`), la otra opción del usuario.
+- Pruebas: 121 de 121 (las de coger y el gemelo, con el centro nuevo).
+
+## 59. Tercer cubo: colocado, pero con la mano 2.5 cm a un lado; el cubo, con la tapa en el color (2026-11-13)
+
+`./manipulacion.sh --nivel 2 --arnes` tras `[g]` y `--medir-mesa` (−0.2 mm; `datos/tirada_20261113_011538_nivel2`).
+El cubo, visto en (0.541, −0.057) a −0.9°, se planificó en 2.7 s (intento 1). **Lo cogió, lo llevó y lo dejó en la
+bandeja D**, pero solo con el pulgar y el índice: la mano iba bien girada y a la derecha del cubo, y el medio quedó en
+su borde (foto del usuario `montajes/nivel 2/nivel2_pose2_agarre_cubo.jpeg`; en ella, el centro del cubo a ~2 cm del
+de la pinza, hacia el índice). El brazo hizo el plan: la mano a 2.4 mm de él (`mano_desde_el_plan_mm`).
+
+- **La calibración cámara–brazo está bien** en esa dirección. El marcador del dorso derecho, detectado en
+  `agarre_cubo_cerrado.png` de §57 (a ×2), queda a 1.6 px (~2 mm) del predicho con la q medida a lo ancho, y a 7 px
+  (~9 mm) en vertical. En la tirada de hoy no se detecta.
+- **La profundidad pone mal el cubo blanco.** Sus puntos sí caen sobre el cubo en el color (el extrínseco de fábrica
+  está bien), pero la tapa tiene un hueco en medio y alturas de 2 a 6 cm (en planta, una U). El centro del rectángulo
+  de los puntos más altos (`h > h_max − 12 mm`) cae donde la tapa sale más alta, y el yaw sale a −4° con el cubo
+  recto. Lo comparé con un ajuste de la tapa en el color (un cuadrado de 6 cm a 6 cm sobre la mesa, por IoU con lo
+  claro saturado, 0.83–0.97): la profundidad lo ponía +10/+17 mm en `esfera_cubo`, +3/+20 en `objetos_a` y +11/+3 en
+  `objetos_a_regla` (x/y, hacia el robot y hacia su derecha).
+- **Las tres tiradas, con la tapa en el color:** la primera, +13 mm a la izquierda del robot de donde la vio la
+  profundidad (más los 35° de §57); la segunda, −2 mm (la posición estaba bien y falló el centrado de la pinza, §58);
+  la tercera, **+25 mm**: lo que muestra la foto.
+- **Ahora** (`objetos.yaml` `tapa_color`, solo el cubo; `Percepcion._tapa_en_color`): tras la profundidad se busca en
+  el color la mancha clara (V ≥ 235, S ≤ 60) más cercana a donde la puso. Sus píxeles se retroproyectan al plano de
+  la tapa (la mesa subida el alto del objeto), y su rectángulo mínimo da el centro y el yaw. Vale si mide 0.75–1.25
+  veces la tapa y está a menos de 4 cm de la profundidad; si no, se queda lo de la profundidad. Las cruces de cinta y
+  la bandeja blanca salen como manchas aparte. Con varios fotogramas, si la mayoría tienen tapa, solo esos. El evento
+  OBSERVAR dice "tapa en color".
+  - Contra el ajuste por IoU: 1–3 mm y 1–3° en los tres datasets, refinados todos.
+  - En el gemelo: 2.4/1.0 mm y el yaw exacto.
+  - El yaw del cubo recto sale a 0–2° (no −4°).
+- Prueba nueva: `test_la_tapa_del_cubo_en_color_corrige_la_profundidad` (estimación movida 2 cm y girada 10°: vuelve
+  a < 4 mm y 2°).
+- El prisma (naranja) también es caja y su profundidad no se ha comparado con el color; se podría refinar igual con
+  su color.
+- Pruebas: 122 de 122.
+
+## 60. Cuarto cubo: colocado con los tres dedos; el pulgar cedía. La cámara externa (2026-11-13)
+
+`./manipulacion.sh --nivel 2 --arnes` con §59 (`datos/tirada_20261113_014820_nivel2`). El cubo, con la tapa en color
+en (0.547, −0.041) a −0.7°, se cogió con los tres dedos (al cerrar: medio 439, índice 281 y pulgar 548 gf, los tres
+"lleno") y **se dejó en la bandeja D** al primer intento. El usuario vio el agarre más centrado, pero aún con un
+pequeño desfase hacia la izquierda del robot, y el cubo resbaló un poco al levantarlo.
+
+- **El pulgar cedía.** Durante el transporte, el índice y el medio siguieron cerrando (736→614 y 705→590) y el pulgar
+  se abrió (415→595), con su fuerza subiendo hasta ~800 gf: los dos dedos (300 + 300 gf) empujaban el cubo contra un
+  pulgar de 350. El FORCE_SET escrito es el nominal más ~225 gf de base y residuo (en la derecha: 523/533/575), con el
+  tope de 800. **Ahora el cubo cierra con `[-1, -1, 300, 300, 575, -1]`**: el pulgar como los dos dedos juntos (575 + su
+  compensación = 800, el tope). El prisma sigue con 350 (va con la izquierda; sin probar).
+- El desfase de unos mm no se puede medir con lo que hay (la cámara del robot ve el agarre desde arriba y la mano lo
+  tapa): se medirá con la cámara externa.
+
+**Cámara externa** (`herramientas/camara_externa.py`, `camara_externa:` en `manipulacion.yaml`). Es una Logitech BRIO
+en la laptop, de frente al robot, a ~1.4 m del cubo y elevada.
+- **Conexión:** va en USB 3 (en USB 2 solo daba 1080p).
+- **Encuadre:** 1080p con el zoom de la cámara ×2.18 sobre su sensor 4K (~1 píxel del sensor por píxel, ~0.6 mm/px en
+  el cubo) e inclinación digital −10° (su tope). Se ven las manos en la observación, la zona y las cuatro bandejas.
+- **Foco y velocidad:** foco fijo en 5 (de 0 a 20 la nitidez es la misma; el automático busca al pasar el brazo) y
+  30 fps fijos.
+- **Sincronía:** cada fotograma lleva su instante real (`-use_wallclock_as_timestamps`, `-vsync passthrough`; el
+  primero, del `start:` de ffmpeg). El desfase del reloj del robot se mide por ssh al empezar (+0.04 s, 3 ms de ida y
+  vuelta; la hora de 13 h de diferencia era la zona horaria del robot, UTC+8). El resumen de cada tirada guarda ahora
+  `inicio_epoch` y `t0_monotonic`: cualquier t de sus CSV pasa a la hora del vídeo.
+- **`manipulacion.sh` desde la laptop:** si la cámara está conectada, graba mientras dura la tirada
+  (`datos/externa/externa_<fecha>.mp4` y `.json`, H.264 ~1–4 Mbit/s). Al acabar trae del robot la última tirada y
+  deja en `datos/<tirada>/externa/`:
+  - una foto por evento (el posicionamiento en CERRAR, el cierre, a +1.5, +3 y +6 s del transporte, al soltar y
+    +1.5 s);
+  - `mosaico.jpg` con todas;
+  - `agarre_N.mp4` de cada agarre (del descenso a 3 s después de soltar).
+
+  `CAMARA_EXTERNA=0` lo apaga; `camara_externa.py ver` guarda una foto del encuadre.
+- La ffmpeg de la laptop es la 4.4 (`-vsync`, no `-fps_mode`).
+
+## 61. Quinto cubo: la pinza por debajo del centro de masas; el corte de fuerza lo soltó (2026-11-13)
+
+`./manipulacion.sh --nivel 2 --arnes` con el pulgar a 575 (§60), grabado con la cámara externa
+(`datos/tirada_20261113_023622_nivel2`, `externa/`). El cubo (tapa en color, (0.525, 0.007)) se cogió bien centrado
+(en el vídeo, el medio y el índice a los lados del centro de la cara): al cerrar, medio 467, índice 463 y pulgar 735 gf.
+A los 3.4 s de levantar (~7 cm) saltó **"fuerza de la mano 1571 gf > 1200 en 3 lecturas seguidas"**: la salida
+segura abrió la mano y el cubo cayó casi en su sitio.
+
+- **El cubo volcaba dentro de la mano.** En el vídeo, al cerrar, las yemas del medio y del índice aprietan la cara en
+  su parte baja y el pulgar, detrás, más arriba; al levantar, el cubo va girando en la pinza. Con la postura medida
+  del brazo y los ángulos de los dedos, las yemas quedan bajo el punto de agarre: el medio 31 mm, el índice 24 y el
+  pulgar 9. Con el punto a 35 mm de la mesa, el medio y el índice apretaban a 4–11 mm y el pulgar a ~26: **la pinza,
+  por debajo del centro de masas (30 mm)**, un péndulo invertido. Es también el "resbaló un poco" de §60.
+- El pulgar, con su FORCE_SET en el tope (800 escrito), marcaba 770–830 gf y volvía a empujar. Al girar el cubo,
+  avanzó de 399 a 312 en 0.4 s y se clavó (1439–1571 gf; el medio, 925). Además dio un escape falso: estaba en su tope
+  de cierre (300 + 60), pero apretando.
+- **Cambios:**
+  - el cubo, `altura_agarre_m` 0.035 → **0.055**: el medio a ~24 mm, el índice a ~31 y el pulgar a ~46, con la pinza
+    ~7 mm por encima del centro de masas;
+  - el descenso final empieza como poco `descenso_agarre_m` 2.5 cm sobre el agarre (`altura_aproximacion_m` 6 cm
+    lo dejaba en 5 mm): el cubo baja desde 8 cm, el cilindro desde 7.5 y lo demás igual;
+  - pulgar del cubo **450** (escrito 675: margen frente al tope y al corte);
+  - `Mano.escapado`: un dedo "vacío" de `agarre` solo cuenta si además marca menos de la mitad de su FORCE_SET, sin
+    su residuo de flexión. El pulgar de esta tirada (312, 1526 gf) no da escape; el escape de §57 sí; el agarre de
+    §60 no.
+  - `test_coger_en_linea_recta` medía cada recta (el punto de agarre) contra la línea de su primer punto a su último.
+    Con el cubo a 5.5 cm, al final de levantar el codo se estira (de 0.23 a −0.13 rad) y la orientación de la mano gira
+    1.5–3° dentro de sus bandas (12°): la muñeca sigue recta, pero el punto de agarre, a 23 cm, se aparta 6–11 mm en
+    los dos últimos centímetros. Ahora mide contra la normal de la mesa (por donde van las cuatro), con los mismos
+    2.5 mm, y de levantar solo el despegue (`despegue_m`, 5 cm), que es lo que el planificador garantiza.
+- **La cámara externa:** el usuario la inclinó a mano; con la inclinación digital de −10° quedaba demasiado baja (el
+  tablero cortado arriba). Ahora `tilt_absolute: 0`: las manos en la observación, todo el tablero y las bandejas; el
+  cubo, ~135 px.
+- El prisma (4 cm de alto, `altura_agarre_m` 0.030, `tres_dedos`) tendría el mismo problema: el medio quedaría a la
+  altura de la mesa. Sin cambiar ni probar.
+- Pruebas: 122 de 122.
+
+## 62. Marcadores para situar la cámara externa (2026-11-13)
+
+Para un script que diga cuánto mover la BRIO (altura, adelante/atrás, inclinación y giro) con el robot en reposo,
+hay que situarla respecto de la mesa. **Los ArUco de las esquinas no sirven desde ella**: en 4K y sin zoom no se
+detecta ninguno, ni con el detector más permisivo ni ampliando la imagen. Los dos de su lado (2 y 3) se ven muy de
+canto y el labio frontal (2.4 cm) tapa su borde cercano; los dos del lado del robot (4 y 5), las bandejas blanca y
+azul.
+
+- El usuario puso dos de 5 cm en el poste delantero de cada asa, mirando a la cámara: se detectan bien (80–90 px en
+  4K), pero con los ID 0 y 1, que son los del dorso de las manos (calibración cámara–torso), y la BRIO también ve las
+  manos. Solos, además, dan mal la altura y la inclinación (casi en un mismo plano vertical y de 5 cm) y no permiten
+  estimar el campo de visión.
+- **Propuesta** (`docs/aruco_6_7_camara_externa.pdf`, con línea de corte y regla de control de 100 mm):
+  - ID 6 y 7, de 10 cm, planos sobre el tablero a 15 cm del labio frontal (lado de la cámara) y a 24 cm de cada labio
+    lateral (el 6, a la izquierda del robot), con 1.5 cm de blanco (el tablero es negro: sin el blanco no se ve el
+    contorno). Quedan fuera de la zona de recogida ampliada y de las bandejas.
+  - ID 8 y 9, de 5 cm, en las asas en lugar del 0 y el 1, con 0.5 cm de blanco.
+
+  Todo el código del robot filtra los ArUco por ID (0–1 manos, 2–5 mesa) y la percepción no ve lo que mide menos de
+  12 mm: los nuevos no le afectan.
+- Pendiente: colocarlos y escribir el script (la pose de la BRIO con el 6 y el 7; el 8 y el 9, situados la primera
+  vez desde ellos).

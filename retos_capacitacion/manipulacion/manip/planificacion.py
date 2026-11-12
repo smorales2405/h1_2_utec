@@ -29,6 +29,22 @@ from .mensajes import Agarre, Plan, PuntoPaso
 DESCENSO = {"aproximar", "entrar", "agarrar", "levantar", "bajar_a_bandeja", "retirar_de_bandeja", "bajar", "subir"}
 
 
+def centro_agarre(objetos, clase, tipo):
+    """El punto de agarre (marco de la mano izquierda, T_punto lo pasa a la derecha) de `clase` con el agarre
+    `tipo`: el de objetos.yaml `agarres`, o el propio del objeto (`centro_agarre`), p. ej. el de tres_dedos, centrado
+    en la pinza del indice y el medio contra el pulgar (RESULTADOS §58)."""
+    propio = (objetos["objetos"].get(clase, {}).get("centro_agarre") or {}).get(tipo)
+    return propio if propio is not None else objetos["agarres"][tipo]["centro"]
+
+
+def guinadas(p, o):
+    """Las tolerancias de guinada (grados) que se prueban para coger una caja desde arriba, en orden:
+    planificacion.guinada_tols_deg hasta la del objeto (objetos.yaml guinada_tol_deg), que es la ultima."""
+    escalones = [float(t) for t in p["guinada_tols_deg"]]
+    tope = float(o.get("guinada_tol_deg", max(escalones)))
+    return [t for t in escalones if t < tope] + [tope]
+
+
 class Planificador:
     def __init__(self, cfg, montaje, objetos, cin, gemelo=None, reposo=None, observacion=None, escala_tiempo=1.0,
                  paso_inicio=None):
@@ -78,7 +94,7 @@ class Planificador:
     def _tareas_agarre(self, lado, clase, centro_xy, yaw, altura, tipo):
         """Las variantes de orientacion para coger `clase` en (centro_xy, yaw) a `altura` con el agarre `tipo`."""
         o = self.objetos["objetos"][clase]
-        punto = T_punto(self.objetos["agarres"][tipo]["centro"], lado)
+        punto = T_punto(centro_agarre(self.objetos, clase, tipo), lado)
         pos = self.punto(centro_xy, altura)
         tareas = []
         if tipo == "arriba":
@@ -86,9 +102,10 @@ class Planificador:
             if o["forma"] == "caja":
                 sim = o.get("simetria_deg", 180)
                 n = max(1, int(round(360 / max(sim, 1))))
-                # primero bien alineada; si no hay plan, hasta la tolerancia del objeto (a 30 grados, 4 cm de
-                # ancho son 4.6 de cuerda: la mano sigue abarcandolo)
-                tols = sorted({self.p["guinada_tol_deg"], o.get("guinada_tol_deg", self.p["guinada_tol_deg"])})
+                # de la mas estricta a la del objeto: la IK se para en cuanto entra en la banda, asi que el agarre
+                # queda en su borde (con 20 y luego 30 de entrada, el cubo se cogio a 35 grados y se escapo,
+                # RESULTADOS §57); gana la primera tolerancia con plan
+                tols = guinadas(self.p, o)
                 for tol in tols:
                     for k in range(n * (2 if sim >= 180 else 1)):
                         a = yaw + k * math.radians(sim if sim < 180 else 180)
@@ -235,7 +252,10 @@ class Planificador:
         tipos = o["agarre"] if isinstance(o["agarre"], list) else [o["agarre"]]
         alt = o.get("altura_agarre_m", 0.035)
         hs, ht = self.p["altura_segura_m"], self.p.get("altura_transporte_m", self.p["altura_segura_m"])
-        ha, hsu = self.p["altura_aproximacion_m"], self.p["altura_suelta_m"]
+        hsu = self.p["altura_suelta_m"]
+        # el descenso final (recto y guiado) empieza como poco descenso_agarre_m sobre el agarre: con el cubo cogido a
+        # 5.5 cm (§61), la aproximacion fija a 6 cm lo dejaba en 5 mm
+        ha = max(self.p["altura_aproximacion_m"], alt + self.p.get("descenso_agarre_m", 0.025))
         xy = objeto.p[:2]
         from .montaje import bandeja_real
         sobre_b = bandeja_real(self.montaje["bandejas"][bandeja])[0]     # la medida con [g], o el objetivo
@@ -413,7 +433,7 @@ class Planificador:
         n = self.p["muestras_tramo"]
         punto_ag = None
         if plan.tarea == "coger":
-            punto_ag = T_punto(self.objetos["agarres"][plan.detalle["agarre"]]["centro"], lado)
+            punto_ag = T_punto(centro_agarre(self.objetos, plan.objeto.clase, plan.detalle["agarre"]), lado)
         nombres = [p.nombre for p in puntos]
         k_desde = nombres.index(sujeto_desde) if sujeto_desde in nombres else None
         k_hasta = len(nombres) - 1 - nombres[::-1].index(sujeto_hasta) if sujeto_hasta in nombres else None

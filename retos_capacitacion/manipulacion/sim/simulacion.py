@@ -19,6 +19,7 @@ from manip.cinematica import T_punto
 from manip.geometria import Plano, T, aplicar, inv, rpy_a_R
 from manip.mensajes import JUNTAS_BRAZO, LADOS
 from manip.montaje import bandeja_real
+from manip.planificacion import centro_agarre
 from sim.camara_virtual import CamaraVirtual
 from sim.escena import Estado, angle_set_a_rad, construir
 from sim.mano_simulada import ManoSimulada
@@ -128,8 +129,8 @@ class MundoSimulado:
             return
         M = self._T_mano(lado)
         for tipo in ("arriba", "lado"):
-            g = aplicar(M, T_punto(self.objetos["agarres"][tipo]["centro"], lado))
             for clase, Mo in self.poses.items():
+                g = aplicar(M, T_punto(centro_agarre(self.objetos, clase, tipo), lado))
                 if np.linalg.norm(Mo[:3, 3] - g) < 0.03:
                     self.sujeto[lado] = clase
                     self.T_rel[lado] = inv(M) @ Mo

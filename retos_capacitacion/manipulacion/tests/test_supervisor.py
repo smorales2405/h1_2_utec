@@ -87,6 +87,7 @@ def test_coger_en_linea_recta(tmp_path):
     agarre con una postura por cm (entre dos IK sueltas se apartaba hasta 56 mm), y el agarre acaba justo en el."""
     from manip.cinematica import T_punto
     from manip.geometria import aplicar
+    from manip.planificacion import centro_agarre
     a = _args(tmp_path, nivel=2, asignacion={"cubo": "C"}, colocacion={"cubo": ((0.47, -0.07), 0.3)})
     t = manipulacion.armar(a, _cfg(), log=lambda *x: None)
     try:
@@ -95,22 +96,83 @@ def test_coger_en_linea_recta(tmp_path):
         o = next(x for x in esc.objetos if x.clase == "cubo")
         plan = pl.coger(o, "C", pl.observacion["der"])
         assert plan.comprobado, plan.motivo
-        punto = T_punto(pl.objetos["agarres"][plan.detalle["agarre"]]["centro"], "der")
+        punto = T_punto(centro_agarre(pl.objetos, "cubo", plan.detalle["agarre"]), "der")
         pts = plan.puntos_de_paso
         for nombre in ("agarrar", "levantar", "bajar_a_bandeja", "retirar_de_bandeja"):
             ks = [k for k, p in enumerate(pts) if p.nombre == nombre]
             assert len(ks) >= 2 and ks == list(range(ks[0], ks[-1] + 1)), nombre
             Q = [pts[ks[0] - 1].q] + [pts[k].q for k in ks]
             P = np.array([aplicar(pl.cin.fk("der", q, "mano"), punto) for q in Q])
-            u = (P[-1] - P[0]) / np.linalg.norm(P[-1] - P[0])
+            # las cuatro van por la normal de la mesa. De levantar, lo que tiene que ser recto es el despegue
+            # (despegue_m): con el cubo cogido a 5.5 cm, mas arriba el codo se estira y la orientacion gira 1.5-3 grados
+            # dentro de sus bandas (12), y el punto de agarre, a 23 cm de la muneca, se aparta 6-11 mm (§61)
+            u = pl.plano.n
+
+            def fuera(x):
+                e = x - P[0]
+                return np.linalg.norm(e - (e @ u) * u)
+            if nombre == "levantar":
+                n_desp = int(np.searchsorted([(x - P[0]) @ u for x in P], pl.p["despegue_m"] + 1e-3, side="right"))
+                assert (P[n_desp - 1] - P[0]) @ u >= pl.p["despegue_m"] - 0.011, "levantar: el despegue en recta"
+                Q, P = Q[:n_desp], P[:n_desp]
             for a_, b_ in zip(Q[:-1], Q[1:]):
                 for s_ in np.linspace(0, 1, 5):
-                    e = aplicar(pl.cin.fk("der", a_ + s_ * (b_ - a_), "mano"), punto) - P[0]
-                    assert np.linalg.norm(e - (e @ u) * u) < 0.0025, nombre
+                    assert fuera(aplicar(pl.cin.fk("der", a_ + s_ * (b_ - a_), "mano"), punto)) < 0.0025, nombre
         k_ag = max(k for k, p in enumerate(pts) if p.nombre == "agarrar")
         assert np.allclose(pl.cin.fk("der", pts[k_ag].q, "mano"), plan.agarre.T_mano)
     finally:
         t.mundo.parar()
+
+
+@gl
+def test_el_cubo_se_coge_alineado(tmp_path):
+    """§57: el ancho de la mano (menique -> indice) a lo largo de una cara del cubo, como mucho a 10 grados del yaw
+    visto (con 20 y luego 30 de tolerancia de entrada, la IK se quedaba en el borde y en el robot el cubo se cogio a
+    35 grados y se escapo). La observacion junta varios fotogramas y registra el yaw."""
+    import math
+    from manip.cinematica import EJE_ANCHO
+    a = _args(tmp_path, nivel=2, asignacion={"cubo": "C"}, colocacion={"cubo": ((0.47, -0.07), 0.3)})
+    t = manipulacion.armar(a, _cfg(), log=lambda *x: None)
+    try:
+        pl = t.sup.pl
+        esc, _ = t.sup.observar()
+        o = next(x for x in esc.objetos if x.clase == "cubo")
+        obs = t.reg.resumen["eventos"][-1]
+        assert obs[1] == "OBSERVAR"
+        plan = pl.coger(o, "C", pl.observacion["der"])
+        assert plan.comprobado, plan.motivo
+        R = plan.agarre.T_mano[:3, :3]
+        ancho = R @ EJE_ANCHO
+        rel = (math.degrees(math.atan2(ancho[1], ancho[0]) - o.yaw) + 45) % 90 - 45
+        assert abs(rel) <= 10.0, rel
+        assert abs(math.degrees(o.yaw) - math.degrees(0.3)) < 5.0
+    finally:
+        t.mundo.parar()
+
+
+@gl
+def test_el_cubo_que_se_escapa_al_levantar_se_reintenta(tmp_path):
+    """§57: en el robot el cubo se escapo al levantar y la vigilancia (la suma de fuerzas) no lo vio: lo llevo a la
+    bandeja y lo dio por colocado. Ahora, con los dedos en su consigna (Mano.escapado), abre, vuelve a la observacion,
+    el intento cuenta como fallido y se vuelve a coger."""
+    a = _args(tmp_path, nivel=2, asignacion={"cubo": "C"}, colocacion={"cubo": ((0.47, -0.07), 0.3)})
+    t = manipulacion.armar(a, _cfg(), log=lambda *x: None)
+    hecho = []
+
+    def escapar(estado):
+        if estado == "TRANSPORTE" and not hecho:
+            hecho.append(1)
+            with t.mundo.cerrojo:
+                t.mundo._al_abrir("der")            # cae donde estaba, en la mesa
+                mano = t.mundo.manos["der"]
+                mano.ang[:5] = np.minimum(mano.ang[:5], mano.obj[:5])   # los dedos siguen hasta su consigna
+                mano.enclavado[:] = False
+    t.sup.al_estado.append(escapar)
+    assert manipulacion.correr(t, confirmar=False) == "completado"
+    assert [(r["resultado"], r["intento"]) for r in t.sup.resultados] == [("fallido", 1), ("colocado", 2)]
+    motivos = [e[2] for e in t.reg.resumen["eventos"]]
+    assert any("se escapa de la mano" in m for m in motivos) and any("se escapo al levantar" in m for m in motivos)
+    assert t.mundo.bandeja_de("cubo") == "C"
 
 
 @gl

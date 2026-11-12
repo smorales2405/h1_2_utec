@@ -174,8 +174,11 @@ class Registro:
         self.eventos = CsvSimple(os.path.join(self.carpeta, "eventos.csv"), ["t", "estado", "motivo", "detalle"],
                                  al_momento=True)
         self.lowstate = None
-        self.resumen = {"inicio": time.strftime("%Y-%m-%d %H:%M:%S"), "eventos": []}
         self._t0 = time.monotonic()
+        # la t de los CSV es time.monotonic(): con estos dos pasa a la hora del robot (inicio_epoch + t - t0_monotonic),
+        # y con su desfase, a la del video de la camara externa (herramientas/camara_externa.py)
+        self.resumen = {"inicio": time.strftime("%Y-%m-%d %H:%M:%S"), "inicio_epoch": round(time.time(), 3),
+                        "t0_monotonic": round(self._t0, 4), "eventos": []}
 
     def enganchar_lowstate(self, robot, contexto, cada=10):
         self.lowstate = RegistroLowstate(os.path.join(self.carpeta, "lowstate.csv"), cada, contexto)

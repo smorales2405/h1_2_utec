@@ -174,7 +174,45 @@ class Percepcion:
     # --- principal -----------------------------------------------------------------------------------
     def procesar(self, f, q_brazos=None):
         """q_brazos: {"izq": q7, "der": q7} medidas, para quitar el brazo de la escena."""
+        return self.procesar_varios([f], q_brazos)
+
+    def procesar_varios(self, fotogramas, q_brazos=None):
+        """Varios fotogramas seguidos con la camara y la mesa quietas -> una Escena: cada clase vista en al menos la
+        mitad, con la mediana de su posicion y el yaw del fotograma mas central (modulo la simetria). Con uno solo,
+        el yaw de la tapa del cubo iba de -12 a +21 grados con el cubo quieto (RESULTADOS §57)."""
         t0 = time.monotonic()
+        detectados = [self._detectar(f, q_brazos) for f in fotogramas]
+        objetos = detectados[0][0] if len(detectados) == 1 else self._fusionar([d[0] for d in detectados])
+        plano = detectados[-1][1]
+        self._marcar_movidos(objetos)
+        for i, o in enumerate(objetos):
+            o.id = i
+        esc = Escena(t=fotogramas[-1].t_rx, objetos=objetos, ms=1000 * (time.monotonic() - t0), plano=(plano.n, plano.d))
+        self._previa = esc
+        return esc
+
+    def _fusionar(self, listas):
+        n, sal = len(listas), []
+        for clase in sorted({o.clase for lista in listas for o in lista if o.clase != "desconocido"}):
+            vistos = [o for lista in listas for o in lista if o.clase == clase]
+            if 2 * len(vistos) < n:
+                continue
+            # si la mayoria tiene la tapa en color, solo esos (la profundidad sola cae hasta 2 cm al lado)
+            con_color = [o for o in vistos if o.por_color]
+            base = con_color if 2 * len(con_color) > len(vistos) else vistos
+            p = np.median([o.p for o in base], axis=0)
+            sim = math.radians(self.objetos.get(clase, {}).get("simetria_deg", 0))
+            yaws = [o.yaw for o in base]
+            yaw = min(yaws, key=lambda y: sum(abs(envolver_simetria(z - y, sim)) for z in yaws)) if sim > 0 else 0.0
+            ref = min(base, key=lambda o: float(np.linalg.norm(o.p - p)))
+            sal.append(Objeto(id=-1, clase=clase, p=p, yaw=float(yaw), medidas=np.median([o.medidas for o in vistos], axis=0),
+                              confianza=float(np.median([o.confianza for o in vistos])), n_puntos=ref.n_puntos,
+                              pixel=ref.pixel, por_color=base is con_color))
+        # lo desconocido no se puede emparejar entre fotogramas: el del ultimo
+        return sal + [o for o in listas[-1] if o.clase == "desconocido"]
+
+    def _detectar(self, f, q_brazos):
+        """Un fotograma -> (objetos, plano de la mesa), sin comparar con la escena anterior."""
         P_prof, Pt = self._nube_torso(f)
         plano = self._plano(Pt)
         h = plano.altura(Pt)
@@ -209,13 +247,53 @@ class Percepcion:
                 o = self._objeto(f, P_prof[m], Pt[m], h[m], plano)
                 if o is not None:
                     objetos.append(o)
-        objetos = self._una_por_clase(objetos)
-        self._marcar_movidos(objetos)
-        for i, o in enumerate(objetos):
-            o.id = i
-        esc = Escena(t=f.t_rx, objetos=objetos, ms=1000 * (time.monotonic() - t0), plano=(plano.n, plano.d))
-        self._previa = esc
-        return esc
+        return self._una_por_clase(objetos), plano
+
+    def _tapa_en_color(self, f, p, o, plano):
+        """La tapa de una caja en la imagen de color (objetos.yaml `tapa_color`): la mancha clara mas cercana a donde
+        la puso la profundidad, retroproyectada al plano de la tapa (la mesa subida el alto del objeto), y su
+        rectangulo minimo -> (centro del objeto en el torso, yaw del lado largo) o None. La profundidad del D435i en
+        el cubo blanco tiene un hueco en la tapa y alturas de 2 a 6 cm: el centro de sus puntos mas altos caia hasta
+        2.2 cm al lado del real; el color esta calibrado con el brazo (RESULTADOS §59)."""
+        t = o.get("tapa_color")
+        if t is None or f.color is None:
+            return None
+        ic = intrinsecos(f, "color")
+        alto = _altura_clase(o)
+        largo, corto = _planta_clase(o)
+        T_t_c = self.cal.T_torso_color
+        centro_tapa = plano.proyectar(p) + alto * plano.n
+        Pc = aplicar(inv(T_t_c), centro_tapa[None])[0]
+        if Pc[2] <= 0:
+            return None
+        u0, v0 = ic.proyectar(Pc[None])[0]
+        radio = int(math.ceil((math.hypot(largo, corto) / 2 + t.get("busqueda_m", 0.04)) * ic.fx / Pc[2]))
+        a0, a1 = max(0, int(u0) - radio), min(ic.ancho, int(u0) + radio + 1)
+        b0, b1 = max(0, int(v0) - radio), min(ic.alto, int(v0) + radio + 1)
+        if a1 - a0 < 3 or b1 - b0 < 3:
+            return None
+        hsv = cv2.cvtColor(f.color[b0:b1, a0:a1], cv2.COLOR_BGR2HSV)
+        mascara = ((hsv[..., 2] >= t.get("v_min", 235)) & (hsv[..., 1] <= t.get("s_max", 60))).astype(np.uint8)
+        n, lab, st, cen = cv2.connectedComponentsWithStats(mascara, connectivity=8)
+        cands = [k for k in range(1, n) if st[k, cv2.CC_STAT_AREA] >= t.get("px_min", 150)]
+        if not cands:
+            return None
+        k = min(cands, key=lambda k: math.hypot(cen[k][0] + a0 - u0, cen[k][1] + b0 - v0))
+        vv, uu = np.nonzero(lab == k)
+        uv = np.stack([uu + a0, vv + b0], 1).astype(float)
+        d = ic.rayos(uv) @ T_t_c[:3, :3].T
+        o_cam = T_t_c[:3, 3]
+        s = (alto - plano.altura(o_cam[None])[0]) / (d @ plano.n)
+        P = o_cam + s[:, None] * d
+        (cx, cy), (w, l), ang = cv2.minAreaRect(P[:, :2].astype(np.float32))
+        # una tapa entera y del tamano del objeto, y cerca de la profundidad (si no, es otra cosa o esta cortada)
+        lo, hi = t.get("tamano_rel", [0.75, 1.25])
+        if not (lo * largo <= max(w, l) <= hi * largo and lo * corto <= min(w, l) <= hi * corto):
+            return None
+        c = plano.proyectar(np.array([cx, cy, float(np.mean(P[:, 2]))])) + alto / 2 * plano.n
+        if np.linalg.norm(c[:2] - p[:2]) > t.get("desvio_max_m", 0.04):
+            return None
+        return c, (math.radians(ang) if w >= l else math.radians(ang + 90))
 
     def _objeto(self, f, P_prof, Pt, h, plano):
         h_max = float(np.percentile(h, 97))
@@ -235,7 +313,7 @@ class Percepcion:
         if fr_color < self.p.get("color_min", 0.35) or s_geo < self.p.get("geometria_min", 0.3):
             clave = "desconocido"
         o = self.objetos.get(clave)
-        p, yaw = None, 0.0
+        p, yaw, por_color = None, 0.0, False
         if o is None:
             p = np.array([cx, cy, 0.0])
             p = plano.proyectar(np.array([cx, cy, Pt[:, 2].mean()])) + h_max / 2 * plano.n
@@ -258,6 +336,10 @@ class Percepcion:
                 c = np.array([cx, cy, Pt[:, 2].mean()])
             p = plano.proyectar(c) + _altura_clase(o) / 2 * plano.n
             yaw = envolver_simetria(lado_largo, math.radians(o.get("simetria_deg", 0)))
+            tapa = self._tapa_en_color(f, p, o, plano)
+            if tapa is not None:
+                p, yaw = tapa[0], envolver_simetria(tapa[1], math.radians(o.get("simetria_deg", 0)))
+                por_color = True
         pix = None
         if f.color is not None:
             ic = intrinsecos(f, "color")
@@ -266,7 +348,7 @@ class Percepcion:
                 pix = (int(round(uv[0])), int(round(uv[1])))
         return Objeto(id=-1, clase=clave, p=np.asarray(p, float), yaw=float(yaw),
                       medidas=np.array([largo, corto, h_max]), confianza=float(min(1.0, conf)),
-                      n_puntos=int(len(Pt)), pixel=pix)
+                      n_puntos=int(len(Pt)), pixel=pix, por_color=por_color)
 
     def _una_por_clase(self, objetos):
         """Cada objeto conocido esta una sola vez: si dos manchas dicen ser lo mismo, gana la de mas confianza

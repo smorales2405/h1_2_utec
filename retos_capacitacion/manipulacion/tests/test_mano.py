@@ -54,6 +54,25 @@ def test_agarre_lleno_y_vacio():
     assert not ok and det[3] == "vacio"
 
 
+def test_el_objeto_que_se_escapa():
+    """§57: con el cubo en la mano no hay escape (aunque un dedo quede flojo); cuando se va, los dedos que agarran
+    siguen hasta su consigna y si. La suma de fuerzas no lo veia: el menique y el anular recogidos de tres_dedos
+    marcan ~460 gf sin tocar nada."""
+    import time
+    mano, sim = _mano()
+    mano.linea_base(n=2)
+    fs = [-1, -1, 300, 300, 350, -1]
+    mano.preforma([0, 0, 1000, 1000, 1000, 0])
+    sim.poner_objeto({2: 650, 3: 650, 4: 700})
+    e = mano.cerrar(fs)
+    assert mano.agarre(e, fs)[0] and not mano.escapado(e, fs)
+    sim.poner_objeto({})                             # se escapa: los dedos siguen cerrando
+    mano.sujetar(fs)
+    t0 = time.monotonic()
+    while not mano.escapado(mano.leer(), fs):
+        assert time.monotonic() - t0 < 8.0
+        time.sleep(0.05)
+
 def test_abre_aunque_los_dedos_esten_enclavados():
     mano, sim = _mano()
     fs = [-1, -1, 300, 300, 350, -1]

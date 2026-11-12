@@ -272,6 +272,19 @@ class Mano:
         llenos = [k for k, v in detalle.items() if v == "lleno"]
         return (PULGAR in llenos and any(k in llenos for k in DEDOS)), detalle
 
+    def escapado(self, e: EstadoMano, force_set):
+        """El objeto ya no esta entre los dedos: el pulgar, o todos los dedos que agarran, han llegado a su consigna
+        de cierre ("vacio" de agarre). Un dedo "flojo" (parado lejos de 0 con poca fuerza) aun lo sujeta: el indice
+        marco 58 gf con el cubo en la mano. La suma de las fuerzas no servia: en tres_dedos el menique y el anular
+        recogidos marcan ~460 gf sin tocar nada y el cubo se escapo sin que bajara del 30 % (RESULTADOS §57)."""
+        _, det = self.agarre(e, force_set)
+        # y sin apenas fuerza (menos de la mitad de su FORCE_SET, sin su residuo de flexion): el pulgar llego a 312 (su
+        # tope, 300) apretando el cubo con 1526 gf y daba un escape falso (§61)
+        neta = e.fuerza - e.base - (self.residuo if self.compensar_residuo else 0.0)
+        vacio = {k: v == "vacio" and neta[k] < 0.5 * float(force_set[k]) for k, v in det.items()}
+        dedos = [v for k, v in vacio.items() if k in DEDOS]
+        return vacio.get(PULGAR, False) or (bool(dedos) and all(dedos))
+
     def cerrar_conexion(self):
         with self.cerrojo:
             self.c.close()

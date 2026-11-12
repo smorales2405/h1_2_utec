@@ -29,7 +29,10 @@ objetos:
     preforma: abierta_opuesta
     bandeja: blanca
   cubo:
-    altura_agarre_m: 0.035       # del punto de agarre sobre la mesa
+    # del punto de agarre sobre la mesa. Con 0.035 las yemas del medio y el indice apretaban a 4-11 mm de la mesa y el
+    # pulgar a ~26: la pinza por debajo del centro de masas (30 mm), y el cubo volcaba dentro de la mano al levantarlo
+    # (camara externa, §61). Con 0.055: medio ~24, indice ~31, pulgar ~46 mm (las yemas, 31/24/9 mm bajo el punto)
+    altura_agarre_m: 0.055
     nombre: cubo de PLA
     forma: caja
     medidas_m: [0.060, 0.060, 0.060]
@@ -41,8 +44,19 @@ objetos:
     # gris azulada el tono (H <= 60 frente a 93-107): confianza 0.84 (esfera_cubo) y 0.81 (objetos_a del 18-oct)
     color: {nombre: blanco, hsv_min: [0, 0, 60], hsv_max: [60, 80, 255]}
     agarre: [arriba, lado]
-    force_set: [-1, -1, 300, 300, 350, -1]     # tres dedos: 295/179/341 gf estable en banco; dos dedos gira
+    # tres dedos: 295/179/341 gf estable en banco; dos dedos gira. El pulgar: con 350 cedia (de 415 a 595) ante el
+    # indice y el medio (300 + 300) (§60); con 575 (+ ~225 de compensacion = el tope de 800) marcaba ~800 al levantar y,
+    # al volcar el cubo, 1571 gf: el corte de 1200 hizo la salida segura y lo solto (§61)
+    force_set: [-1, -1, 300, 300, 450, -1]
     preforma: tres_dedos
+    # tres_dedos: el centro en la pinza (indice y medio contra el pulgar), no en el de los cuatro dedos de `agarres`
+    # (z 0.010): las yemas cierran en z +0.034 el indice, +0.011 el medio y +0.032 el pulgar (mallas, mano cerrando
+    # sobre el cubo); con 0.010 el pulgar y el indice apretaban a 6-8 mm del borde, la pinza pasaba a 2 cm del centro
+    # de masas y el cubo giraba y se escapaba (RESULTADOS §58)
+    centro_agarre: {arriba: [0.211, -0.070, 0.026], lado: [0.211, -0.065, 0.026]}
+    # la posicion y el yaw, con la tapa en la imagen de color (la mancha blanca saturada, retroproyectada a 6 cm sobre
+    # la mesa): la profundidad del cubo blanco tiene un hueco en la tapa y lo ponia hasta 2.2 cm al lado (§59)
+    tapa_color: {v_min: 235, s_max: 60}
     bandeja: naranja
   cilindro:
     altura_agarre_m: 0.050       # del punto de agarre sobre la mesa
@@ -68,6 +82,7 @@ objetos:
     agarre: [arriba, lado]
     force_set: [-1, -1, 300, 300, 350, -1]
     preforma: tres_dedos
+    centro_agarre: {arriba: [0.211, -0.070, 0.026], lado: [0.211, -0.065, 0.026]}   # como el cubo
     bandeja: azul
 
 # Agarre en el marco de la mano (*_wrist_yaw_link; izq: dedos en +x, palma hacia -y, indice en +z; la
@@ -75,6 +90,7 @@ objetos:
 # derecha); se ajusta con el gemelo y el robot en el hito 2. x: 0.215 con la mano montada en x=0.165; 0.211
 # desde que esta como en el robot (anillo adaptador de 10 mm y brida de 16 mm: montaje en x=0.161, 4 mm mas
 # cerca de la muneca; README de h1_2_inspire_description, commit 0d5e452).
+# Es el centro de los cuatro dedos; un objeto puede llevar el suyo (`centro_agarre`: el de tres_dedos, en la pinza).
 agarres:
   arriba:   {centro: [0.211, -0.070, 0.010]}
   lado:     {centro: [0.211, -0.065, 0.010]}

@@ -292,13 +292,29 @@ camara_externa:            # Logitech BRIO en la laptop, de frente al robot (her
   carpeta: datos/externa
   controles:                # en este orden (v4l2-ctl): el zoom antes que pan/tilt; el foco fijo (el automatico busca al
                             # pasar el brazo; a ~1.4 m, de 0 a 20 la nitidez es la misma)
-    zoom_absolute: 218
+    zoom_absolute: 273
     pan_absolute: 0
     tilt_absolute: 0        # con la camara inclinada a mano (2026-11-13); antes -10 grados, el tope digital
     focus_automatic_continuous: 0
     focus_absolute: 5
     auto_exposure: 3
     exposure_dynamic_framerate: 0   # 30 fps fijos
+  focal_4k_px: 2210         # en 4K sin zoom: los 90 grados de diagonal de la BRIO dan 2203; con el 6 y el 7, 2211 (§63).
+                            # El 1080p con zoom Z es el centro de la imagen 4K / Z (con 218, x2.18 justo)
+  situar:                   # herramientas/situar_camara_externa.py (§63): donde poner la camara, con el robot en reposo
+    planos: {ids: [6, 7], lado_m: 0.07, al_labio_frontal_m: 0.11, al_labio_lateral_m: 0.24}   # el 6, a la izquierda
+                            # del robot; docs/aruco_6_7_camara_externa.pdf
+    asas: {ids: [8, 9], lado_m: 0.05}   # en los postes delanteros de las asas: su sitio se mide desde el 6 y el 7
+    altura_m: 0.20          # lo que se quiere ver: la zona de recogida ampliada y las bandejas, de la mesa a esta altura
+    margen: 0.10            # alrededor, en la imagen (fraccion de media imagen)
+    elevacion_deg: [25, 40] # la camara vista desde el centro de la zona: desde 25 se ven las tapas y el fondo de las
+                            # bandejas cercanas y la profundidad del agarre; por encima de 40, la mano que baja tapa
+    elevacion_objetivo_deg: 32
+    zoom: [1.4, 3.0]        # el que hace falta para que lo que se quiere ver llene el 1080p (crece con la distancia):
+                            # por debajo de 1.4 el video no gana detalle y crece la perspectiva; por encima de 3 (a mas
+                            # de ~1.5 m) el cubo tiene menos de ~90 px del sensor. Hasta x2, el 1080p sale sin ampliar
+    zoom_objetivo: 2.2
+    tol_deg: 2.0            # inclinacion, giro y ladeo
 
 registro:
   carpeta: datos

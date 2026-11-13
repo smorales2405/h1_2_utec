@@ -1708,12 +1708,73 @@ azul.
   manos. Solos, además, dan mal la altura y la inclinación (casi en un mismo plano vertical y de 5 cm) y no permiten
   estimar el campo de visión.
 - **Propuesta** (`docs/aruco_6_7_camara_externa.pdf`, con línea de corte y regla de control de 100 mm):
-  - ID 6 y 7, de 10 cm, planos sobre el tablero a 15 cm del labio frontal (lado de la cámara) y a 24 cm de cada labio
-    lateral (el 6, a la izquierda del robot), con 1.5 cm de blanco (el tablero es negro: sin el blanco no se ve el
-    contorno). Quedan fuera de la zona de recogida ampliada y de las bandejas.
+  - ID 6 y 7, de **7 cm**, planos sobre el tablero con el centro a **11 cm del labio frontal** (lado de la cámara) y a
+    24 cm de cada labio lateral (el 6, a la izquierda del robot), con 1 cm de blanco (el tablero es negro: sin el
+    blanco no se ve el contorno). Ocupan de 33.3 a 42.3 cm desde el labio del robot (fondo interior 48.8):
+    - 1.5 cm por fuera de la zona de recogida ampliada, que llega a 31.8 cm (x 0.61 en el torso);
+    - con el blanco a 6.5 cm del labio frontal, que tapa ~6.6 cm detrás de él con la cámara a 20° bajo la horizontal
+      (~4.2 cm a 30°).
+
+    La primera propuesta (10 cm, 1.5 de blanco y centro a 15 cm) se metía 4.5 cm en la zona ampliada: lo vio el
+    usuario. Su blanco quedaba al alcance de la tapa del cubo en color y del detector de las cruces del nivel 1.
   - ID 8 y 9, de 5 cm, en las asas en lugar del 0 y el 1, con 0.5 cm de blanco.
 
   Todo el código del robot filtra los ArUco por ID (0–1 manos, 2–5 mesa) y la percepción no ve lo que mide menos de
   12 mm: los nuevos no le afectan.
-- Pendiente: colocarlos y escribir el script (la pose de la BRIO con el 6 y el 7; el 8 y el 9, situados la primera
-  vez desde ellos).
+- Colocados y con su script: §63.
+
+## 63. Donde poner la cámara externa: `situar_camara_externa.py` (2026-11-13)
+
+El usuario colocó el 6 y el 7 como en §62 y el 8 y el 9 en los postes delanteros de las asas (el blanco de abajo a
+2.5 cm de la base), con el robot en reposo en el arnés y un montaje nuevo (07:28).
+`python3 herramientas/situar_camara_externa.py` (en la laptop) dice cuánto mover la BRIO, en vivo, mientras se mueve
+(`--una`: una medida; `--ventana`: la imagen anotada; `--guardar`: el zoom que encuadra, en `manipulacion.yaml`).
+
+- **La pose de la cámara.** En 4K sin zoom, con el 6 y el 7 en su sitio de wincha (marco físico de la mesa: origen
+  en el centro del labio del robot, x hacia el labio frontal). Prueba los cuatro giros de cada uno, porque al
+  recortarlos se pierde cuál era su arriba (estaban con el arriba del marcador hacia la cámara).
+  - Error de 0.7–0.8 px con los cuatro.
+  - La focal, 2211 px estimada con el 6 y el 7 (los 90° de diagonal de la BRIO dan 2203): `focal_4k_px: 2210`.
+  - El 1080p con `zoom_absolute` Z es el centro de la imagen 4K / Z (con 218, ×2.18 justo, por correlación).
+  - Las bandejas del montaje, proyectadas con esa pose, caen sobre las reales.
+- **El 8 y el 9** se sitúan la primera vez desde el 6 y el 7 (`datos/externa/marcadores_asas.json`, mediana de 10
+  fotogramas). El negro, con el borde de abajo a 3.0 cm (el 8) y 2.3 cm (el 9) sobre la mesa.
+  - Medidos así, desde otra vista se apartan 3–6 px: de un ArUco de 5 cm solo, la profundidad y el giro salen peor.
+  - Con ellos, el error de la pose subía de 0.7 a 1.3 px (0.3° de giro). Ahora solo se usan si falta el 6 o el 7.
+- **Lo que se quiere ver:** la zona de recogida ampliada (5 cm) y las cuatro bandejas, de la mesa a 20 cm.
+  - **Altura y adelante/atrás.** La elevación de la cámara vista desde el centro de la zona, 25–40° (ideal 32°): desde
+    25 se ven las tapas, el fondo de las bandejas cercanas y la profundidad del agarre; por encima de 40, la mano que
+    baja tapa los dedos. El zoom con el que la zona y las bandejas llenarían el 1080p (crece con la distancia),
+    ×1.4–3.0 (ideal 2.2): por debajo, el vídeo no gana detalle y crece la perspectiva; por encima de 3 (más de
+    ~1.5 m), el cubo tiene menos de ~90 px del sensor.
+  - De cada una se da su rango con la otra como está, y lo que hay que mover: lo más corto que entra en el rango
+    (solo la altura, solo la distancia o las dos al sitio ideal), con 3 cm de margen.
+  - **Inclinación y giro:** los que centran la zona y las bandejas en la imagen desde donde está la cámara (±2°).
+    También dice el ladeo si pasa de 2°.
+- **Ahora** la cámara está a 59 cm sobre la mesa, a 95 cm del labio frontal y 6 cm a la derecha del eje (mirando
+  hacia el robot), con 14.8° hacia abajo, 3.5° a la izquierda y 3.1° de ladeo. Se ve a 24° de elevación y a 1.37 m
+  (zoom ×2.72). Indicaciones:
+  - subirla 6 cm (bien de 62 a 87 cm);
+  - la distancia, como está;
+  - inclinarla 7.3° más hacia abajo;
+  - el giro, como está;
+  - bajar el lado izquierdo 3°.
+
+  Tal como apunta, el zoom de 218 corta por abajo la zona cercana y las bandejas D y B (el que cabe es 182).
+- **Después de moverla** el usuario (subida ~4 cm, inclinada hacia abajo y `--guardar`), las cuatro indicaciones salen
+  "bien":
+  - 63 cm sobre la mesa (bien de 61 a 87), a 94 cm del labio frontal;
+  - 23.0° hacia abajo (lo que centra, 23.5°) y 4.7° a la izquierda (3.0°);
+  - 26° de elevación (en el borde del rango) y zoom ×2.74.
+
+  Sigue el ladeo de 3.5° (bajar el lado izquierdo). Con `--guardar`, `zoom_absolute` 218 → 248: entran la zona, las
+  cuatro bandejas y las manos en la observación. Después la giró al centro (2.8° a la izquierda; lo que centra, 2.6°)
+  y volvió a guardar: **273**, el zoom con el que la zona y las bandejas llenan el 1080p con un 10 % de margen.
+  Queda margen para acercarla al sitio ideal (64 cm de alto y a 68 cm del labio, 32°): ~25 % más de píxeles del
+  sensor en el cubo.
+- Pruebas (`tests/test_situar_camara.py`, con una cámara virtual):
+  - la pose con el 6 y el 7 en cualquier giro;
+  - el 8 y el 9 medidos y luego solos;
+  - en el sitio ideal no hay que mover nada;
+  - baja y torcida dice súbela, inclínala y gírala;
+  - `--guardar` solo toca el zoom de la cámara externa.

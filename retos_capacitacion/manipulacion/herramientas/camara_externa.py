@@ -8,6 +8,8 @@ reloj y traer la tirada.
     python3 herramientas/camara_externa.py fotos --ultima       # trae la ultima tirada y saca las fotos de sus eventos
     python3 herramientas/camara_externa.py fotos datos/tirada_<fecha>_nivel2
 
+Donde ponerla (altura, distancia, inclinacion y giro): herramientas/situar_camara_externa.py (§63).
+
 manipulacion.sh, lanzado desde la PC, graba solo mientras dura la tirada y al acabar saca las fotos (CAMARA_EXTERNA=0
 lo apaga). El video va a datos/externa/externa_<fecha>.mp4 con su .json: la hora (epoch de la laptop) del primer
 fotograma, cada fotograma con su instante real (sin duplicar) y el desfase del reloj del robot. Las fotos van a

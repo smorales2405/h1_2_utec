@@ -149,6 +149,11 @@ class Supervisor:
         self._ultimo_fotograma = f
         self._n_observar = getattr(self, "_n_observar", 0) + 1
         self.reg.imagen(f"observar_{self._n_observar}", f.color)        # lo que vio (§55: sin ella no se sabia por que)
+        # y su IR y su profundidad (16 bits, mm): el prisma salia o no segun la profundidad de su tapa (§75)
+        if getattr(f, "ir", None) is not None:
+            self.reg.imagen(f"observar_{self._n_observar}_ir", f.ir)
+        if getattr(f, "prof", None) is not None:
+            self.reg.imagen(f"observar_{self._n_observar}_prof", f.prof)
         q = self.robot.q()
         esc = self.per.procesar_varios(fs, {l: q[JUNTAS_BRAZO[l]] for l in LADOS})
         self.pl.poner_escena(esc)

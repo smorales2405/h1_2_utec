@@ -222,6 +222,7 @@ class Percepcion:
                & (Pt[:, 1] > self.zona["y"][0] - mg) & (Pt[:, 1] < self.zona["y"][1] + mg))
         sel &= self._mascara_robot(Pt, q_brazos)
         sel &= self._fuera_de_bandejas(Pt)
+        Pt_todo, h_todo = Pt, h
         P_prof, Pt, h = P_prof[sel], Pt[sel], h[sel]
         objetos = []
         if len(Pt):
@@ -247,7 +248,91 @@ class Percepcion:
                 o = self._objeto(f, P_prof[m], Pt[m], h[m], plano)
                 if o is not None:
                     objetos.append(o)
+        # las cajas con tapa en color que la profundidad no agrupo (§75)
+        por_tapa = self._tapas_sin_profundidad(f, Pt_todo, h_todo, plano, {o.clase for o in objetos if o.clase != "desconocido"})
+        if por_tapa:
+            objetos = [o for o in objetos if o.clase != "desconocido"
+                       or min(np.linalg.norm(o.p[:2] - t.p[:2]) for t in por_tapa) > 0.05] + por_tapa
         return self._una_por_clase(objetos), plano
+
+    def _tapa_en_ir(self, f, P):
+        """Fraccion de los puntos P (torso) de una tapa que salen saturados (>= 200) en el IR: la tapa naranja del prisma,
+        muy clara con el emisor (la profundidad, ahi, falla). 0 sin IR."""
+        if getattr(f, "ir", None) is None:
+            return 0.0
+        ii = intrinsecos(f, "ir")
+        uv = ii.proyectar(aplicar(inv(self.cal.T_torso_prof), P))
+        uv = uv[np.isfinite(uv).all(1)]
+        uv = np.round(uv).astype(int)
+        uv = uv[(uv[:, 0] >= 0) & (uv[:, 0] < ii.ancho) & (uv[:, 1] >= 0) & (uv[:, 1] < ii.alto)]
+        if len(uv) == 0:
+            return 0.0
+        return float(np.mean(f.ir[uv[:, 1], uv[:, 0]] >= 200))
+
+    def _tapas_sin_profundidad(self, f, Pt, h, plano, vistas):
+        """Las cajas con `tapa_color` que la profundidad no agrupo: el prisma naranja (su tapa, muy clara en el IR, da
+        de 0 a 84 mm en vez de 40 y a veces no pasa de altura_nucleo_m, §75). Sus manchas en la imagen de color,
+        retroproyectadas a la altura de su tapa: del tamano de la tapa (+-25 %), dentro de la zona ampliada, fuera de
+        las bandejas y con la profundidad por encima de altura_min_m en parte de su huella (algo hay). -> [Objeto]"""
+        if f.color is None:
+            return []
+        sal = []
+        ic = intrinsecos(f, "color")
+        T_t_c = self.cal.T_torso_color
+        o_cam = T_t_c[:3, 3]
+        hsv = None
+        mg = self.p["margen_zona_m"]
+        for clave, o in self.objetos.items():
+            t = o.get("tapa_color")
+            if not t or o["forma"] != "caja" or clave in vistas:
+                continue
+            if hsv is None:
+                hsv = cv2.cvtColor(f.color, cv2.COLOR_BGR2HSV)
+            if "hsv_min" in t:
+                mascara = cv2.inRange(hsv, np.array(t["hsv_min"]), np.array(t["hsv_max"]))
+            else:
+                mascara = ((hsv[..., 2] >= t.get("v_min", 235)) & (hsv[..., 1] <= t.get("s_max", 60))).astype(np.uint8)
+            n, lab, st, _ = cv2.connectedComponentsWithStats((mascara > 0).astype(np.uint8), connectivity=8)
+            alto = _altura_clase(o)
+            largo, corto = _planta_clase(o)
+            lo, hi = t.get("tamano_rel", [0.75, 1.25])
+            for k in range(1, n):
+                if st[k, cv2.CC_STAT_AREA] < t.get("px_min", 150):
+                    continue
+                vv, uu = np.nonzero(lab == k)
+                d = ic.rayos(np.stack([uu, vv], 1).astype(float)) @ T_t_c[:3, :3].T
+                esc_ = (alto - plano.altura(o_cam[None])[0]) / (d @ plano.n)
+                P = o_cam + esc_[:, None] * d
+                (cx, cy), (w, l), ang = cv2.minAreaRect(P[:, :2].astype(np.float32))
+                if not (lo * largo <= max(w, l) <= hi * largo and lo * corto <= min(w, l) <= hi * corto):
+                    continue
+                if not (self.zona["x"][0] - mg < cx < self.zona["x"][1] + mg and self.zona["y"][0] - mg < cy < self.zona["y"][1] + mg):
+                    continue
+                c = plano.proyectar(np.array([cx, cy, float(np.mean(P[:, 2]))])) + alto / 2 * plano.n
+                if not self._fuera_de_bandejas(c[None])[0]:
+                    continue
+                yaw = math.radians(ang) if w >= l else math.radians(ang + 90)
+                # algo hay: la huella de la tapa (con 1 cm alrededor), en la profundidad, por encima de la mesa; o, si la
+                # profundidad no la ve (en una tirada la tapa del prisma salio a la altura de la mesa: 7 % por encima de
+                # 12 mm, como la mesa sola, hasta 7.9 %), la tapa saturada en el IR (92-93 %; la mesa, brillo 36), §75
+                dxy = Pt[:, :2] - [cx, cy]
+                u = np.array([math.cos(yaw), math.sin(yaw)])
+                dentro = (np.abs(dxy @ u) < largo / 2 + 0.01) & (np.abs(dxy @ [-u[1], u[0]]) < corto / 2 + 0.01)
+                encima = dentro & (h > self.p["altura_min_m"]) & (h < self.p["altura_max_m"])
+                if encima.sum() >= max(30, 0.1 * dentro.sum()):
+                    h_max = float(np.percentile(h[encima], 97))
+                    s_bajo = math.exp(-(max(0.0, 0.55 * alto - h_max) / 0.015) ** 2)
+                elif self._tapa_en_ir(f, P) >= t.get("ir_saturado_min", 0.6):
+                    h_max, s_bajo = alto, 4.0 / 7.0          # sin la altura: confianza 0.7
+                else:
+                    continue
+                pix = ic.proyectar(aplicar(inv(T_t_c), c[None]))[0]
+                sal.append(Objeto(id=-1, clase=clave, p=c, yaw=float(envolver_simetria(yaw, math.radians(o.get("simetria_deg", 0)))),
+                                  medidas=np.array([max(w, l), min(w, l), h_max]), confianza=float(min(1.0, 0.3 + 0.7 * s_bajo)),
+                                  n_puntos=int(encima.sum()),
+                                  pixel=(int(round(pix[0])), int(round(pix[1]))) if np.isfinite(pix).all() else None,
+                                  por_color=True))
+        return sal
 
     def _tapa_en_color(self, f, p, o, plano):
         """La tapa de una caja en la imagen de color (objetos.yaml `tapa_color`): la mancha clara mas cercana a donde
@@ -273,7 +358,10 @@ class Percepcion:
         if a1 - a0 < 3 or b1 - b0 < 3:
             return None
         hsv = cv2.cvtColor(f.color[b0:b1, a0:a1], cv2.COLOR_BGR2HSV)
-        mascara = ((hsv[..., 2] >= t.get("v_min", 235)) & (hsv[..., 1] <= t.get("s_max", 60))).astype(np.uint8)
+        if "hsv_min" in t:      # una tapa de color: su rango, con el brillo de la cara iluminada (el prisma, §74)
+            mascara = (cv2.inRange(hsv, np.array(t["hsv_min"]), np.array(t["hsv_max"])) > 0).astype(np.uint8)
+        else:                   # blanca: muy clara y sin color (el cubo, §59)
+            mascara = ((hsv[..., 2] >= t.get("v_min", 235)) & (hsv[..., 1] <= t.get("s_max", 60))).astype(np.uint8)
         n, lab, st, cen = cv2.connectedComponentsWithStats(mascara, connectivity=8)
         cands = [k for k in range(1, n) if st[k, cv2.CC_STAT_AREA] >= t.get("px_min", 150)]
         if not cands:
@@ -308,10 +396,20 @@ class Percepcion:
             if mejor is None or s > mejor[1]:
                 mejor = (clave, s, fc, sg)
         clave, conf, fr_color, s_geo = mejor
+        tapa_previa = None
         # color Y tamano: la bola roja de espuma (fuera del reto) daba "prisma" por color y el borde de una
         # bandeja, "cilindro" (2026-10-09); ninguno de los dos tiene el tamano
         if fr_color < self.p.get("color_min", 0.35) or s_geo < self.p.get("geometria_min", 0.3):
             clave = "desconocido"
+            # una caja con su tapa en color puede salir mal por la profundidad (el prisma naranja, §74): si alguna
+            # tiene su tapa ahi (color y tamano, a menos de desvio_max_m), es ella
+            c0 = plano.proyectar(np.array([cx, cy, Pt[:, 2].mean()]))
+            for k, ob in self.objetos.items():
+                if ob.get("tapa_color") and ob["forma"] == "caja":
+                    tapa_previa = self._tapa_en_color(f, c0 + _altura_clase(ob) / 2 * plano.n, ob, plano)
+                    if tapa_previa is not None:
+                        clave = k
+                        break
         o = self.objetos.get(clave)
         p, yaw, por_color = None, 0.0, False
         if o is None:
@@ -336,10 +434,16 @@ class Percepcion:
                 c = np.array([cx, cy, Pt[:, 2].mean()])
             p = plano.proyectar(c) + _altura_clase(o) / 2 * plano.n
             yaw = envolver_simetria(lado_largo, math.radians(o.get("simetria_deg", 0)))
-            tapa = self._tapa_en_color(f, p, o, plano)
+            tapa = tapa_previa if tapa_previa is not None else self._tapa_en_color(f, p, o, plano)
             if tapa is not None:
                 p, yaw = tapa[0], envolver_simetria(tapa[1], math.radians(o.get("simetria_deg", 0)))
                 por_color = True
+                # la tapa, en su color y de su tamano (+-25 %), confirma la clase: la confianza, con el color y la
+                # planta de la tapa, y de la profundidad solo que no sea mas bajo. En el prisma naranja (tapa muy clara
+                # en el IR) el p97 de la altura va de 34 a 84 mm y la mediana es ~20 (el real, 40): su planta, su
+                # color y su alto salian mal (§74)
+                s_bajo = math.exp(-(max(0.0, 0.55 * _altura_clase(o) - h_max) / 0.015) ** 2)
+                conf = max(conf, 0.3 + 0.7 * s_bajo)
         pix = None
         if f.color is not None:
             ic = intrinsecos(f, "color")

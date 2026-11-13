@@ -131,11 +131,12 @@ class MundoSimulado:
         for tipo in ("arriba", "lado"):
             for clase, Mo in self.poses.items():
                 g = aplicar(M, T_punto(centro_agarre(self.objetos, clase, tipo), lado))
-                # a menos de 3 cm del eje del objeto y a su altura (no a 3 cm de su centro: el cilindro, cogido a
-                # 7.2 cm, queda a 3.2 cm del suyo y la mano simulada cerraba en el aire, §69)
+                # a menos de 3 cm del eje del objeto y a su altura, con 2 cm de margen por arriba (no a 3 cm de su
+                # centro: el cilindro, cogido a 7.2 cm, queda a 3.2 cm del suyo y la mano simulada cerraba en el aire,
+                # §69; el punto de agarre del prisma, a 4.2 cm, queda 2 mm por encima de su tapa: las yemas, debajo)
                 d = g - Mo[:3, 3]
                 dn = float(d @ self.plano.n)
-                if np.linalg.norm(d - dn * self.plano.n) < 0.03 and abs(dn) < self._alto(clase) / 2:
+                if np.linalg.norm(d - dn * self.plano.n) < 0.03 and -self._alto(clase) / 2 < dn < self._alto(clase) / 2 + 0.02:
                     self.sujeto[lado] = clase
                     self.T_rel[lado] = inv(M) @ Mo
                     # solo los dedos que estan abiertos (los que la preforma recogio no tocan el objeto)

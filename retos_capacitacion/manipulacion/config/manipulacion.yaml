@@ -263,7 +263,9 @@ dianas:                 # nivel 1: manip/dianas.py
 percepcion:             # manip/percepcion.py
   paso_px: 2                # se usa 1 de cada 2 pixeles de profundidad en cada eje
   altura_min_m: 0.012       # lo que sobresale de la mesa (los reflejos dan 15-25 mm: filtro por tamano)
-  altura_nucleo_m: 0.02     # se agrupa por encima de esto (todos los objetos miden >= 4 cm)
+  altura_nucleo_m: 0.012    # se agrupa por encima de esto (todos los objetos miden >= 4 cm). Con 0.02 el prisma
+                            # naranja no salia: la profundidad de su tapa (muy clara en el IR) da 14 mm de mediana
+                            # y 30 en el p97 en vez de 40 (§74)
   altura_max_m: 0.20
   resolucion_m: 0.003       # vista desde arriba
   margen_zona_m: 0.05       # se mira la zona de recogida ampliada esto
@@ -292,7 +294,7 @@ camara_externa:            # Logitech BRIO en la laptop, de frente al robot (her
   carpeta: datos/externa
   controles:                # en este orden (v4l2-ctl): el zoom antes que pan/tilt; el foco fijo (el automatico busca al
                             # pasar el brazo; a ~1.4 m, de 0 a 20 la nitidez es la misma)
-    zoom_absolute: 271
+    zoom_absolute: 270
     pan_absolute: 0
     tilt_absolute: 0        # con la camara inclinada a mano (2026-11-13); antes -10 grados, el tope digital
     focus_automatic_continuous: 0

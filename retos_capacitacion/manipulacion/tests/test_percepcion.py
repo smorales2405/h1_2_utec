@@ -127,6 +127,67 @@ def test_la_tapa_del_cubo_en_color_corrige_la_profundidad(cin):
     # sin tapa_color en la clase, no se toca
     assert per._tapa_en_color(f, c, obj["objetos"]["esfera"], plano) is None
 
+def test_la_tapa_naranja_del_prisma_por_su_rango_de_color(cin):
+    """§74: la tapa del prisma (naranja, muy clara en el IR: su profundidad da 14 mm en vez de 40) se busca por su
+    rango HSV con el brillo de la cara iluminada, como la blanca del cubo. Con la profundidad movida 2 cm, la tapa
+    lo devuelve a su sitio, con el lado largo bien; y procesar() da el prisma por color."""
+    from sim.camara_virtual import CamaraVirtual
+    from sim.escena import Estado, construir
+    from manip import montaje as mt
+    cfg = config.cargar()
+    cal = cb.desde_urdf(cin, T_COLOR_PROF)
+    mon = config.cargar_montaje()
+    obj = config.cargar_objetos()
+    m, info = construir(montaje=mon, cal=cal)
+    est = Estado(m, info)
+    cam = CamaraVirtual(m, info, cal, ruido_mm=2.0)
+    per = Percepcion(cfg, mon, obj, cal, cin)
+    Tm = mt.T_torso_mesa(mon)
+    yaw_mesa = math.atan2(Tm[1, 0], Tm[0, 0])
+    c = mt.punto_en_mesa(mon, (0.47, 0.06), 0.02)
+    est.poner_objeto("prisma", c, Tm[:3, :3] @ rpy_a_R(0, 0, 1.4))
+    est.adelante()
+    f = cam.fotograma(est)
+    plano = per._plano(per._nube_torso(f)[1])
+    r = per._tapa_en_color(f, c + np.array([-0.012, 0.015, 0.0]), obj["objetos"]["prisma"], plano)
+    assert r is not None
+    assert np.linalg.norm(r[0][:2] - c[:2]) < 0.004, r[0]
+    assert abs(math.degrees(envolver_simetria(r[1] - (1.4 + yaw_mesa), math.pi))) < 2.0
+    esc = per.procesar(f)
+    p = [o for o in esc.objetos if o.clase == "prisma"]
+    assert len(p) == 1 and p[0].por_color and p[0].confianza >= 0.9
+    # §75: sin grupo de la profundidad (en el robot su tapa daba a veces < 12 mm), por la tapa en color sola
+    cfg2 = copy.deepcopy(cfg)
+    cfg2["percepcion"]["altura_nucleo_m"] = 0.06
+    per2 = Percepcion(cfg2, mon, obj, cal, cin)
+    p = [o for o in per2.procesar(f).objetos if o.clase == "prisma"]
+    assert len(p) == 1 and p[0].por_color and np.linalg.norm(p[0].p[:2] - c[:2]) < 0.005
+    assert abs(math.degrees(envolver_simetria(p[0].yaw - (1.4 + yaw_mesa), math.pi))) < 2.0
+    # §75: la profundidad no ve la tapa (sale a la altura de la mesa) y el IR la tiene saturada: por el IR, con 0.7.
+    # Sin el IR saturado, nada
+    from manip.fuentes import intrinsecos, prof_en_metros
+    ip = intrinsecos(f, "prof")
+    z = prof_en_metros(f)
+    v, u = np.nonzero(z > 0)
+    P = np.stack([(u - ip.cx) / ip.fx * z[v, u], (v - ip.cy) / ip.fy * z[v, u], z[v, u]], 1)
+    Pt = (P @ cal.T_torso_prof[:3, :3].T) + cal.T_torso_prof[:3, 3]
+    alto = (plano.altura(Pt) > 0.006) & (np.abs(Pt[:, 0] - c[0]) < 0.08) & (np.abs(Pt[:, 1] - c[1]) < 0.08)
+    escala = float(f.meta.get("escala_prof", 0.001))
+    o_c = cal.T_torso_prof[:3, 3]
+    rayos = (np.stack([(u[alto] - ip.cx) / ip.fx, (v[alto] - ip.cy) / ip.fy, np.ones(alto.sum())], 1)
+             @ cal.T_torso_prof[:3, :3].T)
+    t_mesa = -plano.altura(o_c[None])[0] / (rayos @ plano.n)          # la profundidad de la mesa en esos pixeles
+    plana = copy.deepcopy(f)
+    plana.prof = f.prof.copy()
+    plana.prof[v[alto], u[alto]] = np.round(t_mesa * (rayos @ cal.T_torso_prof[:3, 2]) / escala).astype(plana.prof.dtype)
+    plana.ir = np.full(f.prof.shape, 30, np.uint8)
+    assert not [o for o in per.procesar(plana).objetos if o.clase == "prisma"]
+    plana.ir[v[alto], u[alto]] = 255
+    p = [o for o in per.procesar(plana).objetos if o.clase == "prisma"]
+    assert len(p) == 1 and p[0].por_color and p[0].confianza == pytest.approx(0.7)
+    assert np.linalg.norm(p[0].p[:2] - c[:2]) < 0.005
+
+
 def test_varios_fotogramas_se_juntan():
     """§57: por clase, la mediana de la posicion y el yaw mas central (modulo la simetria, tambien al saltar de +45
     a -45 en el cubo); lo visto en menos de la mitad de los fotogramas no cuenta; lo desconocido, el del ultimo."""

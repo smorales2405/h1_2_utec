@@ -2032,3 +2032,112 @@ externa.
   - El cilindro de 5 cm se coge con el pulgar casi en su consigna de cierre. Esta vez apretó (se paró por fuerza, en
     317) y lo sostuvo, pero el margen es poco.
 
+## 73. El prisma tumbado, con tres dedos (2026-11-14)
+
+El usuario pregunta por el prisma naranja (10 × 4 × 4 cm, 48 g, a la bandeja A con la izquierda), tumbado, con tres o
+con dos dedos.
+- **Tres dedos**, como el cubo: las caras son planas. El medio aprieta de frente, sin el empuje de lado que hacía
+  girar al cilindro (§69), y sujeta a lo largo un objeto de 10 cm. En banco, el cubo con dos dedos era inestable
+  (§34). Los dos dedos se quedan para lo redondo.
+- **Los 4 cm de ancho:** el pulgar no cierra más allá de su consigna (300; más adentro choca con los dedos).
+  - Con el cubo de 6 cm se paraba en ~400; con el cilindro de 5, en 303–317 (§72).
+  - Con el prisma llegará a 300 y hará de tope: aprietan el índice y el medio contra él (así se sostuvo el
+    cilindro en 2 de 3 tiradas).
+  - `Mano.agarre` lo da por "lleno" si el pulgar marca fuerza (§67).
+- `altura_agarre_m` 0.030 → **0.042** (con 0.030 el medio quedaba a la altura de la mesa, §61). Con las yemas del
+  cubo: pulgar ~33 mm (7 bajo la tapa), índice ~18, medio ~11. La línea pulgar–índice, a ~26, sobre el centro de
+  masas (20).
+- `centro_agarre` z 0.026 → 0.030 (como el cubo) y FORCE_SET `[-1, -1, 250, 250, 400, -1]`.
+- El gemelo daba el objeto por cogido con el punto de agarre dentro de su altura; el del prisma queda 2 mm por
+  encima de la tapa (las yemas, debajo). Ahora, con 2 cm de margen por arriba.
+- **En el gemelo**, con el montaje del robot y escala 1, colocado en 23 de 24 casos: los sitios (0.48, 0.06),
+  (0.50, 0), (0.45, 0.12), (0.52, 0.10), (0.44, 0.03) y (0.50, −0.06), con el lado largo a 90°, 60°, 30° y 0°.
+  Sin plan: (0.50, −0.06) a 0°.
+  - Con la palma abajo, el ancho de la izquierda va de −150 a −90° (§6): con el prisma a 0° (apuntando al robot),
+    la mano lo coge a ~30° de su lado.
+  - Mejor de izquierda a derecha (90°) o en diagonal (60°).
+- Pruebas: 131 de 131 en el PC remoto.
+
+## 74. El prisma no se veía: la profundidad de su tapa naranja (2026-11-14)
+
+Con §73 desplegado, dos tiradas (`tirada_20261114_012603_nivel2` y `012656`): **"OBSERVAR: 0 objetos"**. En la
+imagen de color de la observación, el prisma está tumbado, con el lado largo de izquierda a derecha, en
+~(0.455, 0.013). La cámara iba bien (giro con 68–73 medidas).
+
+- **La profundidad no ve su altura.** En el IR, la tapa naranja es una mancha muy clara (el emisor la satura).
+  Sobre su huella, la altura de la profundidad (`dataset_20261114_012820_diag_prisma`, grabado en reposo) es de
+  14 mm de mediana (el real, 40), con p97 de 30 mm, y fotograma a fotograma el p97 del grupo va de 34 a 84 mm.
+  - Se agrupaba por encima de `altura_nucleo_m` 20 mm: el grupo salía en algún fotograma, no en la mitad, y la
+    fusión de los cinco lo descartaba.
+  - Las bandejas, de paredes finas, también salen bajas (23 mm de 40).
+- **Cambios:**
+  - `altura_nucleo_m` 0.020 → **0.012** (= `altura_min_m`). Con objetos muy juntos, los bordes de la profundidad
+    los pueden unir (por eso eran 20 mm, 2026-10-09): en el nivel 3, separarlos unos centímetros.
+  - **La tapa en color, por rango HSV** (`tapa_color: {hsv_min, hsv_max}`), además de la blanca del cubo. La del
+    prisma, `[3, 120, 220]`–`[24, 255, 255]`: la tapa iluminada tiene brillo 246–250 y la cara de delante,
+    150–187.
+  - **La tapa confirma la clase:** en su color y de su tamaño (±25 %), la confianza es 0.3 + 0.7 × (que no sea más
+    bajo de 0.55 × su alto); de la profundidad no cuenta lo alto, que en esta tapa sale con picos.
+  - Un grupo "desconocido" se prueba también con las tapas de las cajas que la tienen. Si una encaja, es ella, con
+    la posición y el yaw de la tapa.
+- **Con la grabación del prisma:** prisma con 1.0 en los cinco fotogramas, en (0.455, 0.013) y a −89.7°, por color.
+  - El cilindro (§68), el cubo y la esfera (`dataset_20261112_104835_esfera_cubo`) y el cubo y el cilindro de
+    `objetos_a` (18-oct), igual que antes.
+  - En `objetos_a`, el prisma pasa de 0.86 a 1.0, y la tapa lo mueve 1.4 cm.
+- Prueba nueva: la tapa naranja del prisma en la cámara virtual (con la profundidad movida 2 cm, a < 4 mm y < 2°).
+  Pruebas: 132 de 132 en el PC remoto.
+
+## 75. Prisma colocado; en diagonal hacia el robot, sin plan; y a veces sin ver (2026-11-14)
+
+Con §73–74 desplegados, cuatro tiradas a escala 1:
+1. `tirada_20261114_013729_nivel2`: **prisma colocado en la bandeja A al primer intento.**
+   - Visto con 1.0 y la tapa en color en (0.461, 0.014), a 88.7° (de izquierda a derecha).
+   - Al cerrar: medio 213, índice 215 y pulgar 305 gf. El pulgar, en 303: en su tope (§73).
+   - La mano, a (3.1, 5.1, 1.7) mm del plan.
+2. `014005`: visto con 1.0 en (0.533, 0.040), a −64° (en diagonal, apuntando al robot). **Sin plan.**
+   - Arriba: el hombro contra el torso yendo a 'sobre', o el índice 5 mm dentro de la mesa en 'aproximar'.
+   - De lado: la base de la mano, a 19 mm de la mesa.
+   - Es la orientación que la izquierda no alinea (§73).
+3. `014122` y 4. `014239`: el usuario lo giró. **"0 objetos"**, sin ningún grupo de la profundidad, aunque en el color
+   de la observación la tapa se ve igual de clara que en las tiradas 1 y 2 (brillo 252).
+   - Con la misma escena grabada en reposo (`dataset_20261114_014538_diag_prisma2`), la percepción lo da con 1.0.
+   - La profundidad de esa tapa varía: la mediana sobre su huella va de 14 a 20 mm (el real, 40) y a veces no pasa
+     de `altura_nucleo_m` (12). Las tiradas no guardaban la profundidad: no se puede ver.
+
+- **Cambios:**
+  - **Las cajas con tapa en color, también sin grupo de la profundidad** (`Percepcion._tapas_sin_profundidad`). Si
+    una clase con `tapa_color` no salió:
+    - sus manchas en el color, retroproyectadas a la altura de su tapa;
+    - del tamaño de la tapa (±25 %), dentro de la zona ampliada y fuera de las bandejas;
+    - con la profundidad por encima de `altura_min_m` en al menos el 10 % de su huella (mínimo 30 puntos): algo hay.
+    - Confianza: 0.3 + 0.7 × (que no sea más bajo de 0.55 × su alto). Un "desconocido" a menos de 5 cm se quita.
+    - Con las dos grabaciones del prisma y `altura_nucleo_m` a 6 cm (sin grupo), sale el prisma por color (1.0, en
+      su sitio). En lo normal, el cilindro, el cubo, la esfera y `objetos_a`, igual que antes.
+  - **Cada observación guarda también su IR y su profundidad** (`observar_N_ir.png` y `observar_N_prof.png`, 16 bits
+    en mm).
+- Prueba: el prisma en la cámara virtual sin grupo de la profundidad, por su tapa (< 5 mm, < 2°).
+- Pruebas: 132 de 132 en el PC remoto. `test_comprobar_que_salta_congela_el_brazo` falló una vez con `-n 16`; sola
+  pasó 3 de 3, y la batería completa otra vez, 132 de 132.
+
+## 76. Prisma: la profundidad no veía su tapa; se confirma con el IR (2026-11-14)
+
+El usuario relanzó el arnés, `[g]`, `--medir-mesa` y el zoom (271), y dos tiradas con §75 desplegado:
+- `tirada_20261114_025236_nivel2`: **"0 objetos"**.
+- `025513`: prisma visto con 1.0 y la tapa en color, en (0.503, 0.049) a −75°, y **colocado en A al primer
+  intento**. Al cerrar: medio 215, índice 234 y pulgar 297 gf; pulgar en 303 (su tope).
+
+- **Por qué no lo vio** (ya con la profundidad y el IR de la observación guardados, §75):
+  - **En color**, la tapa se encuentra: 100 × 41 mm (su tamaño), en (0.524, 0.073).
+  - **La profundidad no la ve:** sobre su huella da la altura de la mesa (mediana −1 mm; el 7 % de los puntos por
+    encima de 12 mm). Huellas iguales sobre la mesa sola dan hasta un 7.9 %: en ese fotograma, la profundidad no
+    sabe nada del prisma. En la tirada buena, la mediana fue de 16 mm.
+  - **En el IR, la tapa sale saturada** en las dos tiradas: el 92–93 % de sus puntos con brillo ≥ 200. La zona da
+    36 de mediana; satura un 7–8 % (las cruces de cinta y la bandeja blanca, que no son naranjas).
+- **Cambio** (`Percepcion._tapas_sin_profundidad`): si la profundidad no confirma la tapa encontrada en color, vale
+  que esté saturada en el IR (`ir_saturado_min` 0.6 de sus puntos), con confianza 0.7.
+- **Con la observación de la tirada fallida:** prisma con 0.7 en (0.524, 0.073), a 78°. La buena, con 1.0. El
+  cilindro, el cubo, la esfera y `objetos_a`, igual que antes.
+- Prueba: el prisma en la cámara virtual con la profundidad de su huella cambiada por la de la mesa. Sin IR saturado
+  no sale; con él, 0.7 en su sitio.
+- Pruebas: 132 de 132 en el PC remoto.
+

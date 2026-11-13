@@ -89,7 +89,10 @@ objetos:
     centro_agarre: {arriba: [0.211, -0.075, 0.033], lado: [0.211, -0.070, 0.033]}
     bandeja: roja
   prisma:
-    altura_agarre_m: 0.030       # del punto de agarre sobre la mesa
+    # tumbado (4 cm de alto, centro de masas a 20 mm). Con 0.030 el medio quedaba a la altura de la mesa (§61). Con
+    # 0.042 (yemas del cubo: 9/24/31 mm bajo el punto): pulgar ~33 (7 mm bajo la tapa), indice ~18, medio ~11; la
+    # linea pulgar-indice a ~26, por encima del centro de masas (§73)
+    altura_agarre_m: 0.042
     nombre: prisma de PLA
     forma: caja
     medidas_m: [0.100, 0.040, 0.040]
@@ -98,9 +101,15 @@ objetos:
     guinada_tol_deg: 35          # si no hay plan alineado (4 cm de ancho: a 35 grados, 4.9 de cuerda)
     color: {nombre: naranja, hsv_min: [3, 120, 100], hsv_max: [24, 255, 255]}
     agarre: [arriba, lado]
-    force_set: [-1, -1, 300, 300, 350, -1]
+    # tres dedos, como el cubo (caras planas: el medio aprieta de frente, sin el empuje de lado del cilindro, §69; y
+    # sujeta el prisma, de 10 cm, a lo largo). De 4 cm de ancho: el pulgar llega a su consigna de cierre (300) y hace de
+    # tope; aprietan el indice y el medio (con el cilindro de 5 cm ya llegaba, §72). 48 g: 250/250, y 400 el pulgar
+    force_set: [-1, -1, 250, 250, 400, -1]
     preforma: tres_dedos
-    centro_agarre: {arriba: [0.211, -0.070, 0.026], lado: [0.211, -0.065, 0.026]}   # como el cubo
+    centro_agarre: {arriba: [0.211, -0.070, 0.030], lado: [0.211, -0.065, 0.030]}   # como el cubo (§64)
+    # la posicion y el yaw, con la tapa en la imagen de color: la profundidad de la tapa naranja (muy clara en el IR)
+    # da 14 mm en vez de 40. La tapa, iluminada, tiene brillo 246-250; la cara de delante, 150-187 (§74)
+    tapa_color: {hsv_min: [3, 120, 220], hsv_max: [24, 255, 255]}
     bandeja: azul
 
 # Agarre en el marco de la mano (*_wrist_yaw_link; izq: dedos en +x, palma hacia -y, indice en +z; la

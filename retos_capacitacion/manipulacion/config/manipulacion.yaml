@@ -292,7 +292,7 @@ camara_externa:            # Logitech BRIO en la laptop, de frente al robot (her
   carpeta: datos/externa
   controles:                # en este orden (v4l2-ctl): el zoom antes que pan/tilt; el foco fijo (el automatico busca al
                             # pasar el brazo; a ~1.4 m, de 0 a 20 la nitidez es la misma)
-    zoom_absolute: 273
+    zoom_absolute: 240
     pan_absolute: 0
     tilt_absolute: 0        # con la camara inclinada a mano (2026-11-13); antes -10 grados, el tope digital
     focus_automatic_continuous: 0
@@ -305,7 +305,8 @@ camara_externa:            # Logitech BRIO en la laptop, de frente al robot (her
     planos: {ids: [6, 7], lado_m: 0.07, al_labio_frontal_m: 0.11, al_labio_lateral_m: 0.24}   # el 6, a la izquierda
                             # del robot; docs/aruco_6_7_camara_externa.pdf
     asas: {ids: [8, 9], lado_m: 0.05}   # en los postes delanteros de las asas: su sitio se mide desde el 6 y el 7
-    altura_m: 0.20          # lo que se quiere ver: la zona de recogida ampliada y las bandejas, de la mesa a esta altura
+    altura_m: 0.30          # lo que se quiere ver: la zona de recogida ampliada y las bandejas, de la mesa a esta altura
+                            # (con 0.20, las manos al levantar y en reposo quedaban cortadas por la muneca)
     margen: 0.10            # alrededor, en la imagen (fraccion de media imagen)
     elevacion_deg: [25, 40] # la camara vista desde el centro de la zona: desde 25 se ven las tapas y el fondo de las
                             # bandejas cercanas y la profundidad del agarre; por encima de 40, la mano que baja tapa

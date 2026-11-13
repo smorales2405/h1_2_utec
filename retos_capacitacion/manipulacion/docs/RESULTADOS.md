@@ -1741,7 +1741,8 @@ El usuario colocó el 6 y el 7 como en §62 y el 8 y el 9 en los postes delanter
   fotogramas). El negro, con el borde de abajo a 3.0 cm (el 8) y 2.3 cm (el 9) sobre la mesa.
   - Medidos así, desde otra vista se apartan 3–6 px: de un ArUco de 5 cm solo, la profundidad y el giro salen peor.
   - Con ellos, el error de la pose subía de 0.7 a 1.3 px (0.3° de giro). Ahora solo se usan si falta el 6 o el 7.
-- **Lo que se quiere ver:** la zona de recogida ampliada (5 cm) y las cuatro bandejas, de la mesa a 20 cm.
+- **Lo que se quiere ver:** la zona de recogida ampliada (5 cm) y las cuatro bandejas, de la mesa a 20 cm (luego
+  30).
   - **Altura y adelante/atrás.** La elevación de la cámara vista desde el centro de la zona, 25–40° (ideal 32°): desde
     25 se ven las tapas, el fondo de las bandejas cercanas y la profundidad del agarre; por encima de 40, la mano que
     baja tapa los dedos. El zoom con el que la zona y las bandejas llenarían el 1080p (crece con la distancia),
@@ -1769,7 +1770,10 @@ El usuario colocó el 6 y el 7 como en §62 y el 8 y el 9 en los postes delanter
 
   Sigue el ladeo de 3.5° (bajar el lado izquierdo). Con `--guardar`, `zoom_absolute` 218 → 248: entran la zona, las
   cuatro bandejas y las manos en la observación. Después la giró al centro (2.8° a la izquierda; lo que centra, 2.6°)
-  y volvió a guardar: **273**, el zoom con el que la zona y las bandejas llenan el 1080p con un 10 % de margen.
+  y volvió a guardar: 273, el zoom con el que la zona y las bandejas llenan el 1080p con un 10 % de margen.
+  Con 273 las manos en reposo quedaban cortadas por la muñeca (y al levantar quedaría fuera la parte alta de la mano):
+  `situar.altura_m` 0.20 → **0.30** y **`zoom_absolute` 240**. En la foto real a 240, los ArUco 6 y 7 caen a 1 px de
+  lo previsto y se ven las manos con la muñeca, los objetos y las cuatro bandejas.
   Queda margen para acercarla al sitio ideal (64 cm de alto y a 68 cm del labio, 32°): ~25 % más de píxeles del
   sensor en el cubo.
 - Pruebas (`tests/test_situar_camara.py`, con una cámara virtual):

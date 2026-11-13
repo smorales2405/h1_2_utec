@@ -1,0 +1,35 @@
+% Equipo y responsabilidades: los tres roles del reto, con las tareas de cada uno.
+\begin{frame}[plain]
+\begin{Lienzo}
+\Cabecera{Equipo}{Equipo y responsabilidades}
+% Tres tarjetas: rol (banda gris), nombre y tareas.
+\foreach \x/\rol/\nombre in {36/Operador de seguridad/Miguel Olortegui,
+                            337/Responsable de desarrollo/Sergio Morales,
+                            638/Responsable de documentación/Axel Cespedes}{
+  \fill[GrisClaroUTEC!55,rounded corners=3bp] (\x,84) rectangle ({\x+286},444);
+  \fill[GrisUTEC] (\x,84) rectangle ({\x+286},116);
+  \node[anchor=west,inner sep=0pt,text=white,font=\FuenteCalibri\bfseries\fontsize{16bp}{16bp}\selectfont] at ({\x+12},100) {\rol};
+  \fill[CianUTEC] (\x,116) rectangle ({\x+286},120);
+  \Texto{\x+12}{146}{Calibri}{21}{000000}{\bfseries\nombre}
+}
+\Cuerpo{48}{176}{264}{13.5}{%
+\Vin{Mando en la mano en todas las tiradas, con L2\,+\,B (parada de emergencia) listo y sin otra tarea.}\Esp{5}
+\Vin{Antes de cada tirada: FSM 201 (L2\,+\,arriba), motores sin fallo, batería cargada y el robot en el cuadro de salida.}\Esp{5}
+\Vin{Franja de 1.5 m libre alrededor de la pista; detiene la tirada ante cualquier riesgo.}\Esp{5}
+\Vin{Lleva el robot en el simulacro y en la grabación de los conjuntos de datos.}}
+\Cuerpo{349}{176}{264}{13.5}{%
+\Vin{Arquitectura de cinco bloques y su código: percepción, estimación, control, supervisor y registro.}\Esp{5}
+\Vin{Calibración de la cámara, caracterización de la marcha, simulador y pruebas automáticas.}\Esp{5}
+\Vin{Despliegue en el PC2, simulacros y tiradas; analiza cada registro antes de repetir.}\Esp{5}
+\Vin{Ajustes por nivel: giro inicial, ajuste local, pausas, búsqueda en arco, parada adelantada.}}
+\Cuerpo{650}{176}{264}{13.5}{%
+\Vin{Registro de cada tirada: nivel, escala, nota, resultado e intervenciones.}\Esp{5}
+\Vin{Medidas con cinta en la pista: dónde para respecto de la barra y dónde quedan los pies tras la esquina.}\Esp{5}
+\Vin{Vídeos y fotos de los cuatro niveles; conjuntos de datos y evidencias ordenados.}\Esp{5}
+\Vin{Métricas de la sección 9 e informe con las respuestas 6.1–6.4.}}
+% Reglas comunes
+\Recuadro{36}{454}{888}{52}
+\Acento{36}{454}{506}
+\Parrafo{52}{474}{860}{Calibri}{15}{18}{000000}{\textbf{Reglas comunes (secciones 8 y 10):} ninguna orden autónoma antes del Hito 3; las primeras tiradas de cada nivel, a media escala; una tirada fallida se analiza con su registro antes de repetirla.}
+\end{Lienzo}
+\end{frame}

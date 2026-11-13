@@ -1,0 +1,31 @@
+% Despliegue: procesos en el PC2 del robot y por qué el lazo no pasa por el portátil.
+\begin{frame}[plain]
+\begin{Lienzo}
+\Cabecera{II · Arquitectura (sección 5)}{Despliegue: todo el lazo corre en el robot}
+% Caja del PC2
+\fill[GrisClaroUTEC!45,rounded corners=4bp] (196,86) rectangle (742,338);
+\Texto{208}{106}{Calibri}{16}{000000}{\bfseries PC2 del robot}
+\node[bloqueL,minimum width=124bp,minimum height=58bp] (cam) at (100,170) {Cámara\\RealSense D435i\\[-1bp]{\fontsize{11bp}{12bp}\selectfont USB, en la cabeza}};
+\node[bloque,minimum width=200bp,minimum height=74bp,align=left] (srv) at (330,170) {\bfseries \texttt{camara\_servidor.py}\ \ {\mdseries (root)}\\[1bp]{\fontsize{12bp}{14bp}\selectfont IR izquierda 640×480 a 30 fps,}\\[-2bp]{\fontsize{12bp}{14bp}\selectfont emisor apagado; vídeo en :5000}};
+\node[bloqueC,minimum width=200bp,minimum height=74bp,align=left] (seg) at (608,170) {\bfseries \texttt{seguidor\_linea.py}\ \ {\mdseries (unitree)}\\[1bp]{\fontsize{12bp}{14bp}\selectfont percepción → estimación → control}\\[-2bp]{\fontsize{12bp}{14bp}\selectfont → supervisor; registro de la tirada}};
+\node[bloqueG,minimum width=200bp,minimum height=58bp] (loco) at (608,282) {Control de marcha Unitree\\[-1bp]{\fontsize{11bp}{12bp}\selectfont FSM 201 (alto nivel)}};
+\node[bloqueL,minimum width=150bp,minimum height=50bp] (mando) at (850,282) {Mando del operador\\[-1bp]{\fontsize{11bp}{12bp}\selectfont L2 + B: parada}};
+\node[bloqueL,minimum width=150bp,minimum height=58bp] (port) at (850,170) {Portátil\\[-1bp]{\fontsize{11bp}{12bp}\selectfont despliegue y análisis}};
+\draw[flecha] (cam) -- (srv);
+\draw[flecha] (srv) -- node[rotulo,above=1bp] {ZMQ local} (seg);
+\draw[flecha] ($(seg.south)+(-50,0)$) -- node[rotulo,left=2bp] {\texttt{Move} a 20 Hz} ($(loco.north)+(-50,0)$);
+\draw[flecha] ($(loco.north)+(50,0)$) -- node[rotulo,right=2bp] {IMU, FSM} ($(seg.south)+(50,0)$);
+\draw[flecha] (mando) -- (loco);
+\draw[flecha,dashed] (port) -- node[rotulo,above=1bp] {WiFi} (seg);
+\Nota{208}{306}{270}{DDS de Unitree por \texttt{eth0}: \texttt{rt/lowstate} y LocoClient (RPC)}
+% Por qué
+\foreach \x/\tit/\txt in {36/{Dos procesos}/{La cámara exige sudo y el DDS de Unitree falla bajo sudo: la cámara va en un proceso root aparte y pasa cada fotograma por ZMQ local (1 ms).},
+  337/{El lazo, en el PC2}/{El portátil va por WiFi, con 10–130 ms de ping: solo despliega con rsync, lanza por ssh y analiza los registros.},
+  638/{Si el programa calla, se para}/{Cada Move dura 1 s y se manda a 20 Hz. La percepción tarda 3–6 ms por fotograma y el RPC de Move, 0.5 ms.}}{
+  \Recuadro{\x}{354}{286}{150}
+  \Acento{\x}{354}{504}
+  \Parrafo{\x+18}{380}{256}{Calibri}{18}{21}{000000}{\bfseries\tit}
+  \Parrafo{\x+18}{406}{256}{Calibri}{15}{18.5}{4E4B4C}{\txt}
+}
+\end{Lienzo}
+\end{frame}

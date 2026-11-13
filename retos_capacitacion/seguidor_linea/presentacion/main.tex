@@ -1,0 +1,49 @@
+% !TeX program = xelatex
+% Seguidor de línea con el Unitree H1-2: presentación de la socialización de los retos técnicos.
+% Compilar con XeLaTeX, dos veces (las posiciones son absolutas): ./compilar.sh
+\documentclass[aspectratio=169,10pt]{beamer}
+\usepackage{fontspec}
+\usepackage{xfp}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,calc,positioning,shapes.geometric,decorations.pathreplacing}
+\usepackage{graphicx}
+\usepackage{array,colortbl}
+\usepackage{ragged2e}
+\usepackage{amsmath,amssymb}
+\input{estilo.tex}
+\input{estilo_seguidor.tex}
+\hypersetup{pdftitle={Seguimiento autónomo de línea con el humanoide Unitree H1-2},
+  pdfauthor={Miguel Olortegui, Sergio Morales, Axel Cespedes},
+  pdfsubject={Socialización de los retos técnicos - Unitree H1-2}}
+\begin{document}
+% ── Apertura
+\input{diapositivas/01_portada.tex}
+\input{diapositivas/02_equipo.tex}
+% ── I · Interpretación del reto
+\input{diapositivas/03_reto.tex}
+\input{diapositivas/04_niveles.tex}
+% ── II · Arquitectura propuesta (sección 5)
+\input{diapositivas/05_arquitectura.tex}
+\input{diapositivas/06_despliegue.tex}
+% ── III · Plan de trabajo (sección 8)
+\input{diapositivas/07_plan.tex}
+% ── IV · Desarrollo por hitos
+\input{diapositivas/08_hito1_camara.tex}
+\input{diapositivas/09_marcha.tex}
+\input{diapositivas/10_hito2_percepcion.tex}
+\input{diapositivas/11_estimacion_control.tex}
+\input{diapositivas/12_supervisor.tex}
+\input{diapositivas/13_hito3_simulacro.tex}
+% ── V · Resultados por nivel
+\input{diapositivas/14_registro_tiradas.tex}
+\input{diapositivas/15_nivel1.tex}
+\input{diapositivas/16_nivel2.tex}
+\input{diapositivas/17_nivel3_s.tex}
+\input{diapositivas/18_nivel3_hueco_sombra.tex}
+\input{diapositivas/19_nivel4.tex}
+% ── VI · Síntesis
+\input{diapositivas/20_resumen.tex}
+\input{diapositivas/21_parametros.tex}
+\input{diapositivas/22_conclusiones.tex}
+\input{diapositivas/23_gracias.tex}
+\end{document}

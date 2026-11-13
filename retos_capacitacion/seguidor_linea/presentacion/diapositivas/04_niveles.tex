@@ -1,0 +1,68 @@
+% Niveles (sección 4) y criterio de éxito (sección 9): la pista del PDF y la que se montó.
+\begin{frame}[plain]
+\begin{Lienzo}
+\Cabecera{I · Interpretación del reto}{Cuatro niveles, cuatro pistas}
+\tikzset{cinta/.style={line width=2.6bp,color=GrisUTEC},
+         salida/.style={draw=GrisMedio,line width=0.6bp,dashed},
+         barra/.style={line width=2.6bp,color=black}}
+% Columnas: chip, qué pone a prueba, dibujo (vista desde arriba, 35 bp/m) y pista del PDF frente a la montada.
+\foreach \x/\n/\prueba in {36/1/{Corregir un error inicial de orientación y la deriva; parar sin pasarse más de 30 cm.},
+  262/2/{Seguir la curvatura con la zona ciega: la curva se vio varios pasos antes.},
+  488/3/{Pérdida momentánea de la línea, cambio de luz y curvatura que cambia de signo.},
+  714/4/{Una maniobra discontinua: detectar la esquina y girar sobre el eje.}}{
+  \Chip{\x}{82}{NIVEL \n}
+  \Parrafo{\x}{122}{210}{Calibri}{14}{16.5}{4E4B4C}{\prueba}
+}
+\Chip{776}{82}{MÉRITO}
+% Nivel 1: recta de 4 m, salida a 10°
+\begin{scope}[shift={(130,328)},x=35bp,y=35bp]
+  \draw[salida] (-0.3,-0.45) rectangle (0.3,0.15);
+  \draw[cinta] (0,0) -- (0,4);
+  \draw[barra] (-0.3,4) -- (0.3,4);
+  \draw[-{Stealth[length=6bp]},line width=1.6bp,color=CianUTEC] (0,-0.15) -- ++(100:0.9);
+  \node[rotulo,anchor=west] at (0.15,0.35) {10°};
+\end{scope}
+% Nivel 2: recta 2 m, curva de 90° de radio 1 m a la derecha, recta 2 m
+\begin{scope}[shift={(302,328)},x=35bp,y=35bp]
+  \draw[salida] (-0.3,-0.45) rectangle (0.3,0.15);
+  \draw[cinta] (0,0) -- (0,2) arc[start angle=180,end angle=90,radius=1] -- (3,3);
+  \draw[barra] (3,2.7) -- (3,3.3);
+  \node[rotulo,anchor=north] at (1.25,2.05) {R 1 m};
+\end{scope}
+% Nivel 3 (equipo): recta 1 m, semicírculo a la derecha y semicírculo a la izquierda de R 1 m, recta 1 m
+\begin{scope}[shift={(508,328)},x=35bp,y=35bp]
+  \fill[GrisUTEC,opacity=0.18] (3.45,1.05) rectangle (4.55,2.35);
+  \draw[salida] (-0.3,-0.45) rectangle (0.3,0.15);
+  \draw[cinta] (0,0) -- (0,1) arc[start angle=180,end angle=0,radius=1]
+                arc[start angle=180,end angle=360,radius=1] -- (4,2);
+  \draw[barra] (3.7,2) -- (4.3,2);
+  \fill[white] (1.88,0.79) rectangle (2.12,1.21);
+  \draw[GrisUTEC,line width=0.6bp] (1.9,0.95) -- (1.55,0.5);
+  \node[rotulo,anchor=north] at (1.08,0.45) {hueco 40 cm};
+  \node[rotulo,anchor=east] at (3.42,1.75) {sombra};
+  \node[rotulo,anchor=north] at (1,1.9) {R 1 m};
+\end{scope}
+% Nivel 4: recta 2 m, esquina de 90° a la derecha, recta 2 m
+\begin{scope}[shift={(760,328)},x=35bp,y=35bp]
+  \draw[salida] (-0.3,-0.45) rectangle (0.3,0.15);
+  \draw[cinta] (0,0) -- (0,2) -- (2,2);
+  \draw[barra] (2,1.7) -- (2,2.3);
+  \node[rotulo,anchor=north west] at (0.08,1.95) {90°};
+  % escala
+  \draw[line width=1.4bp] (1.1,0.05) -- (2.1,0.05);
+  \node[rotulo,anchor=north] at (1.6,0.0) {1 m};
+\end{scope}
+% Pista del PDF frente a la montada
+\foreach \x/\pdf/\nuestra in {36/{Recta de 4 m, salida desalineada 10° y barra.}/{Igual; salidas casi alineadas y a ±10°.},
+  262/{Recta 2 m, curva de 90° de radio 2 m, recta 2 m.}/{Curva de radio \textasciitilde1 m a la derecha (por espacio).},
+  488/{S con radios de 1.2 m, 40 cm sin línea y 1 m en sombra.}/{Dos semicírculos de 1 m: giran 180° a cada lado. Hueco en la unión; sombra apagando luces.},
+  714/{Esquina en ángulo recto, 2 m de recta y barra.}/{Igual, con la esquina a la derecha.}}{
+  \Parrafo{\x}{356}{210}{Calibri}{14}{16.5}{000000}{\textbf{PDF:} \pdf}
+  \Parrafo{\x}{396}{210}{Calibri}{14}{16.5}{000000}{\textbf{Montada:} \nuestra}
+}
+% Criterio de éxito
+\Recuadro{36}{448}{888}{58}
+\Acento{36}{448}{506}
+\Parrafo{52}{469}{864}{Calibri}{15}{18}{000000}{\textbf{Éxito (sección 9):} el robot llega a la barra sin intervención y sin que el pie salga más de 30 cm de la línea.}
+\end{Lienzo}
+\end{frame}

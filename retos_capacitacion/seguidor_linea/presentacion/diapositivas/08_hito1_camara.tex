@@ -1,0 +1,50 @@
+% Hito 1: geometría de la cámara medida (6.1).
+\begin{frame}[plain]
+\begin{Lienzo}
+\Cabecera{IV · Hito 1}{Hito 1: dónde mira la cámara}
+% Esquema lateral a 75 bp/m: suelo en y = 292, vertical de la cámara en x = 112
+\begin{scope}[shift={(112,292)},x=75bp,y=75bp]
+  \fill[CianUTEC,opacity=0.30] (0,1.66) -- (0.10,0) -- (4.07,0) -- cycle;
+  \draw[GrisUTEC,line width=1.6bp] (-0.9,0) -- (4.45,0);
+  % robot esquemático
+  \draw[GrisUTEC,line width=5bp,line cap=round] (-0.14,0.04) -- (-0.10,0.92) (-0.04,0.04) -- (-0.04,0.92);
+  \draw[GrisUTEC,line width=9bp,line cap=round] (-0.08,0.98) -- (-0.08,1.50);
+  \fill[GrisUTEC] (-0.08,1.62) circle (6bp);
+  \fill[black] (0,1.66) circle (3bp);
+  \draw[black,line width=0.9bp] (0,1.66) -- (0.10,0);
+  \draw[black,line width=0.9bp] (0,1.66) -- (4.07,0);
+  \draw[black,dashed,line width=0.9bp] (0,1.66) -- (1.20,0);
+  \draw[GrisUTEC,line width=0.6bp] (0,1.66) -- (0.9,1.66);
+  \draw[black,line width=0.8bp] (0.55,1.66) arc[start angle=0,end angle=-54.1,radius=0.55];
+  \node[rotulo,anchor=west,text=black] at (0.58,1.47) {54.1°};
+  \draw[{Stealth[length=5bp]}-{Stealth[length=5bp]},line width=0.8bp] (-0.55,0) -- (-0.55,1.66);
+  \node[rotulo,anchor=east,text=black] at (-0.6,0.83) {1.66 m};
+  \node[rotulo,anchor=north,text=black] at (0.10,-0.05) {0.10 m};
+  \node[rotulo,anchor=north,text=black] at (1.20,-0.05) {1.20 m};
+  \node[rotulo,anchor=north,text=black] at (4.07,-0.05) {4.07 m};
+  \node[rotulo] at (2.0,0.38) {suelo visible en el IR};
+  \node[rotulo,anchor=south west] at (1.2,1.66) {eje óptico a 54.1° bajo la horizontal};
+\end{scope}
+% Tabla de lo medido
+\Tabla{36}{330}{p{168bp}p{120bp}p{136bp}}{%
+\FCab
+\CabI{168}{24}{13}{Medida} & \CabI{120}{24}{13}{Valor} & \CabI{136}{24}{13}{Método}\\\hline
+\FGris
+\CelI{168}{27}{12.5}{Altura de la cámara} & \CelN{120}{27}{12.5}{1.66 m} & \CelI{136}{27}{12.5}{cinta (prof.: 1.672)}\\\hline
+\FBlanca
+\CelI{168}{27}{12.5}{Inclinación} & \CelN{120}{27}{12.5}{54.10°} & \CelI{136}{27}{12.5}{marcas a 1 y 4 m}\\\hline
+\FGris
+\CelI{168}{27}{12.5}{Suelo visible (IR)} & \CelN{120}{27}{12.5}{0.10–4.07 m} & \CelI{136}{27}{12.5}{desde la vertical}\\\hline
+\FBlanca
+\CelI{168}{27}{12.5}{Campo de visión IR / color} & \CelN{120}{27}{12.5}{64.7° / 43.4°} & \CelI{136}{27}{12.5}{vertical, intrínsecos}\\\hline
+\FGris
+\CelI{168}{27}{12.5}{Puntera de los pies} & \CelN{120}{27}{12.5}{−0.02 m} & \CelI{136}{27}{12.5}{de la vertical}\\\hline
+}
+% Imagen de la calibración
+\Doc{484}{84}{440}{330}{calibracion_ir_distancias.png}
+\Pie{484}{430}{440}{IR de la calibración: distancias del suelo (amarillo), eje de la cámara y ±30 cm (verde), marca y barra (magenta) y puntos de la línea (azul).}
+\Recuadro{484}{462}{440}{44}
+\Acento{484}{462}{506}
+\Parrafo{500}{479}{418}{Calibri}{14}{16.5}{000000}{\textbf{Se usa el IR}: ve más suelo que el color; el emisor, solo al calibrar.}
+\end{Lienzo}
+\end{frame}

@@ -1,0 +1,24 @@
+% Resumen de resultados con las métricas de la sección 9, por nivel.
+\begin{frame}[plain]
+\begin{Lienzo}
+\Cabecera{VI · Síntesis}{Resumen: métricas de la sección 9}
+\Tabla{36}{82}{p{56bp}p{206bp}p{70bp}p{100bp}p{80bp}p{76bp}p{96bp}p{94bp}p{110bp}}{%
+\FCab
+\CabI{56}{38}{13}{Nivel} & \CabI{206}{38}{13}{Pista montada} & \Cab{70}{38}{13}{Tiradas en FIN} & \Cab{100}{38}{13}{Tirada (escala 1)} & \Cab{80}{38}{13}{Recorrido} & \Cab{76}{38}{13}{Línea vista} & \Cab{96}{38}{13}{Error lateral medio*} & \Cab{94}{38}{13}{Interven\-ciones} & \Cab{110}{38}{13}{Roll / pitch máximos}\\\hline
+\FGris
+\CelNI{56}{30}{13}{1} & \CelI{206}{30}{13}{Recta de 4 m} & \CelN{70}{30}{13}{9 / 9} & \Cel{100}{30}{13}{020241} & \Cel{80}{30}{13}{11.9 s} & \Cel{76}{30}{13}{92 \%} & \Cel{96}{30}{13}{2.6 cm} & \Cel{94}{30}{13}{0} & \Cel{110}{30}{13}{2.3° / 3.0°}\\\hline
+\FBlanca
+\CelNI{56}{30}{13}{2} & \CelI{206}{30}{13}{Curva de 90° de radio 1 m} & \CelN{70}{30}{13}{7 / 7} & \Cel{100}{30}{13}{104456} & \Cel{80}{30}{13}{20.3 s} & \Cel{76}{30}{13}{91 \%} & \Cel{96}{30}{13}{4.6 cm} & \Cel{94}{30}{13}{0} & \Cel{110}{30}{13}{2.5° / 1.8°}\\\hline
+\FGris
+\CelNI{56}{40}{13}{3} & \CelI{206}{40}{13}{S de 1 m, hueco de 40 cm y la zona a oscuras} & \CelN{70}{40}{13}{7 / 16} & \Cel{100}{40}{13}{044157} & \Cel{80}{40}{13}{41.4 s} & \Cel{76}{40}{13}{91 \%} & \Cel{96}{40}{13}{7.2 cm} & \Cel{94}{40}{13}{0} & \Cel{110}{40}{13}{2.5° / 1.7°}\\\hline
+\FBlanca
+\CelNI{56}{30}{13}{4} & \CelI{206}{30}{13}{Esquina de 90°} & \CelN{70}{30}{13}{4 / 4} & \Cel{100}{30}{13}{053907} & \Cel{80}{30}{13}{23.4 s} & \Cel{76}{30}{13}{84 \%} & \Cel{96}{30}{13}{2.6 cm} & \Cel{94}{30}{13}{0} & \Cel{110}{30}{13}{2.6° / 1.8°}\\\hline
+}
+\Nota{36}{276}{888}{*Medido por la cámara en su vertical (\textasciitilde la puntera), con \texttt{herramientas/metricas.py}; en las curvas cerradas lo sobrestima, porque la línea cruza de lado. En todas, la parada prevista queda +9…+10 cm pasada la barra; el PDF admite hasta 30 cm.}
+\Figura{36}{306}{300}{200}{fig_tiradas}
+\CifraBarra[32]{376}{318}{250}{36 tiradas}{registradas en el robot, más 47 simulacros y 21 recorridos grabados}
+\CifraBarra[32]{376}{418}{250}{0 intervenciones}{con el mando en las tiradas que llegan a la barra}
+\CifraBarra[32]{664}{318}{260}{≤ 3.0°}{de roll y pitch en estas cuatro; el vigilante para en 20°}
+\CifraBarra[32]{664}{418}{260}{5–6 ms}{de percepción por fotograma en el robot (p95 10–13 ms)}
+\end{Lienzo}
+\end{frame}

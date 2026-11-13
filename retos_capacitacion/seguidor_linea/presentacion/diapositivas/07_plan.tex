@@ -1,0 +1,39 @@
+% Plan de trabajo según los hitos de la sección 8, con lo que se hizo y cuándo.
+\begin{frame}[plain]
+\begin{Lienzo}
+\Cabecera{III · Plan de trabajo (sección 8)}{Plan por hitos: lo exigido y lo hecho}
+\Tabla{36}{80}{p{150bp}p{232bp}p{410bp}p{96bp}}{%
+\FCab
+\CabI{150}{25}{13.5}{Fase (sección 8)} & \CabI{232}{25}{13.5}{Entregable exigido} & \CabI{410}{25}{13.5}{Lo que hicimos} & \CabI{96}{25}{13.5}{Cuándo}\\\hline
+\FGris
+\CelNI{150}{45}{13}{Hito 1 · Preparación y medida} & \CelI{232}{45}{13}{Interfaces por escrito; altura, inclinación y zona ciega medidas} & \CelI{410}{45}{13}{Interfaces en \texttt{docs/PLAN.md}; calibración con marcas a 1 y 4 m: 1.66 m, 54.1°, suelo visible de 0.10 a 4.07 m} & \CelI{96}{45}{13}{3 y 5 oct}\\\hline
+\FBlanca
+\CelNI{150}{45}{13}{Conjunto de datos} & \CelI{232}{45}{13}{Tres recorridos con imágenes e IMU; respuesta al escalón de vyaw} & \CelI{410}{45}{13}{12 recorridos del nivel 1 llevados con \texttt{wasd}; escalones a vx 0 y 0.2. Después, 5 del nivel 2 y 4 del 3} & \CelI{96}{45}{13}{3 y 5 oct; 6–7 nov}\\\hline
+\FGris
+\CelNI{150}{45}{13}{Hito 2 · Percepción sin robot} & \CelI{232}{45}{13}{Línea superpuesta, \% de detección, tiempo por fotograma y pruebas} & \CelI{410}{45}{13}{99 \% de detección donde se ve la línea (12 recorridos); 3.1–3.4 ms por fotograma en el PC2; 13 pruebas sintéticas} & \CelI{96}{45}{13}{5 oct}\\\hline
+\FBlanca
+\CelNI{150}{45}{13}{Hito 3 · Control y supervisor en simulacro} & \CelI{232}{45}{13}{Órdenes con el signo correcto; el vigilante para al tapar la cámara} & \CelI{410}{45}{13}{Simulador en lazo cerrado (14/14 con la peor marcha). En el robot: signos bien, PARADA a los 3.0 s con la cámara tapada} & \CelI{96}{45}{13}{5–6 oct}\\\hline
+\FGris
+\CelNI{150}{45}{13}{Pruebas en el robot por niveles} & \CelI{232}{45}{13}{De menor a mayor velocidad; cada fallo se analiza antes de repetir} & \CelI{410}{45}{13}{36 tiradas registradas; la primera de cada nivel, a media escala; cada cambio, probado antes en el simulador} & \CelI{96}{45}{13}{8 oct – 10 nov}\\\hline
+\FBlanca
+\CelNI{150}{45}{13}{Métricas y cierre} & \CelI{232}{45}{13}{Métricas de la sección 9; informe, código y registros} & \CelI{410}{45}{13}{\texttt{metricas.py} por tirada; \texttt{RESULTADOS.md} con cada iteración; informe 6.1–6.4 en preparación} & \CelI{96}{45}{13}{nov}\\\hline
+}
+% Línea de tiempo (octubre y noviembre, con el eje cortado)
+\draw[line width=2bp,GrisUTEC] (52,452) -- (420,452);
+\draw[line width=2bp,GrisUTEC] (470,452) -- (912,452);
+\draw[line width=1.2bp,GrisUTEC] (437,445) -- (445,459) (447,445) -- (455,459);
+\Texto{52}{506}{Calibri}{12}{4E4B4C}{\bfseries octubre}
+\Texto{470}{506}{Calibri}{12}{4E4B4C}{\bfseries noviembre}
+\foreach \x/\fecha/\txt/\arriba in {104/3 oct/{Hito 1, datos y escalones}/1, 190/5 oct/{Hito 2: percepción}/0,
+   238/6 oct/{Hito 3: simulacro}/1, 322/8 oct/{1.ª tirada autónoma}/0, 404/10 oct/{Nivel 1 superado}/1,
+   482/5 nov/{Giro inicial; datos N2}/0, 580/6 nov/{Nivel 2 superado}/1, 690/7 nov/{1.ª S completa}/0,
+   880/10 nov/{Niveles 3 y 4 superados}/1}{
+  \fill[CianUTEC,draw=black,line width=0.6bp] (\x,452) circle (5bp);
+  \ifnum\arriba=1
+    \node[anchor=south,inner sep=0pt,font=\FuenteCalibri\fontsize{12bp}{13bp}\selectfont,align=center] at (\x,440) {\textbf{\fecha}\\\txt};
+  \else
+    \node[anchor=north,inner sep=0pt,font=\FuenteCalibri\fontsize{12bp}{13bp}\selectfont,align=center] at (\x,464) {\textbf{\fecha}\\\txt};
+  \fi
+}
+\end{Lienzo}
+\end{frame}

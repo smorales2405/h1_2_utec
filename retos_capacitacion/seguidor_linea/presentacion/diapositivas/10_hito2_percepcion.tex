@@ -1,0 +1,35 @@
+% Hito 2: percepción desarrollada sobre los conjuntos de datos, sin mover el robot (6.2).
+\begin{frame}[plain]
+\begin{Lienzo}
+\Cabecera{IV · Hito 2}{Hito 2: la percepción, sin mover el robot}
+\Doc{36}{82}{259}{380}{percepcion_ejemplo.jpg}
+\Pie{36}{478}{280}{Línea, punto adelantado y barra a 1.89 y 1.00 m; a la derecha, la vista desde arriba.}
+% Etapas
+\foreach \i/\y/\tit/\txt in {
+  1/84/{Vista desde arriba}/{1 cm por píxel, 0.2–3.0 m por delante y ±1 m; geometría calibrada y postura lenta de la IMU.},
+  2/158/{Franja de 5 cm}/{Contraste a los dos lados: el canto de un mueble no cuenta. Las dos polaridades.},
+  3/232/{Umbral adaptativo}/{6 veces el ruido robusto de cada franja, con un mínimo de 6 niveles.},
+  4/306/{Cadena desde el robot}/{La línea empieza bajo el robot; recta o parábola con reajuste local hasta 0.8 m.},
+  5/380/{Barra y esquina}/{Cinta transversal donde acaba la línea: a los dos lados, barra; a uno, esquina.}}{
+  \Numero{336}{\y}{28}{\i}
+  \Parrafo{376}{\y+12}{270}{Calibri}{16}{19}{000000}{\textbf{\tit}}
+  \Parrafo{376}{\y+31}{270}{Calibri}{14}{16.5}{4E4B4C}{\txt}
+}
+\Recuadro{336}{450}{310}{56}
+\Acento{336}{450}{506}
+\Parrafo{352}{471}{288}{Calibri}{14}{16.5}{000000}{\textbf{Confianza} = filas con línea × contraste × calidad del ajuste.}
+% Cifras
+\CifraBarra[34]{682}{86}{242}{99 \%}{de detección donde la referencia ve la línea (12 recorridos)}
+\CifraBarra[34]{682}{186}{242}{3.1–3.4 ms}{por fotograma en el PC2 (p95 6.1–6.4 ms); a 30 fps hay 33 ms}
+\CifraBarra[34]{682}{286}{242}{0.2–2.0 cm}{de diferencia con la referencia; 0.05–0.53° en el ángulo}
+\Tabla{670}{376}{p{126bp}p{128bp}}{%
+\FCab
+\CabI{126}{22}{12.5}{Sombra ×0.25} & \CabI{128}{22}{12.5}{Alcance de la línea}\\\hline
+\FGris
+\CelI{126}{24}{12.5}{Umbral fijo (15)} & \CelI{128}{24}{12.5}{1.21 m}\\\hline
+\FBlanca
+\CelNI{126}{24}{12.5}{Adaptativo} & \CelNI{128}{24}{12.5}{2.99 m}\\\hline
+}
+\Nota{670}{464}{254}{Sombra sintética sobre los datos (6.2.2): el adaptativo sigue la línea.}
+\end{Lienzo}
+\end{frame}

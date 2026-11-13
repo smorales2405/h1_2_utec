@@ -1,0 +1,39 @@
+% Arquitectura mínima exigida (sección 5): los cinco bloques, sus interfaces y cómo se cumple cada requisito.
+\begin{frame}[plain]
+\begin{Lienzo}
+\Cabecera{II · Arquitectura (sección 5)}{Cinco bloques con interfaces declaradas}
+% Diagrama de flujo
+\node[bloqueL,minimum width=96bp,minimum height=46bp] (cam) at (86,138) {D435i\\[-1bp]{\fontsize{11bp}{12bp}\selectfont IR 640×480, 30 fps}};
+\node[bloqueC,minimum width=112bp,minimum height=46bp] (per) at (238,138) {\bfseries Percepción};
+\node[bloqueC,minimum width=112bp,minimum height=46bp] (est) at (414,138) {\bfseries Estimación};
+\node[bloqueC,minimum width=112bp,minimum height=46bp] (con) at (590,138) {\bfseries Control};
+\node[bloqueG,minimum width=118bp,minimum height=46bp] (sup) at (770,138) {\bfseries Supervisor\\[-1bp]{\fontsize{11bp}{12bp}\selectfont + vigilante}};
+\node[bloqueL,minimum width=150bp,minimum height=34bp] (imu) at (414,222) {IMU y salud del robot\\[-1bp]{\fontsize{11bp}{12bp}\selectfont \texttt{rt/lowstate}, 100 Hz}};
+\node[bloqueL,minimum width=150bp,minimum height=34bp] (mar) at (770,222) {Marcha de Unitree\\[-1bp]{\fontsize{11bp}{12bp}\selectfont \texttt{Move} / \texttt{StopMove}}};
+\node[bloque,dashed,minimum width=250bp,minimum height=30bp] (reg) at (172,222) {\bfseries Registro\ {\mdseries\fontsize{12bp}{12bp}\selectfont → CSV + resumen JSON}};
+\draw[flecha] (cam) -- (per);
+\draw[flecha] (per) -- node[rotulo,above=1bp] {medida} (est);
+\draw[flecha] (est) -- node[rotulo,above=1bp] {estado} (con);
+\draw[flecha] (con) -- node[rotulo,above=1bp] {orden} (sup);
+\draw[flecha] (imu) -- (est);
+\draw[flecha] (sup) -- node[rotulo,right=2bp] {20 Hz} (mar);
+\draw[flecha] ($(imu.north east)+(-10,0)$) -- ++(0,-20) -| node[rotulo,pos=0.25,above=0bp] {salud} ($(sup.south west)+(16,0)$);
+\draw[flecha,dashed] (per.south) -- (per.south |- reg.north);
+\Nota{36}{94}{300}{Fotograma → medida → estado → orden → \texttt{Move}}
+% Tabla de interfaces
+\Tabla{36}{256}{p{104bp}p{266bp}p{242bp}p{276bp}}{%
+\FCab
+\CabI{104}{26}{13.5}{Bloque} & \CabI{266}{26}{13.5}{Entrada → salida} & \CabI{242}{26}{13.5}{Requisito del enunciado} & \CabI{276}{26}{13.5}{Cómo se cumple}\\\hline
+\FGris
+\CelNI{104}{43}{13}{Percepción} & \CelI{266}{43}{13}{Fotograma → desplazamiento (m), ángulo (rad), curvatura, confianza 0–1, tiempo} & \CelI{242}{43}{13}{Igual sobre el conjunto de datos que en vivo, sin cambiar el código} & \CelI{276}{43}{13}{La fuente (ZMQ o dataset) se elige fuera; 13 pruebas sintéticas y una de regresión}\\\hline
+\FBlanca
+\CelNI{104}{43}{13}{Estimación} & \CelI{266}{43}{13}{Medidas + IMU → estado de la línea respecto del robot} & \CelI{242}{43}{13}{Declarar el trato del balanceo y qué hace si cae la confianza} & \CelI{276}{43}{13}{Sin corregir roll/pitch por paso; yaw de la IMU. Sin medida: estima de avance}\\\hline
+\FGris
+\CelNI{104}{43}{13}{Control} & \CelI{266}{43}{13}{Estado → vx, vy, vyaw saturadas} & \CelI{242}{43}{13}{Ganancias y límites en un fichero, no en el código} & \CelI{276}{43}{13}{\texttt{config/seguidor.yaml}; topes 0.4 m/s, 0.2 m/s y 0.5 rad/s}\\\hline
+\FBlanca
+\CelNI{104}{43}{13}{Supervisor} & \CelI{266}{43}{13}{Estado + orden + salud del robot → orden final o parada} & \CelI{242}{43}{13}{Máquina de estados explícita; único que llama a Move y StopMove} & \CelI{276}{43}{13}{Seis estados; el vigilante mira cámara, IMU, FSM, motores e inclinación}\\\hline
+\FGris
+\CelNI{104}{43}{13}{Registro} & \CelI{266}{43}{13}{Todo lo anterior → CSV y resumen JSON por tirada} & \CelI{242}{43}{13}{Bastar para reconstruir cada tirada después} & \CelI{276}{43}{13}{Fotogramas, medidas, órdenes, \texttt{lowstate}, imágenes IR y \texttt{resumen.json}}\\\hline
+}
+\end{Lienzo}
+\end{frame}

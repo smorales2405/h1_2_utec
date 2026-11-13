@@ -1,0 +1,33 @@
+% Nivel 4: esquina de 90°, giro sobre el eje y parada adelantada.
+\begin{frame}[plain]
+\begin{Lienzo}
+\Cabecera{V · Resultados}{Nivel 4: esquina de 90° y giro sobre el eje}
+\foreach \x/\f/\i/\txt in {36/n4_a/1/{Ve la esquina desde la salida y la confirma},
+  261/n4_b/2/{Para con el centro de giro 0.3 m antes},
+  486/n4_c/3/{Gira 90° en el sitio con la IMU, a 0.25 rad/s},
+  711/n4_d/4/{Sigue la línea nueva hasta la barra}}{
+  \Foto{\x}{82}{213}{120}{\f}
+  \Numero{\x}{210}{22}{\i}
+  \Parrafo{\x+30}{225}{183}{Calibri}{13.5}{15.5}{000000}{\txt}
+}
+\Fila{36}{262}{430}{70}{PROBLEMA}{Girando 90° en el sitio, el robot se desplaza \textbf{0.30–0.41 m} hacia donde andaba: en la 1.ª tirada, la línea nueva quedó a 0.39 m.}
+\Fila{36}{340}{430}{58}{CAMBIO}{Parar 0.3 m antes de la esquina y girar siempre a 0.25 rad/s.}
+\Tabla{36}{406}{p{70bp}p{56bp}p{78bp}p{116bp}p{110bp}}{%
+\FCab
+\CabI{70}{22}{12.5}{Tirada} & \Cab{56}{22}{12.5}{Escala} & \Cab{78}{22}{12.5}{Adelanto} & \Cab{116}{22}{12.5}{Pies tras el giro} & \Cab{110}{22}{12.5}{Desplazamiento}\\\hline
+\FGris
+\CelI{70}{19.5}{12}{050558} & \Cel{56}{19.5}{12}{0.5} & \Cel{78}{19.5}{12}{0} & \Cel{116}{19.5}{12}{0.39 m pasado} & \Cel{110}{19.5}{12}{0.41 m}\\\hline
+\FBlanca
+\CelI{70}{19.5}{12}{052855} & \Cel{56}{19.5}{12}{0.5} & \Cel{78}{19.5}{12}{0.3 m} & \Cel{116}{19.5}{12}{0.03 m} & \Cel{110}{19.5}{12}{0.34 m}\\\hline
+\FGris
+\CelI{70}{19.5}{12}{053202} & \Cel{56}{19.5}{12}{0.5} & \Cel{78}{19.5}{12}{0.3 m} & \Cel{116}{19.5}{12}{0.00–0.02 m} & \Cel{110}{19.5}{12}{0.30–0.33 m}\\\hline
+\FCian
+\CelNI{70}{19.5}{12}{053907} & \CelN{56}{19.5}{12}{1} & \CelN{78}{19.5}{12}{0.3 m} & \CelN{116}{19.5}{12}{0.00–0.04 m} & \CelN{110}{19.5}{12}{\textasciitilde0.31 m}\\\hline
+}
+\fill[CianUTEC] (484,262) rectangle (924,298);
+\Parrafo{496}{285}{420}{Calibri}{15}{18}{000000}{\textbf{Resultado:} 4 de 4 en la barra; a escala 1, 23.4 s y giro de 89.8°.}
+\Figura{484}{306}{440}{166}{fig_nivel4_giro}
+\Pie{484}{490}{284}{Pies respecto de la línea nueva (cámara).}
+\BotonVideo{774}{478}{nivel4.mp4}{Vídeo nivel 4}
+\end{Lienzo}
+\end{frame}

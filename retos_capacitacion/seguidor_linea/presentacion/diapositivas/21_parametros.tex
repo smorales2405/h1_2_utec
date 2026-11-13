@@ -1,0 +1,30 @@
+% Parámetros finales de config/seguidor.yaml, con los que se lograron los resultados.
+\begin{frame}[plain]
+\begin{Lienzo}
+\Cabecera{VI · Síntesis}{Parámetros finales (\texttt{config/seguidor.yaml})}
+\Tabla{36}{82}{p{118bp}p{326bp}p{444bp}}{%
+\FCab
+\CabI{118}{24}{13}{Bloque} & \CabI{326}{24}{13}{Parámetro} & \CabI{444}{24}{13}{Valor y por qué}\\\hline
+\FGris
+\CelNI{118}{34}{12.5}{Percepción} & \CelI{326}{34}{12.5}{Vista desde arriba; umbral} & \CelI{444}{34}{12.5}{1 cm/px, 0.2–3.0 m y ±1 m; adaptativo, 6 veces el ruido (mínimo 6 niveles)}\\\hline
+\FBlanca
+\CelNI{118}{34}{12.5}{} & \CelI{326}{34}{12.5}{Reajuste local; hueco máximo} & \CelI{444}{34}{12.5}{0.8 m (sesgo de recta + curva, nivel 2); 0.5 m (la interrupción es de 0.4 m)}\\\hline
+\FGris
+\CelNI{118}{34}{12.5}{Estimación} & \CelI{326}{34}{12.5}{Avance; velocidad mínima; confirmar} & \CelI{444}{34}{12.5}{1.14·vx a 7.5° a la izquierda; 0.18 m/s; barra y esquina tras 5 avistamientos}\\\hline
+\FBlanca
+\CelNI{118}{34}{12.5}{Control} & \CelI{326}{34}{12.5}{Punto adelantado; compensación de la deriva} & \CelI{444}{34}{12.5}{L = 0.6 m desde el centro de giro; −0.026 rad/s}\\\hline
+\FGris
+\CelNI{118}{34}{12.5}{} & \CelI{326}{34}{12.5}{Girar primero; pausa para girar} & \CelI{444}{34}{12.5}{Si |α| > 12° al salir; si el giro no cabe y |α| > 25° (gira hasta la mitad)}\\\hline
+\FBlanca
+\CelNI{118}{34}{12.5}{} & \CelI{326}{34}{12.5}{Pausa con la línea perdida; búsqueda} & \CelI{444}{34}{12.5}{|α| > 15° o rumbo > 18° (perdida ≥ 0.8 s); arco a vx 0.16 y 0.25 rad/s; vx ≤ 0.16 durante 2 s}\\\hline
+\FGris
+\CelNI{118}{34}{12.5}{Supervisor} & \CelI{326}{34}{12.5}{Seguir; línea perdida; parada} & \CelI{444}{34}{12.5}{5 medidas con confianza ≥ 0.45; 0.3 s sin medida buena; PARADA a 4.5 s}\\\hline
+\FBlanca
+\CelNI{118}{34}{12.5}{} & \CelI{326}{34}{12.5}{Fin en la barra} & \CelI{444}{34}{12.5}{Puntera +10 cm pasada la barra, con 0.5 s de frenado (acierta en ±4 cm)}\\\hline
+\FGris
+\CelNI{118}{34}{12.5}{} & \CelI{326}{34}{12.5}{Esquina} & \CelI{444}{34}{12.5}{Para 0.3 m antes; giro a 0.25 rad/s, tolerancia 3° y 0.6 s estable}\\\hline
+\FBlanca
+\CelNI{118}{34}{12.5}{Límites} & \CelI{326}{34}{12.5}{Topes y órdenes} & \CelI{444}{34}{12.5}{vx 0.4 m/s, vy 0.2 m/s, vyaw 0.5 rad/s; primeras tiradas a 0.5; Move a 20 Hz}\\\hline
+}
+\end{Lienzo}
+\end{frame}

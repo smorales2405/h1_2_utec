@@ -1,0 +1,29 @@
+% Registro de tiradas por fecha: abre los resultados.
+\begin{frame}[plain]
+\begin{Lienzo}
+\Cabecera{V · Resultados}{36 tiradas en el robot, por fecha}
+\Tabla{36}{82}{p{80bp}p{58bp}p{84bp}p{72bp}p{66bp}p{528bp}}{%
+\FCab
+\CabI{80}{24}{13}{Fecha} & \Cab{58}{24}{13}{Nivel} & \Cab{84}{24}{13}{Escala} & \Cab{72}{24}{13}{Tiradas} & \Cab{66}{24}{13}{FIN} & \CabI{528}{24}{13}{Qué se probó}\\\hline
+\FGris
+\CelI{80}{36}{12.5}{8 oct} & \Cel{58}{36}{12.5}{1} & \Cel{84}{36}{12.5}{0.5} & \Cel{72}{36}{12.5}{2} & \Cel{66}{36}{12.5}{2} & \CelI{528}{36}{12.5}{Primeras tiradas autónomas, salida casi alineada}\\\hline
+\FBlanca
+\CelI{80}{36}{12.5}{10 oct} & \Cel{58}{36}{12.5}{1} & \Cel{84}{36}{12.5}{0.5 y 1} & \Cel{72}{36}{12.5}{3} & \Cel{66}{36}{12.5}{3} & \CelI{528}{36}{12.5}{Salidas giradas ±10° y escala 1}\\\hline
+\FGris
+\CelI{80}{36}{12.5}{5 nov} & \Cel{58}{36}{12.5}{1} & \Cel{84}{36}{12.5}{0.5 y 1} & \Cel{72}{36}{12.5}{4} & \Cel{66}{36}{12.5}{4} & \CelI{528}{36}{12.5}{Girar primero en el sitio (umbrales de 12° y 8°)}\\\hline
+\FBlanca
+\CelI{80}{36}{12.5}{6 nov} & \Cel{58}{36}{12.5}{2} & \Cel{84}{36}{12.5}{0.5 y 1} & \Cel{72}{36}{12.5}{7} & \Cel{66}{36}{12.5}{7} & \CelI{528}{36}{12.5}{Curva de 1 m; velocidad medida tras frenar; reajuste local de la línea hasta 0.8 m}\\\hline
+\FGris
+\CelI{80}{36}{12.5}{7 nov} & \Cel{58}{36}{12.5}{3} & \Cel{84}{36}{12.5}{0.5} & \Cel{72}{36}{12.5}{3} & \Cel{66}{36}{12.5}{0} & \CelI{528}{36}{12.5}{La S del equipo; pausa para girar}\\\hline
+\FBlanca
+\CelI{80}{36}{12.5}{7 nov} & \Cel{58}{36}{12.5}{3} & \Cel{84}{36}{12.5}{1} & \Cel{72}{36}{12.5}{7} & \Cel{66}{36}{12.5}{1} & \CelI{528}{36}{12.5}{Escala 1; pausa con la línea perdida; muestreo, rumbo y vx tras la pausa}\\\hline
+\FGris
+\CelI{80}{36}{12.5}{10 nov} & \Cel{58}{36}{12.5}{3} & \Cel{84}{36}{12.5}{1} & \Cel{72}{36}{12.5}{6} & \Cel{66}{36}{12.5}{6} & \CelI{528}{36}{12.5}{Búsqueda en arco; hueco de 40 cm; sombra en el tramo final y en toda la zona}\\\hline
+\FBlanca
+\CelI{80}{36}{12.5}{10 nov} & \Cel{58}{36}{12.5}{4} & \Cel{84}{36}{12.5}{0.5 y 1} & \Cel{72}{36}{12.5}{4} & \Cel{66}{36}{12.5}{4} & \CelI{528}{36}{12.5}{Esquina; parada 0.3 m antes y giro a 0.25 rad/s}\\\hline
+\FCian
+\CelNI{80}{30}{13}{Total} & \CelN{58}{30}{13}{} & \CelN{84}{30}{13}{} & \CelN{72}{30}{13}{36} & \CelN{66}{30}{13}{27} & \CelNI{528}{30}{13}{Además: 47 simulacros, 21 recorridos grabados, 7 calibraciones y 5 escalones}\\\hline
+}
+\Nota{36}{474}{888}{Datos en \texttt{datos/tirada\_<fecha>\_<hora>\_nivel<N>\_escala<E>/}: fotogramas, medidas, órdenes, \texttt{lowstate}, imágenes IR y \texttt{resumen.json}. Las fechas de las carpetas son las del reloj del robot.}
+\end{Lienzo}
+\end{frame}

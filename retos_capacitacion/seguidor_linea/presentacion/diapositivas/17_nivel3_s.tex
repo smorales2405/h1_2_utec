@@ -1,0 +1,23 @@
+% Nivel 3 (1/2): la S de la pista del equipo y los cambios hasta completarla.
+\begin{frame}[plain]
+\begin{Lienzo}
+\Cabecera{V · Resultados}{Nivel 3: la S con dos semicírculos de 1 m}
+\Figura{36}{82}{560}{250}{fig_nivel3_progreso}
+\Pie{36}{348}{560}{Cuánto del 2.º semicírculo recorre cada tirada (de 180°, por la IMU), en orden y con el cambio que se probaba. El 1.º semicírculo lo completan todas.}
+\Imagen{618}{82}{306}{229.5}{imagenes/fotos/ir_n3_segundo.jpg}
+\Pie{618}{330}{306}{Lo que ve la cámara al perderla (104116): la cinta cruza de lado y el detector, un punto por fila, no sigue más allá de \textasciitilde65°.}
+% Cambios
+\foreach \i/\x/\y/\tit/\txt in {
+  1/36/394/{Pausa para girar}/{Si el giro no cabe a la velocidad mínima y |α| > 25°, para y gira en el sitio.},
+  2/36/452/{Escala 1}/{El doble de tope de giro (0.5 rad/s) para la curva de 1 m.},
+  3/338/394/{Pausa con la línea perdida}/{Si queda a más de 15° (o la cinta a más de 18° de la marcha), para y gira hacia ella.},
+  4/338/452/{Muestreo y salida de la pausa}/{La línea medida se prolongaba hacia atrás; tras una pausa, vx ≤ 0.16 durante 2 s.},
+  5/640/394/{Búsqueda en arco}/{Si al acabar la pausa sigue sin verla, avanza girando 0.25 rad/s hacia el mismo lado.}}{
+  \Numero{\x}{\y}{24}{\i}
+  \Parrafo{\x+32}{\y+11}{252}{Calibri}{15}{17}{000000}{\textbf{\tit}}
+  \Parrafo{\x+32}{\y+28}{252}{Calibri}{13}{15}{4E4B4C}{\txt}
+}
+\fill[CianUTEC] (640,452) rectangle (924,506);
+\Parrafo{652}{472}{264}{Calibri}{15}{18}{000000}{\textbf{Resultado:} de 1 de 10 tiradas a 6 de 6 en la barra, en 38–41 s.}
+\end{Lienzo}
+\end{frame}

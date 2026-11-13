@@ -1,0 +1,19 @@
+% Caracterización de la marcha (6.3): respuesta al giro, avance real y balanceo.
+\begin{frame}[plain]
+\begin{Lienzo}
+\Cabecera{IV · Hito 1}{Cómo responde la marcha}
+\Figura{36}{84}{430}{235}{fig_escalon}
+\Pie{36}{336}{430}{Escalones de vyaw de ±0.3 rad/s andando a vx 0.2 (\texttt{escalon\_20261003\_081312}): orden y giro medido por la IMU.}
+\Recuadro{36}{362}{430}{144}
+\Acento{36}{362}{506}
+\Cuerpo{52}{383}{404}{13.5}{%
+\Sub{Lo que cambia en el control}\Esp{4}
+\Vin{Pure pursuit desde el centro de giro (14 cm tras la cámara) y sobre la dirección real de avance.}\Esp{3}
+\Vin{Compensación fija de la deriva: −0.026 rad/s.}\Esp{3}
+\Vin{Punto adelantado a 0.6 m: 0.4 s de retardo son 8 cm a 0.2 m/s.}}
+\CifraBarra[30]{516}{86}{408}{0.30–0.45 s}{retardo efectivo del giro andando; ganancia \textasciitilde0.95 y 90 \% en 0.8–1.2 s}
+\CifraBarra[30]{516}{190}{408}{×1.14, a 7.5° a la izquierda}{el robot avanza más rápido de lo mandado (0.228 m/s con vx 0.2) y en diagonal respecto del eje de la cámara}
+\CifraBarra[30]{516}{294}{408}{1.2–1.7°/s}{de deriva del rumbo a la izquierda andando recto; andando no baja de \textasciitilde0.18 m/s}
+\CifraBarra[30]{516}{398}{408}{1.0 → 3.2 cm}{oscilación de la línea al corregir el balanceo con el roll y el pitch de la IMU: empeora. Con el yaw de la IMU, el ángulo pasa de \textasciitilde1° a 0.04–0.13°}
+\end{Lienzo}
+\end{frame}

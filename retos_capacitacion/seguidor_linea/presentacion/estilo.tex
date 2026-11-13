@@ -1,0 +1,43 @@
+% Página, fuentes y colores (base de las presentaciones de PI 2: 16:9, 960 × 540 bp).
+% Coordenadas en bp (1 bp = 1/72 pulgada), con el origen arriba a la izquierda.
+\geometry{paperwidth=960bp,paperheight=540bp}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{headline}{}
+\setbeamertemplate{footline}{}
+\setbeamertemplate{background canvas}{}
+\setbeamersize{text margin left=0pt,text margin right=0pt}
+\setbeamercolor{normal text}{fg=black,bg=white}
+\usefonttheme{professionalfonts}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+\setlength{\emergencystretch}{1em}
+\hyphenpenalty=10000
+\exhyphenpenalty=10000
+
+% Fuentes portátiles incluidas en fuentes/. Cambiar a \FuentesMicrosofttrue si Arial y
+% Calibri están instaladas.
+\newif\ifFuentesMicrosoft
+\FuentesMicrosoftfalse
+\ifFuentesMicrosoft
+  \newfontfamily\FuenteArial{Arial}
+  \newfontfamily\FuenteCalibri{Calibri}
+  \setsansfont{Calibri}
+\else
+  \newfontfamily\FuenteArial{LiberationSans}[Path=fuentes/,Extension=.ttf,
+    UprightFont=*-Regular,BoldFont=*-Bold,ItalicFont=*-Italic,BoldItalicFont=*-BoldItalic]
+  \newfontfamily\FuenteCalibri{Carlito}[Path=fuentes/,Extension=.ttf,
+    UprightFont=*-Regular,BoldFont=*-Bold,ItalicFont=*-Italic,BoldItalicFont=*-BoldItalic]
+  \setsansfont{Carlito}[Path=fuentes/,Extension=.ttf,
+    UprightFont=*-Regular,BoldFont=*-Bold,ItalicFont=*-Italic,BoldItalicFont=*-BoldItalic]
+\fi
+\newfontfamily\FuenteSpace{SpaceGrotesk}[Path=fuentes/,Extension=.ttf,
+  UprightFont=*-Regular,BoldFont=*-Bold]
+
+% Colores UTEC (los de la presentación de 5 minutos).
+\definecolor{GrisUTEC}{HTML}{4E4B4C}
+\definecolor{CianUTEC}{HTML}{00E1FF}
+\definecolor{GrisClaroUTEC}{HTML}{E4E4E4}
+% Derivados para filas alternas, reglas y trazos finos sobre blanco.
+\definecolor{GrisFila}{HTML}{F2F2F2}
+\definecolor{GrisRegla}{HTML}{C8C8C8}
+\definecolor{GrisMedio}{HTML}{8A8788}

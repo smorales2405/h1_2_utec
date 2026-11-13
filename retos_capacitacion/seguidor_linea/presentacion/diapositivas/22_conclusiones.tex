@@ -1,0 +1,25 @@
+% Conclusiones y mejoras.
+\begin{frame}[plain]
+\begin{Lienzo}
+\Cabecera{VI · Síntesis}{Conclusiones y mejoras}
+\Texto{36}{100}{Calibri}{20}{000000}{\bfseries Conclusiones}
+\foreach \i/\y/\tit/\txt in {
+  1/114/{Los cuatro niveles, superados}/{Sin intervención y a escala 1 (hasta 0.4 m/s): 11.9 s, 20.3 s, 41.4 s con hueco y a oscuras, y 23.4 s.},
+  2/208/{Medir el robot decidió el diseño}/{Avance en diagonal y 14 \% más rápido, 0.3–0.45 s de retardo, no corregir el balanceo paso a paso y el desplazamiento al girar en el sitio.},
+  3/302/{Cinco bloques, probados por separado}/{La percepción se hizo sobre datos grabados y el control en el simulador: la primera tirada llegó con el simulacro validado.},
+  4/396/{Cada fallo, analizado antes de repetir}/{36 tiradas registradas; cada cambio se probó antes en el simulador y después en el robot.}}{
+  \Numero{36}{\y}{30}{\i}
+  \Parrafo{78}{\y+15}{420}{Calibri}{17}{20}{000000}{\textbf{\tit}}
+  \Parrafo{78}{\y+37}{420}{Calibri}{15}{18}{4E4B4C}{\txt}
+}
+\Recuadro{530}{82}{394}{422}
+\Acento{530}{82}{504}
+\Texto{548}{108}{Calibri}{20}{000000}{\bfseries Mejoras}
+\Cuerpo{548}{136}{364}{14.5}{%
+\Vin{\textbf{Un detector que siga la cinta a cualquier ángulo} (por columnas o por contorno): hoy no pasa de \textasciitilde65° y obliga a pausar en la curva de 1 m.}\Esp{8}
+\Vin{\textbf{Explicar el desplazamiento al girar en el sitio} (0.30–0.41 m en 90°) y modelarlo en vez de compensarlo.}\Esp{8}
+\Vin{\textbf{Probar vy} para corregir el avance en diagonal (6.3.4).}\Esp{8}
+\Vin{\textbf{Ensayar la pista del nivel 3 del PDF} (radios de 1.2 m) y la sesión seguida de los niveles 1 a 4, como pide la evaluación.}\Esp{8}
+\Vin{\textbf{Cerrar el informe} con las respuestas 6.1–6.4.}}
+\end{Lienzo}
+\end{frame}

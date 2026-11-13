@@ -1,0 +1,28 @@
+% Interpretación del reto (secciones 1 y 2 del enunciado) y por qué no es un seguidor de ruedas.
+\begin{frame}[plain]
+\begin{Lienzo}
+\Cabecera{I · Interpretación del reto}{Qué pide el reto y por qué no es trivial}
+\Cuerpo{36}{100}{410}{15}{%
+\Sub{Qué pide (sección 1)}\Esp{3}
+Que el H1-2 camine siguiendo una línea del suelo, con la RealSense D435i de la cabeza como \textbf{única realimentación de posición}, y que se detenga solo en la barra de fin.\Esp{9}
+\Sub{Qué escribe el equipo}\Esp{3}
+No el control de las piernas: la marcha es la de Unitree. El equipo escribe el lazo que decide qué pedir a \texttt{LocoClient.Move(vx, vy, vyaw)} a partir de la imagen y de la IMU.\Esp{9}
+\Sub{Objetivo general (sección 2)}\Esp{3}
+Seguimiento en lazo cerrado con percepción en la D435i, control sobre LocoClient y supervisión de seguridad, hasta el nivel más alto posible y con registro medible de cada tirada.}
+\Recuadro{36}{410}{420}{94}
+\Acento{36}{410}{504}
+\Parrafo{52}{432}{396}{Calibri}{16}{19.5}{000000}{\textbf{Nuestra lectura:} medir primero el robot real (cámara y marcha) y diseñar después; la percepción, sobre datos grabados; nada anda solo antes del simulacro.}
+% Columna derecha: dificultades, con lo medido.
+\Texto{486}{100}{Arial}{15}{000000}{\bfseries Por qué no es un seguidor de ruedas (y lo que medimos)}
+\foreach \i/\y/\tit/\txt in {
+  1/118/{Cámara en la cabeza, sin cuello}/{A 1.66 m del suelo e inclinada 54°: hay que saber qué suelo se ve. Medido: de 0.10 a 4.07 m por delante.},
+  2/195/{La imagen se balancea}/{Cadencia de 1.33–1.46 Hz: la línea oscila \textasciitilde1 cm y \textasciitilde1° en cada paso aunque el robot vaya recto.},
+  3/272/{Retardo y deriva}/{La marcha responde con 0.3–0.45 s de retardo efectivo; el rumbo deriva \textasciitilde1.5°/s a la izquierda.},
+  4/349/{Sin odometría}/{El odómetro del PC2 devuelve (0, 0, 0): la distancia solo sale de la cámara o de estimarla.},
+  5/426/{Un humanoide de 70 kg}/{Un error de control no es salirse de la pista: es una caída. La seguridad va primero.}}{
+  \Numero{486}{\y}{30}{\i}
+  \Parrafo{528}{\y+13}{396}{Calibri}{17}{20}{000000}{\textbf{\tit}}
+  \Parrafo{528}{\y+34}{396}{Calibri}{15}{18}{4E4B4C}{\txt}
+}
+\end{Lienzo}
+\end{frame}

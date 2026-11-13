@@ -1,0 +1,34 @@
+% Hito 3: simulacro en el robot, simulador en lazo cerrado y pruebas automáticas.
+\begin{frame}[plain]
+\begin{Lienzo}
+\Cabecera{IV · Hito 3}{Hito 3: simulacro, simulador y pruebas}
+\Tabla{36}{82}{p{196bp}p{212bp}}{%
+\FCab
+\CabI{196}{24}{13}{Simulacro (sin ningún Move)} & \CabI{212}{24}{13}{Resultado en el robot}\\\hline
+\FGris
+\CelI{196}{38}{12.5}{Signos: alineado, girado ±25°, desplazado ±30 cm} & \CelI{212}{38}{12.5}{vyaw con el signo esperado en todos}\\\hline
+\FBlanca
+\CelI{196}{38}{12.5}{Tapar la cámara 5 s} & \CelI{212}{38}{12.5}{LÍNEA PERDIDA a 0.3 s y PARADA a 3.0 s}\\\hline
+\FGris
+\CelI{196}{38}{12.5}{Sin línea al empezar} & \CelI{212}{38}{12.5}{PARADA a los 5 s}\\\hline
+\FBlanca
+\CelI{196}{38}{12.5}{Parar el servidor de cámara} & \CelI{212}{38}{12.5}{PARADA en 0.54 s}\\\hline
+\FGris
+\CelI{196}{38}{12.5}{Recorrido hasta la barra, con el mando} & \CelI{212}{38}{12.5}{Barra vista de 2.88 a 0.31 m; FIN}\\\hline
+}
+\Recuadro{36}{328}{408}{176}
+\Acento{36}{328}{504}
+\Cuerpo{52}{350}{384}{13.5}{%
+\Sub{La primera ronda destapó tres fallos}\Esp{3}
+\Vin{Reflejos del techo que borraban 50–60 cm de cinta: ahora un hueco se salta si lo de más allá sigue la línea.}
+\Vin{Falsos en el borde de la vista que retrasaban la PARADA a \textasciitilde13 s.}
+\Vin{En el tramo final a ciegas la velocidad estimada caía: ahora se cuenta con la medida al ver la barra.}}
+\Figura{460}{82}{464}{196}{fig_simulacion}
+\Pie{460}{296}{464}{Lazo cerrado simulado a escala 1 con el modelo de la marcha medido, pistas del PDF y salidas a ±10°.}
+\CifraBarra[30]{476}{336}{200}{14/14}{tiradas simuladas con éxito con todo lo peor de la marcha a la vez}
+\CifraBarra[30]{710}{336}{214}{107}{pruebas automáticas: percepción, estimación, control, supervisor y lazo}
+\Recuadro{460}{432}{464}{72}
+\Acento{460}{432}{504}
+\Parrafo{476}{452}{440}{Calibri}{14}{17}{000000}{\textbf{Percepción real sobre imágenes sintéticas} de las pistas: así se probaron la curva, la S, el hueco, la sombra y la esquina antes de montarlas.}
+\end{Lienzo}
+\end{frame}

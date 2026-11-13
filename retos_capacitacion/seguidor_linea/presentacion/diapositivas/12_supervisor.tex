@@ -1,0 +1,42 @@
+% Supervisor: máquina de estados explícita, vigilante y condiciones de seguridad (sección 10).
+\begin{frame}[plain]
+\begin{Lienzo}
+\Cabecera{IV · Hito 3}{Supervisor, vigilante y seguridad}
+\tikzset{estado/.style={bloque,minimum width=132bp,minimum height=40bp,font=\FuenteCalibri\bfseries\fontsize{14bp}{14bp}\selectfont},
+         transicion/.style={rotulo,text=black,fill=white,inner sep=1.5bp}}
+\node[estado,fill=GrisClaroUTEC!55] (esp) at (110,108) {ESPERA};
+\node[estado,fill=CianUTEC,draw=black] (seg) at (296,226) {SEGUIMIENTO};
+\node[estado,fill=GrisClaroUTEC!55] (per) at (482,108) {LÍNEA PERDIDA};
+\node[estado,fill=GrisClaroUTEC!55] (esq) at (296,352) {GIRO ESQUINA};
+\node[estado,fill=CianUTEC!45] (fin) at (110,446) {FIN};
+\node[estado,fill=GrisUTEC,text=white] (par) at (482,446) {PARADA};
+\draw[flecha] (esp) -- node[transicion,sloped,above=1bp,pos=0.54] {5 medidas buenas} (seg);
+\draw[flecha] ($(seg.north east)+(-14,0)$) -- node[transicion,sloped,above=1bp,pos=0.45] {0.3 s sin medida} ($(per.south west)+(10,0)$);
+\draw[flecha] ($(per.south)+(-20,0)$) to[bend left=18] node[transicion,below right=0bp] {recuperada} ($(seg.east)+(0,6)$);
+\draw[flecha] (per) -- node[transicion,right=2bp] {4.5 s} (par);
+\draw[flecha] ($(seg.south)+(-30,0)$) to[bend right=10] node[transicion,left=2bp] {esquina (nivel 4)} ($(esq.north)+(-30,0)$);
+\draw[flecha] ($(esq.north)+(30,0)$) to[bend right=10] node[transicion,right=2bp] {90° y línea nueva} ($(seg.south)+(30,0)$);
+\draw[flecha] (seg.west) -| node[transicion,right=2bp,pos=0.72] {barra} (fin.north);
+\draw[flecha] (esq.south east) -- node[transicion,sloped,below=1bp] {sin línea} (par.north west);
+\draw[flecha] (esp.west) -| (26,494) -- (482,494) -- (par.south);
+\node[transicion,anchor=west,align=left] at (30,300) {sin línea\\5 s};
+\Nota{196}{94}{214}{Desde cualquier estado: PARADA si salta el vigilante.}
+% Seguridad
+\Recuadro{602}{82}{322}{422}
+\Acento{602}{82}{504}
+\Cuerpo{620}{104}{294}{13.5}{%
+\Sub{Paradas (StopMove) del vigilante}\Esp{3}
+\Vin{Línea perdida más de 4.5 s.}
+\Vin{Roll o pitch por encima de 20°.}
+\Vin{Motor en fallo o FSM distinta de 201.}
+\Vin{Cámara sin fotogramas 0.5 s; \texttt{lowstate} viejo 0.5 s.}
+\Vin{Excepción, Ctrl+C o 120 s de tirada.}\Esp{8}
+\Sub{Sección 10 en el código}\Esp{3}
+\Vin{Topes: vx 0.4 m/s, vy 0.2 m/s, vyaw 0.5 rad/s; primeras tiradas a media escala.}
+\Vin{Para andar hay que escribir \texttt{SEGUIR}; la tecla ESPACIO deja el robot quieto de pie.}
+\Vin{Cada Move dura 1 s: si el programa calla, el robot para.}
+\Vin{Solo alto nivel: sin \texttt{ReleaseMode}, \texttt{rt/lowcmd} ni \texttt{rt/arm\_sdk}.}\Esp{8}
+\Sub{En la pista}\Esp{3}
+\Vin{Operador con L2\,+\,B listo; franja de 1.5 m libre.}}
+\end{Lienzo}
+\end{frame}

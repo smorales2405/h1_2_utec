@@ -1,0 +1,192 @@
+% Comandos de la presentación del seguidor de línea, sobre estilo.tex.
+% Formato de la presentación de resultados de PI 2 (cajas con posición fija, tablas con
+% cabecera y filas alternas, pies «Fig.»), con los colores y el logo de UTEC.
+% Todo va dentro de un Lienzo: coordenadas en bp, origen arriba a la izquierda, y hacia abajo.
+%
+% Zonas fijas de las diapositivas de contenido (las comprueba verificar_margenes.py):
+%   logo x 36–96, y 14–52 · título desde x 110 · etiqueta del bloque arriba a la derecha
+%   regla y 64–68 · contenido y 80–505 · pie de página y 515–530
+
+\newenvironment{Lienzo}{%
+  \begin{tikzpicture}[remember picture,overlay]
+  \begin{scope}[shift={(current page.north west)},x=1bp,y=-1bp]
+}{%
+  \end{scope}\end{tikzpicture}%
+}
+
+% ── Registro para verificar_margenes.py ──────────────────────────────────
+\newwrite\RegistroLayout
+\immediate\openout\RegistroLayout=\jobname.layout
+% Imagen: x, y (borde superior), ancho, alto, ruta.
+\newcommand{\Imagen}[5]{%
+  \immediate\write\RegistroLayout{\thepage;#1;#2;#3;#4;#5}%
+  \node[anchor=north west,inner sep=0pt,outer sep=0pt] at (#1,#2)
+    {\includegraphics[width=#3bp,height=#4bp]{#5}};}
+\newcommand{\Figura}[5]{\Imagen{#1}{#2}{#3}{#4}{graficas/#5.pdf}}
+\newcommand{\Foto}[5]{\Imagen{#1}{#2}{#3}{#4}{imagenes/fotos/#5.jpg}}
+\newcommand{\Doc}[5]{\Imagen{#1}{#2}{#3}{#4}{imagenes/docs/#5}}
+
+% ── Texto ────────────────────────────────────────────────────────────────
+% Texto de una línea: x, línea base, fuente (Arial, Calibri, Space), tamaño, color HTML, contenido.
+\newcommand{\Texto}[6]{%
+  \node[anchor=base west,inner sep=0pt,outer sep=0pt,
+    font=\csname Fuente#3\endcsname\fontsize{#4bp}{#4bp}\selectfont]
+    at (#1,#2) {\color[HTML]{#5}#6};}
+% Párrafo: x, línea base de la 1.ª línea, ancho, fuente, tamaño, interlineado, color, contenido.
+\newcommand{\Parrafo}[8]{%
+  \node[anchor=base west,inner sep=0pt,outer sep=0pt] at (#1,#2)
+    {\begin{minipage}[t]{#3bp}
+      \csname Fuente#4\endcsname\fontsize{#5bp}{#6bp}\selectfont\color[HTML]{#7}%
+      \RaggedRight\hyphenpenalty=10000\exhyphenpenalty=10000\setlength{\parindent}{0pt}#8
+    \end{minipage}};}
+\newcommand{\ParrafoC}[8]{%
+  \node[anchor=base west,inner sep=0pt,outer sep=0pt] at (#1,#2)
+    {\begin{minipage}[t]{#3bp}
+      \csname Fuente#4\endcsname\fontsize{#5bp}{#6bp}\selectfont\color[HTML]{#7}%
+      \centering\hyphenpenalty=10000\exhyphenpenalty=10000\setlength{\parindent}{0pt}#8
+    \end{minipage}};}
+% Cuerpo en Arial negro (como el texto de la presentación de resultados): x, y, ancho, tamaño, contenido.
+% Dentro: \Sub{subtítulo}, \Vin{viñeta}, \Esp{bp}.
+\newcommand{\Cuerpo}[5]{%
+  \Parrafo{#1}{#2}{#3}{Arial}{#4}{\fpeval{1.22*#4}}{000000}{#5}}
+\newcommand{\CuerpoC}[5]{%
+  \Parrafo{#1}{#2}{#3}{Calibri}{#4}{\fpeval{1.2*#4}}{000000}{#5}}
+\newcommand{\Vin}[1]{\par{\leftskip=17bp\relax\parindent=-17bp\relax
+  \makebox[17bp][l]{\color{CianUTEC}\rule[0.18em]{0.48em}{0.48em}}#1\par}}
+\newcommand{\VinG}[1]{\par{\leftskip=17bp\relax\parindent=-17bp\relax
+  \makebox[17bp][l]{\color{GrisUTEC}\rule[0.18em]{0.48em}{0.48em}}#1\par}}
+\newcommand{\Sub}[1]{\par{\bfseries #1\par}}
+\newcommand{\Esp}[1]{\par\vspace{#1bp}}
+% Resaltado en el texto: negrita negra sobre una franja cian.
+\newcommand{\Marca}[1]{{\setlength{\fboxsep}{1.2bp}\colorbox{CianUTEC}{\strut\bfseries #1}}}
+
+% Pie de figura y de tabla: «Fig.»/«Tabla.» en negrita, Calibri gris. x, y, ancho, texto.
+\newcommand{\Pie}[4]{\Parrafo{#1}{#2}{#3}{Calibri}{13}{15.5}{4E4B4C}{\textbf{Fig.}~#4}}
+\newcommand{\PieTabla}[4]{\Parrafo{#1}{#2}{#3}{Calibri}{13}{15.5}{4E4B4C}{\textbf{Tabla.}~#4}}
+\newcommand{\Nota}[4]{\Parrafo{#1}{#2}{#3}{Calibri}{12}{14.5}{4E4B4C}{#4}}
+
+% ── Cajas y cifras ────────────────────────────────────────────────────────
+% Recuadro gris claro: x, y, ancho, alto.
+\newcommand{\Recuadro}[4]{\fill[GrisClaroUTEC!55,rounded corners=3bp] (#1,#2) rectangle ({#1+#3},{#2+#4});}
+% Barra cian de acento a la izquierda de un bloque: x, y superior, y inferior.
+\newcommand{\Acento}[3]{\fill[CianUTEC] (#1,#2) rectangle ({#1+5},#3);}
+% Tarjeta: recuadro gris claro con banda cian arriba y título. x, y, ancho, alto, título.
+\newcommand{\Tarjeta}[5]{%
+  \fill[GrisClaroUTEC!55,rounded corners=3bp] (#1,#2) rectangle ({#1+#3},{#2+#4});
+  \fill[CianUTEC] (#1,#2) rectangle ({#1+#3},{#2+5});
+  \Texto{#1+12}{#2+27}{Calibri}{18}{000000}{\bfseries #5}}
+% Cabecera oscura con texto blanco: x, y, ancho, alto, texto.
+\newcommand{\Banda}[5]{%
+  \fill[GrisUTEC] (#1,#2) rectangle ({#1+#3},{#2+#4});
+  \node[anchor=west,inner sep=0pt,outer sep=0pt,text=white,
+    font=\FuenteCalibri\bfseries\fontsize{16bp}{16bp}\selectfont] at ({#1+10},{#2+#4/2}) {#5};}
+% Cifra con su explicación debajo y la barra cian a la izquierda:
+% [tamaño]{x}{y borde superior}{ancho}{cifra}{explicación}
+\newcommand{\CifraBarra}[6][32]{%
+  \fill[CianUTEC] ({#2-13},{#3+2}) rectangle ++(5,{#1*0.95});
+  \node[anchor=north west,inner sep=0pt,outer sep=0pt] at (#2,#3)
+    {\begin{minipage}[t]{#4bp}\setlength{\parindent}{0pt}\RaggedRight
+      \hyphenpenalty=10000\exhyphenpenalty=10000\relax
+      {\FuenteCalibri\bfseries\fontsize{#1bp}{\dimexpr#1bp*11/10\relax}\selectfont
+        \color{black}#5\par}\vspace{2bp}
+      {\FuenteCalibri\fontsize{15bp}{18bp}\selectfont\color{GrisUTEC}#6\par}
+    \end{minipage}};}
+% Número en un cuadro cian (pasos, etapas): x, y (borde superior), lado, número.
+\newcommand{\Numero}[4]{%
+  \node[anchor=north west,fill=CianUTEC,minimum width=#3bp,minimum height=#3bp,
+    inner sep=0pt,outer sep=0pt,text=black,
+    font=\FuenteCalibri\bfseries\fontsize{\fpeval{0.6*#3}bp}{\fpeval{0.6*#3}bp}\selectfont] at (#1,#2) {#4};}
+% Etiqueta (chip) cian: x, y (borde superior), texto.
+\newcommand{\Chip}[3]{%
+  \node[anchor=north west,fill=CianUTEC,inner xsep=6bp,inner ysep=4bp,outer sep=0pt,text=black,
+    font=\FuenteCalibri\bfseries\fontsize{12bp}{12bp}\selectfont] at (#1,#2) {#3};}
+\newcommand{\ChipG}[3]{%
+  \node[anchor=north west,fill=GrisUTEC,inner xsep=6bp,inner ysep=4bp,outer sep=0pt,text=white,
+    font=\FuenteCalibri\bfseries\fontsize{12bp}{12bp}\selectfont] at (#1,#2) {#3};}
+
+% Botón que abre un vídeo con el reproductor del sistema: x, y (borde superior), archivo, texto.
+% El enlace es una anotación /Launch del tamaño del botón (xdvipdfmx solo hace clicable el texto de un
+% \href), así que todo el botón abre el vídeo.
+\newcommand{\BotonVideo}[4]{%
+  \fill[CianUTEC,rounded corners=4bp] (#1,#2) rectangle ({#1+150},{#2+26});
+  \fill[black] ({#1+11},{#2+6}) -- ({#1+11},{#2+20}) -- ({#1+23},{#2+13}) -- cycle;
+  \node[anchor=west,inner sep=0pt,outer sep=0pt,text=black,
+    font=\FuenteCalibri\bfseries\fontsize{14bp}{14bp}\selectfont] at ({#1+31},{#2+13}) {#4};
+  \node[anchor=north west,inner sep=0pt,outer sep=0pt] at (#1,#2)
+    {\hbox to 150bp{\rule{0pt}{26bp}\special{pdf:ann width 150bp height 26bp depth 0bp
+      << /Type /Annot /Subtype /Link /Border [0 0 0] /A << /S /Launch /F (videos/#3) >> >>}\hfil}};}
+
+% ── Tablas: cabecera gris UTEC con texto blanco, filas alternas y reglas grises ──
+% \Tabla{x}{y}{columnas}{filas}; filas con \FCab/\FGris/\FBlanca y \Cab/\Cel/\CelI/\CelN/\CelNI
+\newcommand{\BloqueSuperior}[3]{\node[anchor=north west,inner sep=0pt,outer sep=0pt] at (#1,#2) {#3};}
+\newcommand{\Celda}[6]{%
+  \parbox[c][#2bp][c]{#1bp}{%
+    \hspace*{6bp}\begin{minipage}{\dimexpr#1bp-12bp\relax}%
+      \FuenteCalibri\fontsize{#3bp}{\dimexpr#3bp*6/5\relax}\selectfont#5%
+      \ifx c#4\centering\else\raggedright\fi
+      #6\par
+    \end{minipage}}}
+\newcommand{\CeldaR}[6]{\Celda{#1}{#2}{#3}{#4}{#5}{\strut#6\strut}}
+\newcommand{\Tabla}[4]{%
+  \BloqueSuperior{#1}{#2}{%
+    \begingroup\FuenteCalibri\setlength{\tabcolsep}{0pt}%
+    \setlength{\arrayrulewidth}{0.5bp}\arrayrulecolor{GrisRegla}%
+    \begin{tabular}{@{}#3@{}}#4\end{tabular}\endgroup}}
+\newcommand{\FCab}{\rowcolor{GrisUTEC}}
+\newcommand{\FGris}{\rowcolor{GrisFila}}
+\newcommand{\FBlanca}{\rowcolor{white}}
+\newcommand{\FCian}{\rowcolor{CianUTEC!35}}
+\newcommand{\Cab}[3]{\CeldaR{#1}{#2}{#3}{c}{\bfseries\color{white}}}
+\newcommand{\CabI}[3]{\CeldaR{#1}{#2}{#3}{l}{\bfseries\color{white}}}
+\newcommand{\Cel}[3]{\CeldaR{#1}{#2}{#3}{c}{\mdseries\color{black}}}
+\newcommand{\CelI}[3]{\CeldaR{#1}{#2}{#3}{l}{\mdseries\color{black}}}
+\newcommand{\CelN}[3]{\CeldaR{#1}{#2}{#3}{c}{\bfseries\color{black}}}
+\newcommand{\CelNI}[3]{\CeldaR{#1}{#2}{#3}{l}{\bfseries\color{black}}}
+
+% ── Diagramas ────────────────────────────────────────────────────────────
+\tikzset{
+  bloque/.style={draw=GrisUTEC,line width=1bp,fill=white,rounded corners=3bp,align=center,
+    inner sep=4bp,font=\FuenteCalibri\fontsize{14bp}{16bp}\selectfont,text=black},
+  bloqueC/.style={bloque,fill=CianUTEC,draw=CianUTEC},
+  bloqueG/.style={bloque,fill=GrisUTEC,draw=GrisUTEC,text=white},
+  bloqueL/.style={bloque,fill=GrisClaroUTEC!55,draw=GrisClaroUTEC},
+  flecha/.style={-{Stealth[length=7bp,width=6bp]},line width=1.3bp,color=GrisUTEC},
+  flechaC/.style={-{Stealth[length=7bp,width=6bp]},line width=1.6bp,color=black},
+  rotulo/.style={font=\FuenteCalibri\fontsize{12bp}{14bp}\selectfont,text=GrisUTEC,align=center,inner sep=2bp},
+}
+
+% ── Diapositiva de contenido: cabecera, regla y pie ──────────────────────
+\newcommand{\PieDePagina}{Socialización de los retos técnicos – Unitree H1-2 · Seguidor de línea · 13 de noviembre de 2026}
+\newcommand{\NumPag}{%
+  \node[anchor=base east,inner sep=0pt,outer sep=0pt,
+    font=\FuenteCalibri\fontsize{13bp}{13bp}\selectfont] at (924,526)
+    {\color{GrisUTEC}\insertframenumber};}
+% \Cabecera{bloque}{título}: logo, título, etiqueta del bloque, regla y pie.
+\newcommand{\Cabecera}[2]{%
+  \Imagen{36}{14}{60}{37.9}{imagenes/utec_logo1.png}
+  \node[anchor=base west,inner sep=0pt,outer sep=0pt,
+    font=\FuenteCalibri\bfseries\fontsize{30bp}{30bp}\selectfont] at (110,47) {\color{black}#2};
+  \node[anchor=north east,fill=CianUTEC,inner xsep=6bp,inner ysep=4bp,outer sep=0pt,text=black,
+    font=\FuenteCalibri\bfseries\fontsize{11bp}{11bp}\selectfont] at (924,20) {\MakeUppercase{#1}};
+  \fill[GrisRegla] (36,65.6) rectangle (924,66.4);
+  \fill[CianUTEC] (36,63.5) rectangle (96,68.5);
+  \node[anchor=base west,inner sep=0pt,outer sep=0pt,
+    font=\FuenteCalibri\fontsize{11bp}{11bp}\selectfont] at (36,526) {\color{GrisUTEC}\PieDePagina};
+  \NumPag}
+
+% Fila «problema → cambio → resultado» de las diapositivas de resultados:
+% x, y (borde superior), ancho, alto, tipo (PROBLEMA, CAMBIO o RESULTADO), texto.
+\newcommand{\Fila}[6]{%
+  \fill[GrisClaroUTEC!55,rounded corners=3bp] (#1,#2) rectangle ({#1+#3},{#2+#4});
+  \ifnum\strcmp{#5}{RESULTADO}=0
+    \fill[CianUTEC,rounded corners=3bp] (#1,#2) rectangle ({#1+108},{#2+#4});
+    \node[anchor=center,inner sep=0pt,text=black,font=\FuenteCalibri\bfseries\fontsize{13bp}{13bp}\selectfont]
+      at ({#1+54},{#2+#4/2}) {#5};
+  \else
+    \fill[GrisUTEC,rounded corners=3bp] (#1,#2) rectangle ({#1+108},{#2+#4});
+    \node[anchor=center,inner sep=0pt,text=white,font=\FuenteCalibri\bfseries\fontsize{13bp}{13bp}\selectfont]
+      at ({#1+54},{#2+#4/2}) {#5};
+  \fi
+  \node[anchor=west,inner sep=0pt,outer sep=0pt] at ({#1+120},{#2+#4/2})
+    {\begin{minipage}{\dimexpr#3bp-130bp\relax}\FuenteCalibri\fontsize{14.5bp}{17.5bp}\selectfont
+      \RaggedRight\hyphenpenalty=10000\exhyphenpenalty=10000 #6\end{minipage}};}

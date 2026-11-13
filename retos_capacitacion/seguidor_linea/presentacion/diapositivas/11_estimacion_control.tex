@@ -1,0 +1,51 @@
+% Estimación (6.4.1–6.4.4) y ley de control (6.3.3–6.3.6).
+\begin{frame}[plain]
+\begin{Lienzo}
+\Cabecera{IV · Hito 3}{Estimación y ley de control}
+\Cuerpo{36}{100}{392}{14.5}{%
+\Sub{Estimación: la línea en el suelo, no en la imagen}\Esp{5}
+\Vin{Cada medida se guarda en un marco fijo al suelo, girada con el yaw de la IMU de 10 ms antes del fotograma.}\Esp{4}
+\Vin{Sin medida, la línea se desplaza con la estima de avance: rumbo por la IMU y 1.14·vx a 7.5°.}\Esp{4}
+\Vin{La barra y la esquina valen tras 5 avistamientos y se siguen contando a ciegas.}\Esp{4}
+\Vin{Una medida a más de 25 cm o 25° de la línea prevista no se usa.}}
+\CifraBarra[30]{50}{346}{378}{1.5–5.7 cm}{de error de la línea prevista tras 2 s a ciegas, sobre los 12 recorridos reales (menos de 0.3°)}
+% Esquema de pure pursuit (200 bp/m a escala 0.78: L = 0.6 m). Ocupa de y = 76 (línea, recortada) a
+% y = 314 (círculo y rótulo de L), por encima del recuadro de las ecuaciones (y = 328).
+\begin{scope}[shift={(672,220)},x=0.78bp,y=-0.78bp]
+  \begin{scope}
+    \clip (-200,-185) rectangle (200,200);
+    \draw[GrisUTEC,line width=3bp] (60,80) .. controls (70,-40) and (40,-150) .. (-40,-220);
+  \end{scope}
+  \node[rotulo,anchor=east] at (54,72) {línea};
+  \draw[GrisMedio,dashed,line width=0.8bp] (0,0) circle (120);
+  \draw[GrisMedio,line width=0.6bp] (0,0) -- (-120,0);
+  \node[rotulo,anchor=south] at (-66,-2) {L = 0.6 m};
+  \fill[GrisUTEC] (0,0) circle (4bp);
+  \node[rotulo,anchor=north,text=black] at (0,8) {centro de giro};
+  \draw[GrisUTEC,line width=1.2bp] (0,0) -- (0,-34);
+  \fill[black] (0,-34) circle (3bp);
+  \node[rotulo,anchor=east,text=black] at (-12,-38) {cámara};
+  \draw[-{Stealth[length=7bp]},line width=1.5bp,GrisMedio] (0,0) -- (0,-150);
+  \draw[-{Stealth[length=7bp]},line width=1.8bp,black] (0,0) -- (-21.9,-166.6);
+  \node[rotulo,anchor=east,text=black] at (-24,-140) {avance real (7.5° del eje)};
+  \coordinate (P) at (34.2,-115);
+  \draw[line width=1.4bp,CianUTEC!80!black] (0,0) -- (P);
+  \fill[CianUTEC,draw=black,line width=0.6bp] (P) circle (5bp);
+  \node[rotulo,anchor=west,text=black] at (44,-120) {punto adelantado};
+  \draw[line width=0.9bp,black] (-5.9,-44.6) arc[start angle=-97.5,end angle=-73.4,radius=45];
+  \node[rotulo,text=black] at (9,-66) {$\alpha$};
+\end{scope}
+\Recuadro{462}{328}{462}{100}
+\Acento{462}{328}{428}
+\Parrafo{478}{356}{440}{Arial}{15}{20}{000000}{$\omega_{\mathrm{cmd}} = \dfrac{2\,v\,\sin\alpha}{L} + \omega_{\mathrm{sesgo}}$\quad $v = 1.14\,v_x$,\ $\omega_{\mathrm{sesgo}} = -0.026$ rad/s}
+\Parrafo{478}{396}{440}{Arial}{14}{18}{000000}{$v_x = 0.4\cdot\text{escala}\cdot\dfrac{1}{1+0.5|\kappa|}\cdot h(\text{confianza})\cdot\cos\alpha$}
+\Tabla{462}{436}{p{110bp}p{352bp}}{%
+\FCab
+\CabI{110}{22}{12.5}{L (simulador)} & \CabI{352}{22}{12.5}{Error máximo de los pies en la S, media escala}\\\hline
+\FGris
+\CelI{110}{20}{12.5}{1.0 m / 0.8 m} & \CelI{352}{20}{12.5}{15.7 cm / 9.6 cm (10/14 con la peor marcha)}\\\hline
+\FCian
+\CelNI{110}{20}{12.5}{0.6 m} & \CelNI{352}{20}{12.5}{5.6 cm (14/14 con la peor marcha)}\\\hline
+}
+\end{Lienzo}
+\end{frame}

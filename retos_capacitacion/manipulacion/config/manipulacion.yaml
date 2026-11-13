@@ -292,7 +292,7 @@ camara_externa:            # Logitech BRIO en la laptop, de frente al robot (her
   carpeta: datos/externa
   controles:                # en este orden (v4l2-ctl): el zoom antes que pan/tilt; el foco fijo (el automatico busca al
                             # pasar el brazo; a ~1.4 m, de 0 a 20 la nitidez es la misma)
-    zoom_absolute: 240
+    zoom_absolute: 257
     pan_absolute: 0
     tilt_absolute: 0        # con la camara inclinada a mano (2026-11-13); antes -10 grados, el tope digital
     focus_automatic_continuous: 0

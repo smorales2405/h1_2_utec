@@ -1782,3 +1782,63 @@ El usuario colocó el 6 y el 7 como en §62 y el 8 y el 9 en los postes delanter
   - en el sitio ideal no hay que mover nada;
   - baja y torcida dice súbela, inclínala y gírala;
   - `--guardar` solo toca el zoom de la cámara externa.
+
+## 64. Sexto cubo: giró dentro de la pinza al levantarlo, sobre la línea pulgar–índice (2026-11-13)
+
+`./manipulacion.sh --nivel 2 --arnes` (`datos/tirada_20261113_081121_nivel2`, grabada con la BRIO a zoom 240). El
+cubo (tapa en color, (0.515, −0.040)) se cogió con los tres dedos: al cerrar, medio 401, índice 325 y pulgar 631 gf,
+con la mano a (−1.8, 0.6, −3.3) mm del plan. Al levantarlo fue girando dentro de la pinza: ~10° a 1 s del transporte,
+~15° a 2.5 s y ~35° a 5 s. Entonces el medio perdió el contacto (40 gf) y el índice se clavó (2073 → 3225 gf). El
+corte de fuerza (1200 gf en 3 lecturas) hizo la salida segura y el cubo cayó cerca de su sitio.
+
+- **La mano no giró.** En el vídeo, el ArUco del dorso se mantiene dentro de ±1° todo el levantamiento, y la mano sube
+  recta (±5 mm de lado).
+- **Giró el cubo, alrededor de la línea pulgar–índice, con el lado del medio hacia abajo** (a la derecha del robot).
+  - El pulgar está enfrente del índice (z +0.032 y +0.034 en el ancho de la mano), no de la resultante de índice y
+    medio que usaba §58.
+  - Con el centro en +0.026, el centro de masas quedaba 7 mm hacia el medio de esa línea. La línea (del pulgar a
+    46 mm sobre la mesa al índice a 31) pasaba solo ~8.5 mm por encima de él.
+  - Es un péndulo que cuelga a atan(7/8.5) ≈ 40°, lo que se vio antes de clavarse. Solo lo frenaba la fricción del
+    medio.
+- **Cambios** (`objetos.yaml`, el cubo):
+  - `centro_agarre` z 0.026 → **0.030**, 3 mm hacia el medio desde la línea pulgar–índice: el índice y el pulgar
+    quedan a 2–4 mm del centro de la cara, y el medio a 1 cm de su borde.
+  - `altura_agarre_m` 0.055 → **0.058**: la línea, a ~11.5 mm sobre el centro de masas; el pulgar, 11 mm bajo la tapa.
+  - Sin el medio, el cubo colgaría a atan(3/11.5) ≈ 15° (antes, 40°). Con el error de altura de esta tirada (la mano
+    3.3 mm más baja), a ~19°.
+- El prisma sigue con 0.026 (va con la izquierda; sin probar).
+- Pruebas: 128 de 128 en el PC remoto (2 min 10 s con `-n 16`), sobre una copia aparte con este cambio.
+
+## 65. Séptimo cubo: colocado y recto en la mano. La inclinación al volver a reposo (2026-11-13)
+
+Con §64 desplegado. La tirada anterior (`tirada_20261113_082639_nivel2`) se lanzó sin `--medir-mesa` después de un
+`[g]` nuevo, y la mano cogió el cubo por su borde de arriba (el usuario). Antes de esta, el usuario hizo
+`marcar_montaje.py`, `--medir-mesa --arnes --escala-tiempo 1` y `situar_camara_externa.py --una --guardar`.
+
+`./manipulacion.sh --nivel 2 --arnes` (`datos/tirada_20261113_090609_nivel2`, escala 2): **cubo colocado en la
+bandeja D al primer intento.**
+- El cubo, con la tapa en color, en (0.512, −0.028) a 2.3°. La mano, a (−0.2, −2.9, −2.3) mm del plan.
+- Al cerrar: medio 421, índice 402 y pulgar 647 gf. En el vídeo, el índice está cerca del centro de la cara.
+- **El cubo va recto en la mano todo el transporte** (+2 a +30 s en el vídeo): no hay el giro de §64.
+- Como en §60, el índice y el medio siguen cerrando (711 → 646 y 730 → 667) y el pulgar cede (394 → 495). Las
+  fuerzas suben hasta 858/813/943 gf: ~260 gf por debajo del corte de 1200.
+
+**La inclinación al volver a reposo** (SALIDA, observación → reposo; registro del arnés `arnes_20261113_084853`):
+- **0–2 s: −4.5° (hacia atrás), sin que el robot hiciera nada.**
+  - Las consignas de brazos y piernas no cambian (< 0.02 rad) y las articulaciones tampoco: el robot entero se
+    balanceó sobre los talones.
+  - La carga de los pies baja de 0.78 a 0.57 (290/234 → 210/164 N): ~150 N pasaron de los pies a la cuerda, una
+    fuerza externa.
+  - En toda la sesión del arnés no hay otra inclinación de más de 2° (incluido el `--medir-mesa` a escala 1), ni en
+    las salidas de las tiradas anteriores (≤ 2.7°).
+- **La integral del estabilizador se dio la vuelta.** Estuvo quieta en +12.15 N·m toda la tirada (dentro de su
+  banda; el tope es 15) y, peleando contra esa inclinación, bajó a −8 N·m.
+- **11–19 s: +5.5° (hacia delante)**, lo que vio el usuario.
+  - Los brazos pasan extendidos por delante y el tirón se suelta (la carga sube a 0.87).
+  - La integral está 20 N·m por debajo de lo que el robot necesitaba.
+  - Vuelve a −1° a los 23 s, al recargarse la integral (+7.8).
+- **Después, la carga queda en 0.67** (antes, 0.78): la cuerda cambió de estado.
+- Con +12 N·m de integral toda la sesión, la cuerda tiraba del torso hacia delante (§31; `arnes.py` avisa en el tope:
+  retrasar el pórtico). El usuario va a mover el pórtico y el polipasto, y a repetir `marcar_montaje` y
+  `--medir-mesa`.
+

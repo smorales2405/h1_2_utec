@@ -31,8 +31,10 @@ objetos:
   cubo:
     # del punto de agarre sobre la mesa. Con 0.035 las yemas del medio y el indice apretaban a 4-11 mm de la mesa y el
     # pulgar a ~26: la pinza por debajo del centro de masas (30 mm), y el cubo volcaba dentro de la mano al levantarlo
-    # (camara externa, §61). Con 0.055: medio ~24, indice ~31, pulgar ~46 mm (las yemas, 31/24/9 mm bajo el punto)
-    altura_agarre_m: 0.055
+    # (camara externa, §61). Con 0.055: medio ~24, indice ~31, pulgar ~46 mm (las yemas, 31/24/9 mm bajo el punto),
+    # y la linea pulgar-indice, sobre la que gira el cubo, solo ~8 mm por encima del centro de masas (§64). Con 0.058:
+    # medio ~27, indice ~34, pulgar ~49 (11 mm bajo la tapa); la linea, a ~11.5 mm
+    altura_agarre_m: 0.058
     nombre: cubo de PLA
     forma: caja
     medidas_m: [0.060, 0.060, 0.060]
@@ -52,8 +54,11 @@ objetos:
     # tres_dedos: el centro en la pinza (indice y medio contra el pulgar), no en el de los cuatro dedos de `agarres`
     # (z 0.010): las yemas cierran en z +0.034 el indice, +0.011 el medio y +0.032 el pulgar (mallas, mano cerrando
     # sobre el cubo); con 0.010 el pulgar y el indice apretaban a 6-8 mm del borde, la pinza pasaba a 2 cm del centro
-    # de masas y el cubo giraba y se escapaba (RESULTADOS §58)
-    centro_agarre: {arriba: [0.211, -0.070, 0.026], lado: [0.211, -0.065, 0.026]}
+    # de masas y el cubo giraba y se escapaba (RESULTADOS §58). Con 0.026 (la pinza con la resultante de indice y
+    # medio) el pulgar, enfrente del indice, hacia con el de pivote: el centro de masas, 7 mm hacia el medio, colgaba y
+    # el cubo giro ~35 grados en la pinza al levantarlo (camara externa, §64). Con 0.030, 3 mm hacia el medio: el
+    # indice y el pulgar, a 2-4 mm del centro de la cara, y el medio a 1 cm de su borde, sujetando ese poco
+    centro_agarre: {arriba: [0.211, -0.070, 0.030], lado: [0.211, -0.065, 0.030]}
     # la posicion y el yaw, con la tapa en la imagen de color (la mancha blanca saturada, retroproyectada a 6 cm sobre
     # la mesa): la profundidad del cubo blanco tiene un hueco en la tapa y lo ponia hasta 2.2 cm al lado (§59)
     tapa_color: {v_min: 235, s_max: 60}

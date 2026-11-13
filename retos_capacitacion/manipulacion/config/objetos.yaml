@@ -64,16 +64,29 @@ objetos:
     tapa_color: {v_min: 235, s_max: 60}
     bandeja: naranja
   cilindro:
-    altura_agarre_m: 0.050       # del punto de agarre sobre la mesa
+    # la pinza pulgar-indice por encima del centro de masas (40 mm) y por su eje. De lado no hay IK con el montaje de hoy
+    # (en el gemelo, 0 de 8 sitios de la zona): desde arriba. Con 0.050 y los cuatro dedos, la linea pasaba a ~33 mm (por
+    # debajo: vuelca, §61); con 0.068 y tres dedos, a ~51, y aun asi giro (§69). Con 0.072: pulgar ~63 (17 mm bajo la
+    # tapa), indice ~48; la linea a ~55, 15 mm sobre el centro de masas
+    altura_agarre_m: 0.072
     nombre: cilindro de PLA
     forma: cilindro
     medidas_m: [0.050, 0.080]
     masa_kg: 0.0329                            # el usuario, 2026-11-12
     simetria_deg: 0
     color: {nombre: azul, hsv_min: [95, 100, 50], hsv_max: [130, 255, 255]}
-    agarre: [lado, arriba]
-    force_set: [300, 300, 300, 300, 350, -1]
-    preforma: abierta_opuesta
+    agarre: [arriba]
+    # dos dedos, el pulgar enfrente del indice y el eje entre los dos (z 0.033): en una superficie redonda la pinza lo
+    # centra en su linea. Con tres (§68-69), el medio apretaba a 19 mm del eje, de lado (a ~50 grados de la pinza):
+    # empujaba la parte baja del cilindro hacia el indice con el pulgar arriba, y giro ~50 grados en la mano al
+    # levantarlo hasta soltarse. En el cubo el medio aprieta una cara plana: sin empuje de lado
+    force_set: [-1, -1, -1, 300, 450, -1]
+    preforma: dos_dedos
+    # y -0.075 (el cubo, -0.070): el pulgar llega por -y y el indice por +y (marco de la muneca). Con -0.070, el
+    # cilindro (radio 25 frente a los 30 del cubo) dejaba el pulgar en su tope (303; consigna 300) sin apretar: hacia
+    # de tope y el cilindro giro y bajo por el indice hasta soltarse (§71). 5 mm hacia el pulgar: lo toca donde al
+    # cubo (~400) y el indice cierra ~5 mm mas (tiene recorrido)
+    centro_agarre: {arriba: [0.211, -0.075, 0.033], lado: [0.211, -0.070, 0.033]}
     bandeja: roja
   prisma:
     altura_agarre_m: 0.030       # del punto de agarre sobre la mesa
@@ -104,4 +117,5 @@ agarres:
 preformas:
   abierta_opuesta: [1000, 1000, 1000, 1000, 1000, 0]    # pulgar girado enfrente de los dedos
   tres_dedos:      [0, 0, 1000, 1000, 1000, 0]          # menique y anular recogidos
+  dos_dedos:       [0, 0, 0, 1000, 1000, 0]             # pulgar e indice: menique, anular y medio recogidos (cilindro)
   senalar:         [0, 0, 0, 1000, 600, 500]            # nivel 1: solo el indice extendido

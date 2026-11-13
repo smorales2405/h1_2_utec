@@ -196,7 +196,9 @@ def test_salida_segura_por_giro(tmp_path):
 def test_salida_segura_en_el_transporte_sale_por_la_observacion(tmp_path):
     """Parada con el objeto en la mano sobre la mesa: el brazo va a la observacion (por un punto alto del plan si
     el tramo directo no esta limpio) y al reposo antes de bajar el peso; ningun brazo se queda sobre la mesa."""
-    a = _args(tmp_path, nivel=2, asignacion={"cilindro": "B"}, colocacion={"cilindro": ((0.42, 0.01), 0.0)},
+    # en (0.42, 0.01), el cilindro cogido a 6.8 cm con tres dedos (§66) ya no tiene plan: el tramo a 'sobre' pasa la
+    # mano a 19 mm de la mesa
+    a = _args(tmp_path, nivel=2, asignacion={"cilindro": "B"}, colocacion={"cilindro": ((0.44, 0.01), 0.0)},
               parada_en="TRANSPORTE")
     t = manipulacion.armar(a, _cfg(), log=lambda *x: None)
     motivo = manipulacion.correr(t, confirmar=False)
@@ -206,6 +208,25 @@ def test_salida_segura_en_el_transporte_sale_por_la_observacion(tmp_path):
     assert any(m.startswith("observacion -> reposo") and "izq" in m for m in motivos)
     assert not any("se queda" in m or "fuera de la observacion" in m for m in motivos)
     assert t.brazo.peso == 0.0
+
+
+@gl
+def test_al_soltar_los_dedos_recogidos_se_abren_ya_retirada_la_mano(tmp_path):
+    """§70: el cilindro con dos dedos (medio, anular y menique recogidos). Al soltar se abren solo el pulgar y el
+    indice; los recogidos, tras retirar la mano (abiertos sobre la bandeja, el medio empujaba el cilindro)."""
+    from manip import mano as mm
+    a = _args(tmp_path, nivel=2, asignacion={"cilindro": "B"}, colocacion={"cilindro": ((0.50, 0.0), 0.0)})
+    t = manipulacion.armar(a, _cfg(), log=lambda *x: None)
+    assert manipulacion.correr(t, confirmar=False) == "completado"
+    assert [r["resultado"] for r in t.sup.resultados] == ["colocado"]
+    sim = t.manos["izq"].c
+    angulos = [[x - 0x10000 if x >= 0x8000 else x for x in v] for reg, v in sim.escrituras if reg == mm.ANGLE_SET]
+    parcial = [-1, -1, -1, 1000, 1000, -1]
+    assert parcial in angulos
+    k = angulos.index(parcial)
+    assert [1000, 1000, 1000, 1000, 1000, -1] in angulos[k + 1:]
+    eventos = [e[1] for e in t.reg.resumen["eventos"]]
+    assert "SOLTAR" in eventos and "VOLVER" in eventos
 
 
 @gl

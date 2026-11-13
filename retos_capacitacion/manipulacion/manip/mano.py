@@ -100,6 +100,9 @@ class Mano:
                     self.cierre[k] = max(self.cierre[k], int(tope) + margen)
             r = [float(x or 0.0) for x in (cal.get("residuo_gf") or [])][:6]
             self.residuo = np.array(r + [0.0] * (6 - len(r)))
+        # con el residuo medido, un dedo en su consigna de cierre se distingue por la fuerza: vacio (~su residuo) o
+        # apretando algo. Sin el, un dedo cerrado en vacio marca 70-390 gf (su flexion) y solo vale el angulo
+        self.residuo_medido = bool(cal and cal.get("residuo_gf")) and self.compensar_residuo
         self._dormir = dormir
         if cliente is None:
             from pymodbus.client import ModbusTcpClient
@@ -228,14 +231,17 @@ class Mano:
         self.escribir_force_set(force_set)
         self.mover([self.cierre[k] if force_set[k] is not None and force_set[k] > 0 else -1 for k in range(6)])
 
-    def abrir(self, vigilar=None):
-        """Abre la flexion del pulgar y los dedos, sin girar el pulgar, y comprueba que abrio."""
+    def abrir(self, vigilar=None, dedos=None):
+        """Abre la flexion del pulgar y los dedos, sin girar el pulgar, y comprueba que abrio. `dedos`: solo esos DOF
+        (los que sujetan); los demas se quedan como estan (al soltar, los recogidos de la preforma barrian el objeto
+        al estirarse, RESULTADOS §70)."""
+        abrir = [k for k in range(5) if dedos is None or k in dedos]
         for intento in range(2):
             self.escribir_force_set([self.fs_abierta] * 6)      # desenclava los dedos que llegaron a FORCE_SET
             self.escribir(SPEED_SET, [self.speed_abrir] * 6)
-            self.mover([1000, 1000, 1000, 1000, 1000, -1])
+            self.mover([1000 if k in abrir else -1 for k in range(5)] + [-1])
             e = self._esperar_quieta(self.p["t_abrir_s"], vigilar=vigilar)
-            if e.angulo[:5].min() >= self.p["abierta_min"]:
+            if min(e.angulo[k] for k in abrir) >= self.p["abierta_min"]:
                 self.t_ultima_suelta = time.monotonic()
                 return e
             self.borrar_error()
@@ -258,12 +264,17 @@ class Mano:
         """La pista del PDF: un dedo que se detiene lejos de 0 con fuerza tiene algo delante; uno que llega a
         0 esta vacio. (ok, {dof: "lleno" | "vacio" | "flojo"}). Hacen falta el pulgar y al menos un dedo."""
         detalle = {}
+        # sin su residuo de flexion: lo que marca cerrado en vacio (el pulgar izquierdo, 47 gf)
+        sin_residuo = e.fuerza - e.base - (self.residuo if self.compensar_residuo else 0.0)
         for k in range(5):
             if force_set[k] is None or force_set[k] <= 0:
                 continue
             neta = e.fuerza[k] - e.base[k]
-            if e.angulo[k] <= max(vacio_max, self.cierre[k] + vacio_max if self.cierre[k] > 0 else 0):
-                # llego (o casi) a su consigna de cierre: en vacio (con tope_vacio, la del indice queda antes del pulgar)
+            if (e.angulo[k] <= max(vacio_max, self.cierre[k] + vacio_max if self.cierre[k] > 0 else 0)
+                    and not (self.residuo_medido and sin_residuo[k] >= 0.5 * float(force_set[k]))):
+                # llego (o casi) a su consigna de cierre (con tope_vacio, la del indice queda antes del pulgar) y sin
+                # apenas fuerza: en vacio. Con fuerza aprieta algo: el pulgar cierra el cilindro de 5 cm en 302-331
+                # (su consigna, 300) con 290-460 gf, y el agarre se daba por fallido (RESULTADOS §67)
                 detalle[k] = "vacio"
             elif neta >= fuerza_min:
                 detalle[k] = "lleno"
@@ -279,7 +290,8 @@ class Mano:
         recogidos marcan ~460 gf sin tocar nada y el cubo se escapo sin que bajara del 30 % (RESULTADOS §57)."""
         _, det = self.agarre(e, force_set)
         # y sin apenas fuerza (menos de la mitad de su FORCE_SET, sin su residuo de flexion): el pulgar llego a 312 (su
-        # tope, 300) apretando el cubo con 1526 gf y daba un escape falso (§61)
+        # tope, 300) apretando el cubo con 1526 gf y daba un escape falso (§61). Con el residuo medido, agarre() ya lo
+        # pide; sin el, tambien aqui
         neta = e.fuerza - e.base - (self.residuo if self.compensar_residuo else 0.0)
         vacio = {k: v == "vacio" and neta[k] < 0.5 * float(force_set[k]) for k, v in det.items()}
         dedos = [v for k, v in vacio.items() if k in DEDOS]

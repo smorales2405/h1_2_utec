@@ -28,6 +28,7 @@ from manip import config, fotograma_zmq  # noqa: E402
 from manip.mensajes import Fotograma  # noqa: E402
 
 MJPEG_CADA_S = 0.1   # el mosaico de depuracion va a 10 Hz como mucho
+IR_PARADO_S = 2.0    # el IR (y la profundidad) sin fotograma nuevo esto: se reabre la camara
 
 
 def intrinsecos(perfil):
@@ -89,13 +90,23 @@ class Servidor:
                       f"{'encendido' if self.args.emisor else 'apagado'}, {self.args.fps} fps", flush=True)
                 pipeline, meta = self._abrir()
                 print("[CAMARA] en marcha", flush=True)
-                fallos = 0
                 t_stats, n_stats = time.monotonic(), 0
+                n_ir, t_ir = None, time.monotonic()
                 while not self.salir.is_set():
                     frames = pipeline.wait_for_frames(5000)
                     ir = frames.get_infrared_frame(1)
                     if not ir:
                         continue
+                    # el modulo de profundidad se puede parar con el color en marcha: los framesets llegan con el color
+                    # nuevo y el IR y la profundidad de antes (mismo numero). Solo se publica lo nuevo; parado mas de
+                    # IR_PARADO_S, se reabre (y a los tres fallos, hardware_reset) (RESULTADOS §68)
+                    if ir.get_frame_number() == n_ir:
+                        if time.monotonic() - t_ir > IR_PARADO_S:
+                            raise RuntimeError(f"IR y profundidad parados en el fotograma {n_ir} (el color sigue)")
+                        continue
+                    n_ir, t_ir = ir.get_frame_number(), time.monotonic()
+                    if n_stats == 30:
+                        fallos = 0          # da fotogramas nuevos: los fallos de antes ya no cuentan para el reset
                     f = Fotograma(n=ir.get_frame_number(), t_cam=frames.get_timestamp() / 1000.0,
                                   t_rx=time.monotonic(), emisor=self.args.emisor, meta=meta,
                                   ir=np.asanyarray(ir.get_data()))

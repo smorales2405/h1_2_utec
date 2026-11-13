@@ -134,7 +134,8 @@ class Supervisor:
             g = self.fuente.siguiente(0.5)
             if g is None:
                 break
-            if g is fs[-1] or g.t_rx == fs[-1].t_rx:      # el lector continuo devuelve el ultimo hasta que llega otro
+            if g is fs[-1] or g.n == fs[-1].n:      # el lector continuo devuelve el ultimo hasta que llega otro (otro n:
+                                                     # con la profundidad parada, el color seguia con el mismo n, §68)
                 time.sleep(0.01)
                 continue
             fs.append(g)
@@ -616,11 +617,18 @@ class Supervisor:
                                ajuste_inicio=True)
         self._a("SOLTAR", f"{clase} en la bandeja {plan.bandeja}" if escape["en"] is None
                 else f"abrir sobre la bandeja {plan.bandeja}: {clase} se escapo en {escape['en']}")
-        mano.abrir(vigilar=self.comprobar)
+        # solo los dedos que sujetan: los recogidos por la preforma (dos o tres dedos) se abren ya retirada la mano.
+        # Abiertos aqui, el medio recogido se estiraba junto al cilindro y lo empujaba contra la pared (§70)
+        fs, pre = plan.agarre.force_set, plan.agarre.preforma
+        sujetan = [k for k in range(5) if fs[k] is not None and fs[k] > 0]
+        recogidos = [k for k in range(5) if k not in sujetan and pre[k] is not None and 0 <= pre[k] < 500]
+        mano.abrir(vigilar=self.comprobar, dedos=sujetan if recogidos else None)
         self.vig.manos_vigiladas = set()
         self._a("VOLVER", "retirar y a la observacion")
         k_ret = nombres.index("retirar_de_bandeja")
         self._recta_guiada(lado, desde(k_ret), tramos[k_ret][1], punto, guia_previa=g)
+        if recogidos:
+            mano.abrir(vigilar=self.comprobar)
         for _, pts in tramos[k_ret + 1:]:
             for p in pts:
                 self._mover(lado, p)

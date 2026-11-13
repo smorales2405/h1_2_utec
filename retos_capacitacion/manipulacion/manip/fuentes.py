@@ -79,7 +79,11 @@ class FuenteZmq:
 
 class LectorContinuo:
     """Lee la fuente en un hilo y guarda el ultimo fotograma: el vigilante sabe en todo momento la edad del
-    ultimo (camara sin fotogramas, seccion 10) aunque el supervisor solo mire al observar."""
+    ultimo (camara sin fotogramas, seccion 10) aunque el supervisor solo mire al observar.
+
+    La edad cuenta desde el ultimo fotograma NUEVO (otro `n`, el numero del IR): el 2026-11-13 el modulo de
+    profundidad de la D435i se paro y el servidor siguio publicando el color nuevo con el IR y la profundidad de
+    antes, con el mismo n y t_rx nuevo. La percepcion veia la mesa sin el cilindro y el giro no media (RESULTADOS §68)."""
 
     def __init__(self, fuente):
         self.fuente = fuente
@@ -92,7 +96,7 @@ class LectorContinuo:
     def _bucle(self):
         while not self._fin.is_set():
             f = self.fuente.siguiente(0.5)
-            if f is not None:
+            if f is not None and (self.ultimo is None or f.n != self.ultimo.n):
                 self.ultimo, self.t = f, time.monotonic()
                 self.meta = f.meta
 

@@ -73,6 +73,29 @@ def test_el_objeto_que_se_escapa():
         assert time.monotonic() - t0 < 8.0
         time.sleep(0.05)
 
+def test_el_pulgar_en_su_tope_apretando_esta_lleno():
+    """§67: el cilindro de 5 cm deja el pulgar en 302-331, a menos de 60 de su consigna (300), pero con 290-460 gf: es
+    "lleno", no "vacio" (el agarre se daba por fallido). En vacio, el pulgar izquierdo cierra a 302 con su residuo
+    (47 gf). Con los datos de tirada_20261113_094940_nivel2 (mano izquierda)."""
+    from manip.mensajes import EstadoMano
+    cal = {"tope_vacio": [2, 0, 24, 502, 302, None], "residuo_gf": [149, 110, 131, 205, 47, 0]}
+    cfg = copy.deepcopy(config.cargar())
+    cfg["mano"].update(t_base_s=0.0, compensar_residuo=True)
+    mano = Mano("izq", cfg, cliente=ManoSimulada(), calibracion=cal)
+    fs = [-1, -1, 250, 250, 400, -1]
+
+    def estado(angulo, fuerza):
+        z = np.zeros(6)
+        return EstadoMano(t=0.0, lado="izq", angulo=np.array(angulo, float), fuerza=np.array(fuerza, float), base=z,
+                          force_set=z, error=z, estado=z)
+    e = estado([3, 2, 685, 687, 328, 0], [219, 198, 270, 227, 429, 59])     # el cilindro entre los dedos
+    ok, det = mano.agarre(e, fs)
+    assert ok and det == {2: "lleno", 3: "lleno", 4: "lleno"} and not mano.escapado(e, fs)
+    e = estado([3, 2, 685, 687, 302, 0], [219, 198, 270, 227, 60, 59])      # el pulgar, en vacio
+    ok, det = mano.agarre(e, fs)
+    assert not ok and det[4] == "vacio" and mano.escapado(e, fs)
+
+
 def test_abre_aunque_los_dedos_esten_enclavados():
     mano, sim = _mano()
     fs = [-1, -1, 300, 300, 350, -1]

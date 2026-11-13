@@ -145,3 +145,32 @@ def test_varios_fotogramas_se_juntan():
     assert sal["cubo"].confianza == pytest.approx(0.9)
     cerca_de_45 = [[ob("cubo", 0.52, y)] for y in (44, -44, 43, -45, 30)]
     assert abs(envolver_simetria(Percepcion._fusionar(yo, cerca_de_45)[0].yaw - math.radians(44), math.pi / 2)) < 0.02
+
+
+def test_la_profundidad_parada_no_cuenta_como_fotograma_nuevo():
+    """§68: el modulo de profundidad de la D435i se paro y el servidor siguio publicando el color nuevo con el mismo
+    n (el del IR) y t_rx nuevo. El lector continuo solo cuenta los n nuevos: la edad crece (el vigilante para la
+    tirada) y fresco() no devuelve nada (observar para con "camara sin fotogramas")."""
+    import time
+    from types import SimpleNamespace
+    from manip.fuentes import LectorContinuo
+    estado = {"n": 0}
+
+    class Fuente:
+        meta = {}
+
+        def siguiente(self, timeout_s=1.0):
+            time.sleep(0.01)
+            return SimpleNamespace(n=estado["n"], t_rx=time.monotonic(), meta={})
+    lector = LectorContinuo(Fuente())
+    try:
+        for k in range(1, 6):                       # en marcha: un n nuevo cada vez
+            estado["n"] = k
+            time.sleep(0.03)
+        assert lector.edad() < 0.1 and lector.fresco(timeout_s=0.5) is not None
+        time.sleep(0.4)                             # parada: el mismo n, con t_rx nuevo
+        assert lector.edad() >= 0.4 and lector.fresco(edad_max_s=0.3, timeout_s=0.3) is None
+        estado["n"] = 6                             # vuelve
+        assert lector.fresco(timeout_s=0.5).n == 6
+    finally:
+        lector.cerrar()

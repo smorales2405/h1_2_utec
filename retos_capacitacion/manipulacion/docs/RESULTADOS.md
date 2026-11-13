@@ -1842,3 +1842,193 @@ bandeja D al primer intento.**
   retrasar el pórtico). El usuario va a mover el pórtico y el polipasto, y a repetir `marcar_montaje` y
   `--medir-mesa`.
 
+## 66. A escala 1, sin inclinarse. El cilindro, con la receta del cubo (2026-11-13)
+
+El usuario movió el pórtico y el polipasto, y repitió el montaje, `--medir-mesa` y el zoom (247).
+`./manipulacion.sh --nivel 2 --arnes --escala-tiempo 1` (`datos/tirada_20261113_092451_nivel2`): **el cubo,
+colocado en D al primer intento, en 114 s** (196 a escala 2).
+- El cubo, en (0.544, −0.039); la mano, a (−0.7, −3.2, −2.4) mm del plan.
+- El torso, entre −0.1 y +1.5° en toda la tirada (la salida, ≤ 1.2°): ya no se inclina como en §65.
+- Llevando el cubo, el pulgar llegó a **1069 gf** (el índice, 885): ~130 gf por debajo del corte de 1200. A
+  escala 2 eran 943.
+
+**El cilindro** (azul, 5 × 8 cm, 33 g, a la bandeja B con la izquierda). El usuario lo puso en ~(0.53, −0.05)
+(situado con la BRIO y su pose).
+- **De lado no hay IK con el montaje de hoy:** en el gemelo, 0 de 8 sitios de la zona. Se coge desde arriba.
+- **Con lo de antes** (cuatro dedos y pulgar, `abierta_opuesta`, a 5 cm, centro z 0.010), los dos fallos del cubo:
+  - la línea pulgar–índice, a ~33 mm de la mesa: por debajo del centro de masas (40 mm), como el cubo de §61;
+  - el pulgar, a 22 mm del eje de un cilindro de 25 mm de radio: aprieta casi de canto.
+- **Ahora**, como el cubo:
+  - `tres_dedos` y `centro_agarre` z 0.030: el pulgar y el índice, a 2–4 mm del eje; el medio, a 19 mm del otro
+    lado, empuja hacia la pinza;
+  - `altura_agarre_m` 0.068: pulgar ~59, índice ~44 y medio ~37 mm; la línea, a ~51 mm (11.5 sobre el centro de
+    masas) y el pulgar, a 21 mm de la tapa;
+  - FORCE_SET `[-1, -1, 250, 250, 400, -1]`: 33 g, y el pulgar del cubo ya roza el corte;
+  - `agarre: [arriba]`.
+- **En el gemelo** (montaje del robot de las 09:20, escala 1), colocado en 5 de 8 sitios. Entre ellos, el suyo
+  (0.53, −0.05), (0.50, 0), (0.56, 0.10), (0.42, 0.15) y (0.44, 0.05).
+  - Sin plan cerca del cuerpo y a la derecha: (0.42, 0.01), (0.40, −0.05), (0.45, −0.12), (0.48, −0.15) y
+    (0.55, −0.17). La mano izquierda pasa a 14–20 mm de la mesa yendo a 'sobre' (la holgura es 20), o la bandeja
+    baja de 15 cm.
+  - Lo de antes llegaba a 4 de esos 5. Con la altura o el centro de antes se recupera alguno, pero son márgenes
+    al límite que cambian con la postura de la IK.
+- `test_salida_segura_en_el_transporte_sale_por_la_observacion`: el cilindro, de (0.42, 0.01) a (0.44, 0.01).
+- Pruebas: 128 de 128 en el PC remoto.
+
+## 67. El cilindro, "agarre fallido" con el pulgar apretando (2026-11-13)
+
+Con §66 desplegado. Cuatro intentos, todos "agarre fallido": el índice y el medio, "lleno"; el pulgar, "vacío".
+- `tirada_20261113_094940_nivel2`: cilindro en (0.537, −0.059), con `--sin-comprobar-montaje` (ver abajo).
+- `tirada_20261113_095442_nivel2`: el usuario lo movió a (0.492, 0.052).
+- El robot abrió, volvió a la observación y lo reintentó.
+
+- **El pulgar sí apretaba el cilindro.**
+  - Bajó de 998 a 322 sin frenarse y se paró por fuerza (459 gf; escrito 447) en el mismo instante que el índice y
+    el medio (685 y 687), contra el cilindro. En la cámara externa, los dedos están sobre el cilindro.
+  - En los cuatro intentos, el pulgar quedó en 302–331 con 289–459 gf. En vacío, el pulgar izquierdo cierra a 302
+    con 47 gf (su residuo de flexión, `config/manos.yaml`).
+- **La comprobación miraba solo el ángulo:** "vacío" a menos de 60 de su consigna de cierre (300).
+  - Con el cubo de 6 cm, el pulgar se paraba en ~400.
+  - El cilindro de 5 cm lo lleva a su consigna: no cierra más, porque más allá choca con los dedos. Sujetan el
+    índice y el medio, apretando contra un pulgar quieto en su posición. Para algo más estrecho no queda margen.
+- **Cambio** (`Mano.agarre`): con el residuo medido (en el robot), un dedo en su consigna de cierre solo es "vacío"
+  si su fuerza, sin la base ni el residuo, no llega a la mitad de su FORCE_SET. Sin él (la mano simulada de las
+  pruebas, 70–230 gf de flexión), solo el ángulo, como antes.
+  - En los cuatro intentos, el pulgar marca 242–412 gf netos (≥ 200): "lleno".
+  - `escapado` sigue pidiendo lo mismo.
+  - Prueba nueva con los datos de la tirada.
+- **"Montaje movido"** en las cinco tiradas anteriores.
+  - La mesa se veía 1.3 cm a la derecha del robot y girada 0.5°, y las bandejas B y D, a 1.1–1.2 cm. Todo junto: el
+    usuario no tocó la mesa, así que se movió el robot respecto de ella.
+  - Con `--sin-comprobar-montaje`, la bandeja se apunta con ~1.2 cm de error (el plan admite 1.5).
+  - Lo correcto es repetir `marcar_montaje` (`[g]`) y `--medir-mesa`.
+- Pruebas: 129 de 129 en el PC remoto.
+
+## 68. "0 objetos" con el cilindro a la vista: la profundidad de la D435i, parada (2026-11-13)
+
+El usuario hizo `[g]`, `--medir-mesa` y el zoom, y lanzó dos tiradas: `tirada_20261113_235058_nivel2` y
+`235217` (con `--sin-comprobar-montaje`). Las dos, **"OBSERVAR: 0 objetos"**. Sin embargo:
+- el cilindro se ve en la imagen de color de la observación, en (0.50, 0.02) según la BRIO;
+- la percepción, con el montaje nuevo y la máscara de los brazos de la observación, lo ve con 0.78–0.91 en la
+  captura del `[g]` (23:45) y en una grabada después.
+
+- **La corrección de giro, con 0 medidas** en las dos tiradas (310 a las 09:06). El hilo mide cuando cambia el
+  número del fotograma `n`, y no cambió en toda la tirada.
+- **El módulo de profundidad estaba parado.** Leyendo el servidor en vivo (23:58): el color cambia entre fotogramas
+  (ruido, diferencia media 1.6), pero el IR y la profundidad son idénticos (diferencia 0). Todos llevan
+  `n` = 3389 y el mismo `t_cam`, y el servidor los publica a 30 Hz con `t_rx` nuevo.
+  - `wait_for_frames` devuelve el color nuevo con el IR y la profundidad viejos.
+  - La percepción veía la profundidad de antes, sin el cilindro en la zona, y el color de ahora.
+- **Nadie lo notaba:** el lector continuo, el vigilante (`fotograma_max_s`) y `Supervisor._fotogramas` miraban
+  `t_rx`, que seguía llegando.
+- **Cambios:**
+  - `camara_servidor.py`: publica solo los fotogramas con un IR nuevo. Si el IR no cambia en 2 s, reabre la
+    cámara; a los tres fallos seguidos, `hardware_reset`. Los fallos vuelven a cero al llegar 30 fotogramas
+    nuevos (antes, al abrir: con el IR parado nunca habría llegado al reset).
+  - `LectorContinuo`: la edad cuenta desde el último `n` nuevo. Con la profundidad parada, el vigilante para la
+    tirada y observar dice "cámara sin fotogramas".
+  - `Supervisor._fotogramas`: los fotogramas distintos, por `n`.
+  - Prueba nueva: el mismo `n` con `t_rx` nuevo no es un fotograma nuevo.
+- Para que valga, hay que reiniciar `camara_servidor.sh` después de desplegar: es un proceso aparte, con sudo.
+- Pruebas: 130 de 130 en el PC remoto.
+
+## 69. El cilindro gira en la pinza de tres dedos: el medio lo empuja de lado. Dos dedos (2026-11-14)
+
+Con el servidor de la cámara reiniciado (§68), `./manipulacion.sh --nivel 2 --arnes --escala-tiempo 1`
+(`datos/tirada_20261114_000944_nivel2`). La cámara, bien: el giro midió 167 veces.
+- El cilindro, visto con 0.83 en (0.498, 0.020).
+- "Agarre comprobado" (§67): medio 266, índice 290 y pulgar 401 gf; el pulgar, en 347. La mano, a (0.6, −1.3, 0) mm
+  del plan.
+- En el vídeo, **el cilindro va girando en la mano mientras sube recta**: ~15° a los 5.5 s del cierre, ~25° a los
+  7 s y ~50° a los 11 s. Lo sujetan solo las yemas por arriba.
+- A los 16 s, "cilindro se escapa de la mano" (el pulgar, en su tope de 302 con 163 gf; el medio, con 9). Abrió
+  sobre la bandeja B: el cilindro cayó en el borde y acabó tumbado dentro de B, pero cuenta como fallido.
+
+- **Por qué gira y el cubo no.** En el cilindro, el medio aprieta a ~19 mm del eje, a ~50° de la pinza. Su fuerza,
+  normal a la superficie, tiene una parte de lado (~0.8 de la suya): empuja la parte baja del cilindro hacia el
+  índice, con el pulgar sujetándolo arriba.
+  - Ese par (~5 gf·m) es mucho mayor que lo que lo devuelve la gravedad (33 g a ~1 cm, ~0.3 gf·m).
+  - En el vídeo gira hacia ese lado: la base, hacia el índice.
+  - En el cubo, el medio aprieta una cara plana, de frente: sin empuje de lado.
+- **Ahora, el cilindro, con dos dedos** (preforma nueva `dos_dedos`: meñique, anular y medio recogidos):
+  - el pulgar y el índice, enfrente, con el eje entre los dos (`centro_agarre` z 0.033). En una superficie redonda,
+    la pinza lo centra en su línea;
+  - a 7.2 cm (pulgar ~63 mm, 17 mm bajo la tapa; índice ~48): la pinza, ~15 mm sobre el centro de masas;
+  - FORCE_SET `[-1, -1, -1, 300, 450, -1]`.
+  - En banco, el cubo con dos dedos era inestable (§34). Con el cilindro, la pinza lo lleva a su línea y el medio
+    ya no lo empuja.
+- **El gemelo daba fallido el agarre a 7.2 cm.** Daba la mano por cerrada sobre el objeto con el punto de agarre a
+  menos de 3 cm de su centro, y el del cilindro quedaba a 3.2: cerraba en el aire. Ahora, a menos de 3 cm de su eje
+  y dentro de su altura.
+- En el gemelo, con el montaje del robot y escala 1, colocado en 7 de 8 sitios, entre ellos los dos del usuario
+  ((0.50, 0.02) y (0.53, −0.05)). Sin plan en (0.45, −0.12).
+- Pruebas: 130 de 130 en el PC remoto.
+
+## 70. Cilindro colocado con dos dedos; el medio recogido lo empujaba al soltar (2026-11-14)
+
+Con §69 desplegado, `./manipulacion.sh --nivel 2 --arnes --escala-tiempo 1 --sin-comprobar-montaje`
+(`datos/tirada_20261114_002656_nivel2`): **cilindro colocado en la bandeja B al primer intento**, en 106 s.
+- El cilindro, visto con 0.83 en (0.531, 0.038). La mano, a (−0.2, −1.2, −0.8) mm del plan.
+- Al cerrar: índice 510 y pulgar 483 gf, los dos "lleno"; el pulgar, en 303 (su tope).
+- En el vídeo va recto en la mano todo el transporte: la pinza de dos dedos lo centra (§69).
+- **Al soltar, el medio lo empujó.** La mano abría los cinco dedos a la vez. El medio, recogido junto a la parte de
+  arriba del cilindro (a ~22 mm de su eje, radio 25), barría hacia abajo al estirarse y lo apretaba contra la pared
+  de la bandeja (lo mismo, en menos, el anular y el meñique).
+  - **Ahora**, al soltar se abren solo los dedos que sujetan (los de FORCE_SET > 0: pulgar e índice). Los recogidos
+    por la preforma se abren después de `retirar_de_bandeja`, con la mano 8 cm más arriba.
+  - `Mano.abrir(dedos=...)` abre solo esos DOF. En `abierta_opuesta`, que no recoge ninguno, todo igual que antes.
+  - Prueba nueva en el gemelo: la primera apertura es `[-1, -1, -1, 1000, 1000, -1]` y la completa, después.
+- **"Montaje movido": la bandeja B, de verdad.** En las tiradas anteriores, solo B estaba 1.1–1.7 cm más al fondo.
+  Probablemente la movió el cilindro, que en §69 cayó sobre su borde. El usuario lanzó con `--sin-comprobar-montaje`:
+  B está donde la midió `[g]` + 1.5 cm, dentro de su hueco. Hay que volver a ponerla en su sitio o medirla otra vez.
+- Pruebas: 131 de 131 en el PC remoto.
+
+## 71. Cilindro: el pulgar, en su tope, no apretaba. Su centro, 5 mm hacia el pulgar (2026-11-14)
+
+El usuario guardó las bandejas B y D (`marcar_montaje.py --fase bandejas`; la mesa y el toque, sin tocar) y lanzó
+`./manipulacion.sh --nivel 2 --arnes --escala-tiempo 1` (`datos/tirada_20261114_004925_nivel2`).
+- El cilindro, visto con 0.77 en (0.536, 0.063). "Agarre comprobado": índice 512 y pulgar 466 gf.
+- A los 5 s del transporte, "cilindro se escapa de la mano" (al levantar): abrió y volvió.
+
+- **El pulgar, en su tope desde el cierre:** 303–306 durante todo el levantamiento (su consigna de cierre es 300).
+  No apretaba con su FORCE_SET: hacía de tope fijo mientras el índice empujaba (400–530 gf).
+  - En el vídeo, el cilindro va girando y bajando por el índice hasta soltarse a los ~8 s del cierre. Mientras, la
+    fuerza del pulgar cae de 467 a 169 gf.
+  - En la tirada buena (§70) el pulgar también estaba en 303: fue suerte.
+- **Por qué:** en el marco de la muñeca (gemelo, para la dirección), el pulgar llega por −y (abierto, en ~−107 mm) y
+  el índice por +y (abierto, en ~−12).
+  - El cubo, con el centro en y −0.070 y 30 mm de medio lado, lo toca el pulgar en −100 mm: ~400.
+  - El cilindro, con 25 de radio en el mismo centro, en −95 mm: 5 mm más de recorrido, y el pulgar llega a su tope.
+- **Ahora**, el centro del cilindro, en y **−0.075** (arriba; lado, −0.070): el pulgar lo toca donde al cubo y el
+  índice cierra ~5 mm más (tiene recorrido: 711 de 1000).
+- En el gemelo, con el montaje del robot (bandejas de las 00:4x) y escala 1, colocado en los 8 sitios probados,
+  entre ellos (0.536, 0.063), (0.50, 0.02) y (0.44, 0.01).
+- Pruebas: 131 de 131 en el PC remoto.
+
+**¿Simular el agarre con física (MuJoCo: dedos con fuerza, objetos libres, fricción)?** Ayudaría a ver cosas como
+el empuje del medio (§69) o un dedo en su tope, pero no rápido ni con fiabilidad:
+- El gemelo pone los dedos a ~1 cm de donde están: con el cubo da el pulgar en 300 y el índice en 890 al tocar,
+  y en el robot son ~400 y ~730.
+- Los fallos de §64–§71 dependen de milímetros y de la fricción de las yemas blandas, que habría que ajustar con
+  el robot.
+- Haría falta además el control de fuerza del firmware en los dedos y los objetos con su masa.
+
+Estimado: más de un día y, sin calibrar, resultados dudosos. Por ahora mandan el robot, `manos.csv` y la cámara
+externa.
+
+## 72. Cilindro colocado; la cámara, ocupada por otro programa (2026-11-14)
+
+- **La cámara:** a las 00:57 otro programa del robot (`~/h1_sensor_view/bridge.py`, lanzado por `run_view.sh`) abrió
+  la D435i con pyrealsense2. La manipulación se quedó sin fotogramas ("No llegan fotogramas") y el servidor, con "No
+  device connected". Una RealSense solo la abre un proceso.
+  - Parado ese programa, el servidor seguía fallando ("Couldn't resolve requests"). Al tercer fallo hizo
+    `hardware_reset` (§68) y arrancó: los tres flujos, con `n` nuevo.
+- `./manipulacion.sh --nivel 2 --arnes --escala-tiempo 1` (`datos/tirada_20261114_011303_nivel2`): **cilindro
+  colocado en B al primer intento**, en 111 s. La mano se abrió entera después de soltarlo y retirarse (§70).
+- **El pulgar, otra vez cerca de su tope:** 303–317 (con 452–511 gf) durante el transporte; el índice, 711–719.
+  - Mover el centro 5 mm (§71) no lo cambió: 306 al cerrar, frente a 303 en §71. La explicación de §71 (el pulgar
+    llega por −y) no se confirma.
+  - El gemelo pone los dedos a ~1 cm de su sitio (§71) y no sirve para esto.
+  - El cilindro de 5 cm se coge con el pulgar casi en su consigna de cierre. Esta vez apretó (se paró por fuerza, en
+    317) y lo sostuvo, pero el margen es poco.
+

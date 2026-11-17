@@ -32,8 +32,10 @@ if [ -n "$fecha_robot" ] && [[ "$fecha_robot" > "$fecha_pc" ]]; then
     echo "     Copia en $copia"
     SIN_MONTAJE=(--exclude config/montaje.yaml)
 fi
+# presentacion/ e informe/ (LaTeX, PDF y videos) solo se usan en la PC
 rsync -av --exclude datos/ --exclude __pycache__ --exclude .venv/ --exclude modelo/ \
-      --exclude docs/ --exclude montajes/ --exclude .pytest_cache/ "${SIN_MONTAJE[@]}" "$AQUI/" "$ROBOT_SSH:$DEST/"
+      --exclude docs/ --exclude montajes/ --exclude .pytest_cache/ --exclude presentacion/ --exclude informe/ \
+      "${SIN_MONTAJE[@]}" "$AQUI/" "$ROBOT_SSH:$DEST/"
 ssh "$ROBOT_SSH" "mkdir -p $DEST/modelo/ros_h1_2_ws/src/h1_2_inspire_description/scripts $DEST/modelo/h1_2_mujoco $DEST/modelo/h1_2_joint_control/config"
 rsync -av "$REPO/ros_h1_2_ws/src/h1_2_inspire_description/urdf" "$REPO/ros_h1_2_ws/src/h1_2_inspire_description/meshes" \
       "$REPO/ros_h1_2_ws/src/h1_2_inspire_description/config" \

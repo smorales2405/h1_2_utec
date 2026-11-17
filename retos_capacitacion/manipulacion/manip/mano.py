@@ -219,10 +219,13 @@ class Mano:
         self.mover(angulos)
         return self._esperar_quieta(3.0, vigilar=vigilar)
 
-    def cerrar(self, force_set, vigilar=None):
-        """Cierra los DOF con force_set > 0: FORCE_SET primero, velocidad lenta, consigna cerrada del todo."""
+    def cerrar(self, force_set, vigilar=None, speed=None):
+        """Cierra los DOF con force_set > 0: FORCE_SET primero, velocidad lenta, consigna cerrada del todo. `speed`:
+        la del agarre, una o por DOF (con el pulgar mas lento, la esfera, RESULTADOS §80); nunca mas de 100."""
         self.escribir_force_set(force_set)
-        self.escribir(SPEED_SET, [self.speed_cierre] * 6)
+        v = self.speed_cierre if speed is None else speed
+        v = [int(x) for x in v] if isinstance(v, (list, tuple, np.ndarray)) else [int(v)] * 6
+        self.escribir(SPEED_SET, [min(x, self.speed_cierre) for x in v])
         self.mover([self.cierre[k] if force_set[k] is not None and force_set[k] > 0 else -1 for k in range(6)])
         return self._esperar_quieta(self.t_cerrar, vigilar=vigilar)
 

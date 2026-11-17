@@ -2141,3 +2141,159 @@ El usuario relanzó el arnés, `[g]`, `--medir-mesa` y el zoom (271), y dos tira
   no sale; con él, 0.7 en su sitio.
 - Pruebas: 132 de 132 en el PC remoto.
 
+## 77. La esfera gris: la percepción la ve bien; su agarre, con dos dedos (2026-11-14)
+
+El usuario puso la esfera gris (6 cm, base aplanada, 41 g; a la bandeja C con la derecha) en el tablero.
+- **La cámara del robot la ve bien** (`dataset_20261114_030428_diag_esfera`, en reposo): esfera con 0.90–0.93 en cada
+  fotograma y 0.91 fusionando los cinco, en (0.480, −0.046), con 57 × 56 × 49 mm medidos.
+- **Su agarre de antes** (`abierta_opuesta`, cuatro dedos y pulgar, a 3.0 cm, centro z 0.010) repetía los problemas
+  del cilindro:
+  - en lo redondo, los dedos apartados del centro (el índice a 24 mm, el anular a 19) la empujaban de lado (§69);
+  - a 3 cm, con las yemas del cubo (9/24/31 mm bajo el punto), el índice quedaba a 6 mm de la mesa y el medio
+    debajo.
+- **Ahora, como el cilindro:** `dos_dedos`, con el pulgar y el índice enfrente y por su centro (z 0.033; y −0.070,
+  la del cubo).
+  - A **4.5 cm**: pulgar ~36 mm e índice ~21, con el medio entre los dos (28.5) un poco bajo el ecuador (30): la
+    recogen.
+  - Su anchura ahí (~58 mm), como la del cubo: el pulgar se pararía hacia 400, con margen (el cilindro de 5 cm lo
+    llevaba a su tope).
+  - FORCE_SET `[-1, -1, -1, 300, 450, -1]`.
+- En el gemelo, con el montaje del robot (02:49) y escala 1, colocada con la derecha en los 8 sitios probados, entre
+  ellos el suyo (0.48, −0.046) y de (0.42, 0.05) a (0.52, −0.15).
+- Pruebas: 132 de 132 en el PC remoto.
+
+## 78. La esfera con dos dedos: rodó al bajar y resbaló al levantar (2026-11-14)
+
+Con §77 desplegado:
+- `tirada_20261114_031651_nivel2`: la esfera, vista con 0.89 en (0.489, −0.043). **Rodó al bajar:** "agarre
+  fallido" (índice "flojo", pulgar "vacío" en 304) y acabó en (0.577, 0.102), donde la derecha no llega
+  (`031920`, sin IK).
+- `032026`: vista con 0.94 en (0.541, −0.108). **Cogida** (índice 620 gf en 714, pulgar 584 en 355: no en su tope)
+  y escapada a los 8.5 s del cierre, levantando.
+
+- **El vídeo de la primera** (bajada, cada 1.5 s): mientras la mano baja recta, los dedos recogidos (medio y anular)
+  apoyan encima de la esfera, y el índice queda a su lado. La esfera no estaba bajo la pinza pulgar–índice, sino
+  2–3 cm hacia los dedos recogidos. La empujan, y rueda por debajo del índice y fuera.
+- **En la segunda**, la esfera va bajando por el índice durante 8 s: la pinza no pasaba por su centro.
+- **El gemelo**, con el plan de la primera, da en el agarre el medio recogido a 10 mm de la esfera y el índice a más
+  de 20. Con una esfera de 6 cm a 22 mm del medio, ~1 cm de error basta para tocarla. El planificador no cuenta el
+  objeto que se coge en sus colisiones (`objeto_ignorado`): en un cubo da igual; una esfera rueda.
+- **La cámara externa no sirve de referencia aquí.** Da la esfera 1.5–2.4 cm más a +x y +y que el robot, pero una
+  cruz de cinta (plana, sin sesgo de profundidad) también sale desplazada (+16, +14) mm: el desfase es entre esa
+  cámara y el marco del robot, quizá por el `[g]` de las 02:49.
+  - Tampoco se distinguen bien la profundidad (el ajuste de la esfera, el casquete o el ajuste con el radio libre)
+    y la silueta en color: entre sí, 0.5–2.3 cm.
+- **Sin resolver:** si es un error de la percepción de la esfera (1.5–3 cm) o de dónde quedan los dedos frente al
+  gemelo (~1 cm, §71). Falta una referencia: la esfera puesta sobre una cruz de cinta, cuyo centro el robot ve sin
+  profundidad (detector del nivel 1).
+
+## 79. La esfera, sobre una cruz: el robot la sitúa a 4 mm. El problema eran los dedos recogidos (2026-11-14)
+
+La referencia de §78. Con el robot en reposo:
+- `dataset_20261114_034401_cruz_sola`: el detector del nivel 1 da la cruz despejada en (0.5309, −0.1103), estable a
+  0.1 mm.
+- `034611_esfera_en_cruz`: la esfera, centrada por el usuario sobre esa cruz.
+
+- **La percepción la sitúa a 4.2 mm** del centro de la cruz (dx −3.4, dy −2.4 mm; fotograma a fotograma, dx de −10
+  a +6 y dy de −2 a +1). No es la percepción.
+  - La silueta en color, retroproyectada a 30 mm, da +12/+20 mm: peor. Descartada.
+- **Lo que tocaba la esfera, los dedos recogidos.** En el gemelo, con la pinza de dos dedos (z 0.033, a 4.5 cm), el
+  medio recogido queda a 22 mm del eje de la esfera, sobre su hombro: a 10 mm de ella al final de la bajada. Con el
+  ~1 cm de error de los dedos del gemelo (§71), la tocaba, como se ve en el vídeo.
+- **Lo probado en el gemelo** (holgura mínima en la bajada, con el plan del sitio de la cruz):
+  - recoger menos los dedos (250, 500, 750) empeora (hasta −21 mm): recogidos del todo (0) es lo mejor;
+  - tres dedos con la esfera entre índice y medio (z 0.0225): el anular recogido, a 13 mm;
+  - subir el agarre gana ~3 mm cada 6 mm: con z 0.028, el anular a 16, 19 y 22 mm a 4.2, 4.8 y 5.4 cm;
+  - de lado no hay plan: la mano entra a 1–5 mm de las bandejas C y D, o el hombro, contra el torso.
+- **Ahora, tres dedos como el cubo:** `tres_dedos`, centro z 0.028 y a **5.0 cm**: medio ~19 mm e índice ~26, bajo el
+  ecuador (30), y pulgar ~41.
+  - El anular recogido queda a ~19 mm en el gemelo.
+  - Que gire en la mano no importa (es una esfera). El empuje de lado del medio la mete en la pinza: queda encerrada
+    entre el pulgar y la V de índice y medio, bajo el ecuador.
+  - FORCE_SET `[-1, -1, 300, 300, 450, -1]`.
+- En el gemelo, con el montaje del robot (02:49), colocada con la derecha en los 8 sitios probados. Pruebas: 132 de
+  132.
+- **Margen justo:** ~19 mm en el gemelo, con ~1 cm de error en los dedos.
+
+
+## 80. La esfera a 5 cm: el pulgar llegaba antes y por encima del ecuador (2026-11-18)
+
+Con §79 desplegado (arnés, montaje y medir mesa nuevos; `--sin-comprobar-montaje`), `tirada_20261118_003052_nivel2`:
+- **Primer intento:** vista con 0.94 en (0.522, −0.031). "Agarre comprobado" (medio 705 con 330 gf, índice 693 con
+  430, pulgar 346 con 680). Levantando, a los 5 s del cierre, "se escapa de la mano"; cae y rueda a (0.471, +0.109).
+- **Segundo:** "agarre fallido" (medio cerrado del todo, índice 487, pulgar en su tope 304). La esfera acaba 1.8 cm
+  más a +y, en (0.475, +0.127), y no hay tercer intento (`intentos_por_objeto` 2).
+
+- **La percepción y la mano, bien.** El gemelo, renderizado con la cámara calibrada sobre las fotos del robot:
+  - en la observación del segundo intento, la esfera a ~5 mm de la real;
+  - en el cierre, el contorno de la mano (q medidas) sobre la real.
+- **La mano no baja vertical.** Con `palma_abajo_tol_deg` 35, la IK se queda en el borde de la banda, como con el
+  cubo en §57: la muñeca, a 61° de la vertical.
+- **El gemelo, con las q medidas del cierre**, cerrando cada dedo desde abierto hasta tocar la esfera donde se vio:
+  - **medio**: en 710 (el real se paró en 705), a −5° del ecuador;
+  - **índice**: en 715 (real 693), a +7°;
+  - **pulgar**: en 595–625, a **+18/+22°** (por encima del ecuador). El real siguió hasta 346: 250–280 cuentas más,
+    por encima de ella.
+- **Velocidades** (manos.csv, SPEED 100): pulgar ~320 cuentas/s; índice y medio ~145.
+  - El pulgar llega ~0.7 s antes y empuja la esfera él solo. La fuerza solo sube cuando llegan los otros dos (pulgar
+    ya en 385).
+  - Con el pulgar arriba y los dedos en el ecuador, apretar la expulsa hacia abajo.
+  - Cada reapriete de `sujetar` (cada 1 s) la bajaba más: índice de 692 a 613, y se soltó.
+  - En el vídeo externo baja por las yemas del índice y el medio hasta caer.
+- **En el segundo**, el pulgar llegó primero otra vez (+24°) y la apartó de lado antes que los dedos: en el vídeo
+  rueda a +y mientras cierran.
+
+**Cambios:**
+- **`altura_agarre_m` 0.050 → 0.040.** En el gemelo, montaje del robot de las 00:26, cinco sitios de (0.44, −0.02) a
+  (0.56, 0.03) y (0.47, 0.11):
+  - pulgar −4 a +2° (en el ecuador), índice −6 a +5°, medio −8 a −14°;
+  - dedos a 7–11 mm de la mesa al cerrar y a 17–26 mm en la bajada;
+  - anular recogido a 14–16 mm de la esfera (a 0.050, ~20).
+  - A 0.044 el pulgar queda a +7° y a 0.036 los dedos a 3 mm de la mesa.
+- **Descartado: la palma más horizontal** (tolerancia 20°). El pulgar baja, pero el índice y el medio suben (+13/+6°
+  a 0.050) y la bajada pasa a 6 mm de la mesa. A 0.040, en (0.471, 0.109), sin plan.
+- **Velocidad de cierre por objeto** (`speed_cierre` en objetos.yaml, por DOF): la esfera, `[100, 100, 100, 100, 60,
+  100]`.
+  - `Agarre.speed` la lleva a `Mano.cerrar(speed=...)`, sin pasar de `mano.speed_cierre` (el sobreimpulso).
+  - A 60, el pulgar (~190 cuentas/s, si escala como el resto) llega a su contacto (~615) a la vez que los dedos al
+    suyo (~720). Hay que confirmarlo en el manos.csv de la próxima tirada.
+- Las fotos del segundo intento y siguientes, aparte (`agarre_<clase>_2_antes/_cerrado`): pisaban las del primero.
+- **Simulación:** el nivel 2 con el montaje del robot la coloca en C con la derecha en los 8 sitios, entre ellos los
+  dos de esta tirada y (0.53, −0.11).
+- Pruebas: 133 de 133 en el PC remoto.
+
+## 81. La esfera, cogida bajo el ecuador; se salía con el reapriete de cada segundo (2026-11-18)
+
+Con §80 desplegado, `tirada_20261118_005903_nivel2`: vista con 0.94 en (0.498, −0.058). "Agarre comprobado" (medio 616
+con 593 gf, índice 623 con 220, pulgar 537 con 712), levantada y llevada 12.5 s. Ya camino de la bandeja C (1.8 s
+después de empezar `sobre_bandeja`), "se escapa de la mano": cae y rueda al borde lejano de la mesa, donde la
+observación ya no la ve.
+
+- **El cierre de §80, bien:**
+  - con el pulgar a SPEED 60, la fuerza de los tres sube a la vez (56.6 s);
+  - en el gemelo con las q medidas, el pulgar la toca a +2° del ecuador, el índice a −7° y el medio a −16°;
+  - los tres cerraron 60–90 cuentas más allá del contacto del gemelo: la pinza, bajo el ecuador, la subió hacia la
+    palma.
+- **Lo que la sacó, el reapriete de `sujetar` (cada 1 s):**
+  - entre reaprietes, ningún dedo se mueve, aunque su fuerza baje: el índice, en 623 con 218 gf (FORCE_SET escrito
+    533). El dedo que llega a su FORCE_SET queda bloqueado donde está;
+  - reescribir el FORCE_SET lo desbloquea, y la consigna cerrada lo hace empujar otra vez;
+  - en cada reapriete, el índice y el medio (300 + 300) empujan y el pulgar (450) cede: índice 623 → 535, medio
+    616 → 575, pulgar 537 → 587 (abriéndose);
+  - al duodécimo, la fuerza se viene abajo. En el vídeo externo la esfera baja hasta las yemas y cae al moverse la
+    mano hacia la bandeja.
+- **Cambio:** `reapretar: false` en objetos.yaml (`Agarre.reapretar`, por defecto true). La esfera se lleva con los
+  dedos bloqueados donde cerraron. La lectura y la detección de escape siguen igual. Los demás objetos, como hasta
+  ahora.
+- Pruebas: 133 de 133 en el PC remoto. El nivel 2 simulado (montaje del robot) la coloca en C en los 8 sitios, también
+  (0.498, −0.058).
+
+## 82. Esfera colocada (2026-11-18)
+
+Con §81 desplegado, `tirada_20261118_010902_nivel2`: vista con 0.95 en (0.513, −0.049). "Agarre comprobado" (medio
+622 con 505 gf, índice 641 con 180, pulgar 539 con 623) y **colocada en C al primer intento**.
+- **Sin reapriete, los dedos quietos en todo el transporte** (21 s): medio 621 e índice 641.
+  - El pulgar se asentó una vez al despegar (539 → 570) y luego no se movió.
+  - Las fuerzas, estables: medio ~405 gf, índice ~115, pulgar 415–437.
+- Con esto, los cuatro objetos del nivel 2 se han colocado cada uno por separado: cubo (§65), cilindro (§70 y §72),
+  prisma (§75) y esfera.

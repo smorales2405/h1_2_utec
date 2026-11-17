@@ -74,11 +74,27 @@ def test_nivel2_coloca_en_sus_bandejas(tmp_path):
     a = _args(tmp_path, nivel=2, asignacion={"esfera": "A", "cubo": "C"},
               colocacion={"esfera": ((0.43, 0.05), 0.0), "cubo": ((0.47, -0.07), 0.3)})
     t = manipulacion.armar(a, _cfg(), log=lambda *x: None)
+    reaprietes = []
+
+    def contar(lado, sujetar):
+        def envuelta(fs):
+            reaprietes.append(lado)
+            return sujetar(fs)
+        return envuelta
+    for lado, mano in t.sup.manos.items():
+        mano.sujetar = contar(lado, mano.sujetar)
     motivo = manipulacion.correr(t, confirmar=False)
     assert motivo == "completado"
+    # §81: la esfera (izquierda) se lleva sin reapretar; el cubo (derecha), con el reapriete de cada 1 s
+    assert "izq" not in reaprietes and "der" in reaprietes, reaprietes
     final = {k: t.mundo.bandeja_de(k) for k in ("esfera", "cubo")}
     assert final == {"esfera": "A", "cubo": "C"}
     assert t.brazo.peso == 0.0
+    # §80: la esfera (la izquierda, a la A) con el pulgar mas lento, de objetos.yaml; el cubo, con la de la mano
+    from manip.mano import SPEED_SET
+    vel = {l: [v for a_, v in t.mundo.manos[l].escrituras if a_ == SPEED_SET] for l in ("izq", "der")}
+    assert [100, 100, 100, 100, 60, 100] in vel["izq"]
+    assert all(v in ([100] * 6, [300] * 6) for v in vel["der"]), vel["der"]
 
 
 @gl

@@ -296,7 +296,8 @@ class Planificador:
                                                 bandeja=bandeja, motivo=f"{tipo}: sin IK en '{falla}'")
                         continue
                     agarre = Agarre(preforma=self.objetos["preformas"][o["preforma"]], force_set=o["force_set"],
-                                    speed=self.cfg["mano"]["speed_cierre"], T_mano=self.cin.fk(lado, q_ag, "mano"))
+                                    speed=o.get("speed_cierre", self.cfg["mano"]["speed_cierre"]),
+                                    T_mano=self.cin.fk(lado, q_ag, "mano"), reapretar=bool(o.get("reapretar", True)))
                     plan = Plan(objeto=objeto, mano=lado, tarea="coger", puntos_de_paso=puntos, agarre=agarre,
                                 bandeja=bandeja, detalle={"clase": objeto.clase, "agarre": tipo})
                     self._añadir_reposo(plan, punto=punto)

@@ -199,6 +199,20 @@ def test_force_set_compensa_la_base():
     assert sim.fset.tolist()[:5] == [300, 300, 300, 300, 350]
 
 
+def test_cierre_con_velocidad_por_dedo():
+    """§80: la esfera cierra el pulgar a 60 (con 100 llegaba ~0.7 s antes que el indice y el medio y la empujaba
+    rodando); por DOF o una para todos, nunca por encima de speed_cierre (el sobreimpulso lo manda la velocidad)."""
+    mano, sim = _mano()
+    mano.cerrar([-1, -1, 300, 300, 450, -1], speed=[100, 100, 100, 100, 60, 100])
+    assert sim.speed.tolist() == [100, 100, 100, 100, 60, 100]
+    mano.abrir()
+    mano.cerrar([-1, -1, 300, 300, 450, -1], speed=[250, 250, 250, 250, 40, 250])
+    assert sim.speed.tolist() == [100, 100, 100, 100, 40, 100]
+    mano.abrir()
+    mano.cerrar([-1, -1, 300, 300, 450, -1])
+    assert sim.speed.tolist() == [100] * 6
+
+
 def test_cierre_lento_no_se_da_por_parado():
     """Despacio, cada lectura cambia menos que la tolerancia aunque el dedo se mueva: antes se daba por parado a
     medio camino. Ahora espera a que de verdad se pare (o a t_cerrar_s)."""

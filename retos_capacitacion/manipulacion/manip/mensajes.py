@@ -8,7 +8,7 @@ rotacion del pulgar), con 0 cerrado y 1000 abierto. Lados: "izq" y "der".
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -144,8 +144,9 @@ class PuntoPaso:
 class Agarre:
     preforma: List[int]         # ANGLE_SET de los 6 DOF antes de bajar
     force_set: List[int]        # gf por DOF; -1 = ese DOF no cierra
-    speed: int
+    speed: Union[int, List[int]]  # SPEED_SET al cerrar: uno para todos o uno por DOF (objetos.yaml, speed_cierre)
     T_mano: np.ndarray          # 4x4 de *_wrist_yaw_link en el torso en el agarre
+    reapretar: bool = True      # FORCE_SET y la consigna cerrada cada 1 s en el transporte (objetos.yaml; la esfera no)
 
 
 @dataclass

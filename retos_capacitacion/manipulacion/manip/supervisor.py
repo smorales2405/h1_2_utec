@@ -538,8 +538,12 @@ class Supervisor:
         clase = plan.objeto.clase
         self._plan_activo = plan
         self._a("PLANIFICAR", f"{clase} -> bandeja {plan.bandeja} con la mano {lado}", plan.detalle)
+        # las fotos del segundo intento y siguientes, aparte (pisaban las del primero, §80)
+        n_foto = self.__dict__.setdefault("_fotos_agarre", {})
+        n_foto[clase] = n_foto.get(clase, 0) + 1
+        foto = f"agarre_{clase}" + (f"_{n_foto[clase]}" if n_foto[clase] > 1 else "")
         if f is not None:
-            self.reg.imagen(f"agarre_{clase}_antes", f.color)
+            self.reg.imagen(f"{foto}_antes", f.color)
         mano.preforma(ag.preforma, vigilar=self.comprobar)
         punto = T_punto(centro_agarre(self.pl.objetos, clase, plan.detalle["agarre"]), lado)
         tramos = self._tramos(plan.puntos_de_paso)
@@ -556,7 +560,7 @@ class Supervisor:
         g = self._recta_guiada(lado, desde(k), tramos[k][1], punto, ajuste_inicio=True, ajuste_fin=True)
         self.vig.manos_vigiladas = {lado}
         self._a("CERRAR", f"FORCE_SET {ag.force_set}")
-        e = mano.cerrar(ag.force_set, vigilar=self.comprobar)
+        e = mano.cerrar(ag.force_set, vigilar=self.comprobar, speed=ag.speed)
         ok, det = mano.agarre(e, ag.force_set)
         en_agarre = np.round(1000 * (aplicar(self.pl.cin.fk(lado, self.q(lado), "mano"), punto)
                                      - aplicar(self.pl.cin.fk(lado, tramos[k][1][-1].q, "mano"), punto)), 1)
@@ -565,7 +569,7 @@ class Supervisor:
                  "angulo": e.angulo.round(0).tolist(), "mano_desde_el_plan_mm": en_agarre.tolist()})
         fot = self.fuente.siguiente(0.5) if hasattr(self.fuente, "siguiente") else None
         if fot is not None:
-            self.reg.imagen(f"agarre_{clase}_cerrado", fot.color)
+            self.reg.imagen(f"{foto}_cerrado", fot.color)
         k_lev = nombres.index("levantar")
         if not ok:
             mano.abrir(vigilar=self.comprobar)
@@ -576,7 +580,8 @@ class Supervisor:
             self._plan_activo = None
             return False
         # FORCE_SET y la consigna cerrada cada 1 s; la lectura, mas a menudo que mano_max_s del vigilante (con la
-        # mano vigilada, una lectura mas vieja que eso es "mano sin respuesta")
+        # mano vigilada, una lectura mas vieja que eso es "mano sin respuesta"). Sin reapretar (la esfera, §81), cada
+        # dedo se queda donde llego a su FORCE_SET: reescribirlo lo desbloquea y empuja otra vez, y el mas debil cede
         t_sujetar, t_leer = [time.monotonic()], [time.monotonic()]
         cada_leer = min(0.2, self.vig.mano_max_s / 2)
         # si el objeto se escapa (Mano.escapado en dos lecturas seguidas) el brazo no se para: sigue su plan, sin
@@ -595,7 +600,7 @@ class Supervisor:
 
         def sujetar():
             ahora = time.monotonic()
-            if ahora - t_sujetar[0] > 1.0:
+            if ag.reapretar and ahora - t_sujetar[0] > 1.0:
                 mano.sujetar(ag.force_set)
                 t_sujetar[0] = ahora
             if ahora - t_leer[0] > cada_leer:

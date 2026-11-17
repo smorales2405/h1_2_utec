@@ -13,7 +13,12 @@
 
 objetos:
   esfera:
-    altura_agarre_m: 0.030       # del punto de agarre sobre la mesa: su centro
+    # con 0.045 y dos dedos (§77), los dedos recogidos apoyaban en su hombro al bajar y rodo (§78-79). A 0.050 (§79) la
+    # mano entra con la palma a ~35 grados (el borde de palma_abajo_tol_deg) y, en el gemelo con las q medidas, el
+    # pulgar la toca a +18-22 grados sobre el ecuador: la apretaba hacia abajo, fuera de la pinza, y se escurrio al
+    # levantar (§80). A 0.040: pulgar en el ecuador (-4 a +2), indice -6 a +5 y medio -8 a -14; los dedos, a 7-11 mm de
+    # la mesa al cerrar y 17-26 en la bajada; el anular recogido, a 14-16 mm de la esfera (a 0.050, ~20)
+    altura_agarre_m: 0.040
     nombre: esfera de PLA gris
     forma: esfera
     medidas_m: [0.060]           # 6 cm, con la base aplanada por la impresion (el usuario, 2026-11-12)
@@ -25,8 +30,20 @@ objetos:
     # (las caras en sombra, calidas, hasta 75) y V 255. Esfera 0.94 de su color y 0 del del cubo (50/50 fotogramas)
     color: {nombre: gris, hsv_min: [85, 15, 35], hsv_max: [115, 90, 255]}
     agarre: [arriba, lado]
-    force_set: [300, 300, 300, 300, 350, -1]   # rigida y lisa: sin datos de banco, medir
-    preforma: abierta_opuesta
+    # tres dedos, como el cubo (z 0.028): el pulgar y el indice cerca de su eje y el medio al otro lado. Que gire en la
+    # mano no importa (es una esfera) y el empuje de lado del medio la mete en la pinza: queda encerrada entre el
+    # pulgar y la V de indice y medio, bajo el ecuador. Con dos dedos, el medio recogido quedaba a 22 mm de su eje,
+    # sobre su hombro (§79). De lado no hay plan: la mano entra a 1-5 mm de las bandejas C y D
+    force_set: [-1, -1, 300, 300, 450, -1]
+    # el pulgar cierra a ~320 cuentas/s con SPEED 100 y el indice y el medio a ~145 (manos.csv, §80): llegaba a la
+    # esfera ~0.7 s antes y la empujaba rodando el solo. A 60 llegan a la vez (gemelo: pulgar a 615-620, dedos a 715-725)
+    speed_cierre: [100, 100, 100, 100, 60, 100]
+    # sin el reapriete de cada 1 s al llevarla: en cada uno el indice y el medio empujaban (su FORCE_SET reescrito los
+    # desbloquea) y el pulgar cedia (537 -> 587, el indice 623 -> 535); a los 12 s se salio por las yemas (§81).
+    # Entre reaprietes cada dedo se queda donde llego a su fuerza, aunque esta baje (el indice, 623 con 218 gf)
+    reapretar: false
+    preforma: tres_dedos
+    centro_agarre: {arriba: [0.211, -0.070, 0.028], lado: [0.211, -0.065, 0.028]}
     bandeja: blanca
   cubo:
     # del punto de agarre sobre la mesa. Con 0.035 las yemas del medio y el indice apretaban a 4-11 mm de la mesa y el

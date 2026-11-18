@@ -175,7 +175,7 @@ supervisor:
 planificacion:          # manip/planificacion.py; alturas del punto de agarre sobre la mesa
   altura_segura_m: 0.15     # ningun punto de paso por debajo, salvo el descenso final
   altura_transporte_m: 0.18 # los puntos de paso altos van aqui: entre ellos el brazo no baja de la de seguridad
-  altura_suelta_m: 0.10     # el objeto por encima de las paredes de 4 cm de la bandeja
+  altura_suelta_m: 0.10     # el objeto por encima de las paredes de 4 cm de la bandeja (un objeto puede tener la suya)
   altura_aproximacion_m: 0.06   # donde empieza el descenso final...
   descenso_agarre_m: 0.025  # ...y como poco esto sobre el agarre (el cubo, cogido a 5.5 cm, empieza a 8)
   holgura_m: 0.02           # distancia minima del robot a mesa, bandejas y cuerpo en el gemelo
@@ -278,6 +278,7 @@ percepcion:             # manip/percepcion.py
   altura_max_m: 0.20
   resolucion_m: 0.003       # vista desde arriba
   margen_zona_m: 0.05       # se mira la zona de recogida ampliada esto
+  margen_trozo_m: 0.01      # un desconocido con el centro en la planta de un objeto conocido (+ esto) es un trozo suyo (§89)
   area_min_m2: 0.0012       # menos que esto es ruido (un reflejo de 2 cm son 0.0004)
   plano_vivo: true          # reajusta el plano de la mesa en cada escena (RANSAC alrededor del calibrado)
   movido_m: 0.02            # un objeto se da por movido si su centro cambia mas que esto...

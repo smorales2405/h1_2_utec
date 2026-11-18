@@ -2495,3 +2495,71 @@ Montaje nuevo (05:33), `tirada_20261118_053818_nivel2`:
   - En el cilindro que salió bien fue igual: no es la causa.
 - Pruebas: 135 de 135 en el PC remoto. La del nivel 2 comprueba que el brazo sigue sujeto mientras cierra.
 - El nivel 2 simulado (montaje de las 05:33) coloca los cuatro en la distribución de esta tirada y en L1.
+
+## 88. Los cuatro colocados; el prisma, fuera de la zona; el cubo, soltado de canto (2026-11-18)
+
+Con §87 desplegado:
+1. **`tirada_20261118_062303_nivel2`** (montaje de las 05:33): cubo, esfera y cilindro colocados; el prisma, sin plan.
+   - Se vio con la tapa en (0.389, 0.090). En las observaciones siguientes, sin la tapa, en x 0.377–0.371, con 0.67 y
+     0.28 de confianza; con 0.28 no se intentó.
+   - **No se movió:** en la cámara externa está en el mismo sitio en las cuatro observaciones.
+     - En la del robot sale cortado por el borde de abajo: la percepción lo ve a medias y lo pone hasta 1.8 cm más
+       cerca.
+   - **Estaba fuera de la zona de recogida** (x 0.40–0.56):
+     - desde arriba, sin plan (el anular contra la mesa, el codo contra el torso);
+     - de lado, tampoco (la bandeja A).
+   - **Cambio:** si ningún objeto tiene plan, el aviso dice cuáles están fuera de la zona y dónde.
+2. El usuario guardó el montaje (06:29), volvió a colocar el prisma y lanzó **`tirada_20261118_063422_nivel2`: los
+   cuatro colocados**, cada uno al primer intento.
+
+- **Sujetar el brazo al cerrar (§87) funciona.** En los siete agarres, la mano se queda a ±3–4 mm del plan mientras
+  cierra (antes se corría hasta 9).
+- **El cilindro, con z 0.038:** colocado las dos veces, pero al despegar aún giró en la pinza.
+  - Giró ~17° (062303) y ~7° (063422), hacia el mismo lado que en §87 (allí 22–28°, y se caía).
+  - Fuerzas del índice y el pulgar: 548/473 y 493/472 gf.
+  - **Cambio:** z 0.038 → **0.040**.
+    - Respecto del cilindro, la mano queda 6.4 mm más hacia +y del torso y 2.5 mm más abajo.
+    - Con 0.041, en el simulado de 063422 el cilindro en x 0.54 se quedaba sin IK.
+    - Con 0.040 hay plan en 21–22 de 25 sitios de la zona, como con 0.033.
+- **El cubo, soltado de canto.** En las tres últimas tiradas acabó contra la pared del fondo de D, apoyado en el borde.
+  - La mano lo suelta a ~8 mm del centro medido de D: no es el montaje.
+  - Lo lleva colgando ~10° inclinado en la pinza (vídeo externo).
+  - Con la altura de suelta común (0.10 del punto de agarre; medido, 92 mm), su base quedaba a 3–4 cm del fondo: caía
+    de canto.
+  - **Cambio:** `altura_suelta_m` por objeto en objetos.yaml; si un objeto no la tiene, la común.
+    - El cubo, **0.075**: la base a ~1.5 cm del fondo y las yemas por dentro de las paredes.
+- Pruebas: 135 de 135 en el PC remoto. La de la recta del cubo comprueba también su altura de suelta.
+- El nivel 2 simulado coloca los cuatro en estas distribuciones:
+  - con el montaje de las 06:29: 063422, 062303 (con el prisma en x 0.41) y L1;
+  - con el de las 05:33: 053818.
+
+## 89. Los cuatro colocados; el prisma, partido por la profundidad y cogido a un lado (2026-11-18)
+
+`tirada_20261118_072107_nivel2` (montaje de las 06:29): los cuatro colocados; el prisma, al segundo intento.
+- **Cubo:** soltado a 6 mm del centro de D y con la base a ~1 cm del fondo (el punto de agarre, a 67.6 mm de la mesa;
+  el plan, 75).
+- **Cilindro (z 0.040):**
+  - al despegar casi no giró (~3°; en §87, 22–28°); en el transporte, hasta ~10°;
+  - fuerzas 516/482 gf;
+  - el pulgar se asentó de 308 a 330, como en el que salió bien en §86.
+- **Sujetar el brazo al cerrar:** la mano quedó a 4 mm o menos del plan en los seis agarres.
+- **El prisma, partido por la profundidad.**
+  - Tras coger el cubo, la percepción vio el prisma (con la tapa en color) y un desconocido en (0.403, 0.094), dentro
+    de su planta. La tapa naranja tiene huecos en la profundidad (§74–76) y su nube se partió.
+  - En la observación siguiente, sin la tapa: el prisma a medias en (0.409, 0.008) a −31°, y el trozo, otra vez
+    desconocido.
+  - El desconocido entró como obstáculo (§85) y el prisma no tuvo plan (la mano, contra `obj_obst1`); se cogió antes
+    el cilindro.
+  - **Cambio:** un desconocido con el centro dentro de la planta de un objeto conocido se descarta: es un trozo suyo.
+    - La planta: sus medidas de objetos.yaml, con su yaw, más `percepcion.margen_trozo_m` (1 cm).
+- **El prisma, cogido a un lado.**
+  - Primer intento: "agarre comprobado" (378/271/337 gf). Al subir se inclinó, con su extremo de +y abajo, y los
+    dedos resbalaron hacia arriba hasta soltarlo. No llegó a despegar; escape a los 1.2 s.
+  - Segundo intento (369/252/397 gf): también se inclinó, pero aguantó.
+  - En el vídeo, el índice y el medio quedan a ~8 mm del centro del prisma, hacia −y del torso (en el gemelo, a +3–5
+    mm).
+  - Es el mismo lado al que caía la pinza del cilindro: la mano izquierda queda ~6–8 mm por −y.
+  - **Cambio:** `centro_agarre` del prisma (arriba), z 0.030 → **0.036**: la mano, +5.8 mm en y.
+    - En el gemelo, plan en 34 de 36 combinaciones de sitio y guiñada (antes, 35).
+- Pruebas: 136 de 136 en este PC (el remoto no respondía). El nivel 2 simulado (montaje de las 06:29) coloca los cuatro
+  en las distribuciones de esta tirada, de 063422 y en L1.

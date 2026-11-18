@@ -208,6 +208,26 @@ def test_varios_fotogramas_se_juntan():
     assert abs(envolver_simetria(Percepcion._fusionar(yo, cerca_de_45)[0].yaw - math.radians(44), math.pi / 2)) < 0.02
 
 
+def test_un_trozo_de_un_objeto_no_es_un_desconocido():
+    """§89: la profundidad partio el prisma (tapa naranja) y su extremo salio como desconocido, que como obstaculo (§85)
+    le quitaba el plan. Un desconocido con el centro en la planta de un objeto conocido (sus medidas, con su yaw) no
+    cuenta; uno fuera, si."""
+    from types import SimpleNamespace
+    from manip.mensajes import Objeto
+
+    def ob(clase, x, y, yaw_deg):
+        return Objeto(id=-1, clase=clase, p=np.array([x, y, -0.08]), yaw=math.radians(yaw_deg),
+                      medidas=np.array([0.04, 0.03, 0.04]), confianza=0.3)
+    yo = SimpleNamespace(objetos=config.cargar_objetos()["objetos"], p={"margen_trozo_m": 0.01})
+    prisma = ob("prisma", 0.410, 0.050, -87.2)          # 10 x 4 cm, a lo largo de y
+    assert Percepcion._dentro_de_conocido(yo, ob("desconocido", 0.403, 0.094, 46), [prisma])     # tirada 072107
+    assert not Percepcion._dentro_de_conocido(yo, ob("desconocido", 0.450, 0.050, 0), [prisma])  # 4 cm al lado
+    assert not Percepcion._dentro_de_conocido(yo, ob("desconocido", 0.410, 0.120, 0), [prisma])  # pasado su extremo
+    cil = ob("cilindro", 0.52, 0.03, 0)
+    assert Percepcion._dentro_de_conocido(yo, ob("desconocido", 0.53, 0.04, 0), [cil])
+    assert not Percepcion._dentro_de_conocido(yo, ob("desconocido", 0.55, 0.06, 0), [cil])
+
+
 def test_la_profundidad_parada_no_cuenta_como_fotograma_nuevo():
     """§68: el modulo de profundidad de la D435i se paro y el servidor siguio publicando el color nuevo con el mismo
     n (el del IR) y t_rx nuevo. El lector continuo solo cuenta los n nuevos: la edad crece (el vigilante para la

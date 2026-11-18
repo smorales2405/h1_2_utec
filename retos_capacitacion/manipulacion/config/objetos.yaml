@@ -78,6 +78,11 @@ objetos:
     # la posicion y el yaw, con la tapa en la imagen de color (la mancha blanca saturada, retroproyectada a 6 cm sobre
     # la mesa): la profundidad del cubo blanco tiene un hueco en la tapa y lo ponia hasta 2.2 cm al lado (§59)
     tapa_color: {v_min: 235, s_max: 60}
+    # se suelta mas abajo que la planificacion.altura_suelta_m comun (0.10): con ella la base quedaba a 3-4 cm del
+    # fondo y el cubo, colgando ~10 grados inclinado en la pinza, caia de canto y se quedaba apoyado en la pared del
+    # fondo de la bandeja (§88). Con 0.075, la base a ~1.5 cm del fondo; las yemas (2.7-4.9 cm sobre la base), a
+    # 4.2-6.4 cm de la mesa, por dentro de las paredes (4 cm, a ~2 cm de las caras del cubo)
+    altura_suelta_m: 0.075
     bandeja: naranja
   cilindro:
     # la pinza pulgar-indice por encima del centro de masas (40 mm) y por su eje. De lado no hay IK con el montaje de hoy
@@ -102,12 +107,12 @@ objetos:
     # cilindro (radio 25 frente a los 30 del cubo) dejaba el pulgar en su tope (303; consigna 300) sin apretar: hacia
     # de tope y el cilindro giro y bajo por el indice hasta soltarse (§71). 5 mm hacia el pulgar: lo toca donde al
     # cubo (~400) y el indice cierra ~5 mm mas (tiene recorrido)
-    # z 0.033 -> 0.038 (arriba): la pinza quedaba a un lado del eje (el pulgar y el indice, a ~1 cm por -y del torso).
-    # Sobre la mesa no se nota; al despegar, el cilindro giraba 25-35 grados en la pinza y caia (§87). Se ve en las
-    # fuerzas: el indice, 46-109 gf mas que el pulgar y mas cerrado (703-711); en las buenas, iguales y en 716-717.
-    # La que salio bien en §86, con la mano corrida al cerrar +3.6 mm en y del torso; +5 mm en z de la mano son
-    # ~+4.5 en y (la mano izquierda, desde arriba: su z es ~-y del torso)
-    centro_agarre: {arriba: [0.211, -0.075, 0.038], lado: [0.211, -0.070, 0.033]}
+    # z 0.033 -> 0.040 (arriba): la pinza quedaba a un lado del eje (~1 cm por -y del torso). Sobre la mesa no se nota;
+    # al despegar, el cilindro giraba 22-28 grados en la pinza y caia (§87). Se ve en las fuerzas: el indice, 46-109 gf
+    # mas que el pulgar y mas cerrado (703-711); en las buenas, iguales y en 716-717. Con 0.038 (la mano +4.5 mm en y
+    # del torso; su z es ~-y del torso) se colocaron los dos, pero aun girando 7-17 grados hacia el mismo lado (§88):
+    # 0.040, +6.4 mm (con 0.041, en el simulado de esa tirada, el cilindro en x 0.54 se quedaba sin IK)
+    centro_agarre: {arriba: [0.211, -0.075, 0.040], lado: [0.211, -0.070, 0.033]}
     bandeja: roja
   prisma:
     # tumbado (4 cm de alto, centro de masas a 20 mm). Con 0.030 el medio quedaba a la altura de la mesa (§61). Con
@@ -129,7 +134,11 @@ objetos:
     # y se salio a los 3.6 s de levantarlo (§85): 400/400
     force_set: [-1, -1, 400, 400, 400, -1]
     preforma: tres_dedos
-    centro_agarre: {arriba: [0.211, -0.070, 0.030], lado: [0.211, -0.065, 0.030]}   # como el cubo (§64)
+    # z 0.030 (como el cubo, §64) -> 0.036 (arriba): el indice y el medio quedaban ~8 mm hacia -y del torso a lo largo
+    # del prisma (camara externa); al levantarlo se inclinaba con su otro extremo abajo y una vez se solto (§89). Hacia
+    # el mismo lado que la pinza del cilindro (§87-88): la mano izquierda cae ~6-8 mm por -y. +6 mm en z de la mano
+    # (su z es ~-y del torso): la mano +5.8 mm en y
+    centro_agarre: {arriba: [0.211, -0.070, 0.036], lado: [0.211, -0.065, 0.030]}
     # la posicion y el yaw, con la tapa en la imagen de color: la profundidad de la tapa naranja (muy clara en el IR)
     # da 14 mm en vez de 40. La tapa, iluminada, tiene brillo 246-250; la cara de delante, 150-187 (§74)
     tapa_color: {hsv_min: [3, 120, 220], hsv_max: [24, 255, 255]}

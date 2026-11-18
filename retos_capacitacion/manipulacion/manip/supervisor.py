@@ -485,7 +485,14 @@ class Supervisor:
                 hecho = True
                 break
             if not hecho:
-                self._a("PLANIFICAR", f"ningun objeto con plan valido: {sorted(vistos)}")
+                # los que estan fuera de la zona de recogida (el prisma a x 0.371, cortado por el borde de la imagen y
+                # demasiado cerca del cuerpo para el brazo, §88): que se sepa donde ponerlos
+                z = self.pl.montaje.get("zona_recogida") or {}
+                fuera = [f"{c} en ({o.p[0]:.3f}, {o.p[1]:+.3f})" for c, o in sorted(vistos.items())
+                         if z and not (z["x"][0] <= o.p[0] <= z["x"][1] and z["y"][0] <= o.p[1] <= z["y"][1])]
+                self._a("PLANIFICAR", f"ningun objeto con plan valido: {sorted(vistos)}"
+                        + (f"; fuera de la zona de recogida (x {z['x'][0]:.2f} a {z['x'][1]:.2f}, y {z['y'][0]:+.2f} a "
+                           f"{z['y'][1]:+.2f}): {', '.join(fuera)}" if fuera else ""))
                 break
 
     @staticmethod

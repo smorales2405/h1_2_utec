@@ -252,7 +252,7 @@ class Planificador:
         tipos = o["agarre"] if isinstance(o["agarre"], list) else [o["agarre"]]
         alt = o.get("altura_agarre_m", 0.035)
         hs, ht = self.p["altura_segura_m"], self.p.get("altura_transporte_m", self.p["altura_segura_m"])
-        hsu = self.p["altura_suelta_m"]
+        hsu = float(o.get("altura_suelta_m", self.p["altura_suelta_m"]))      # la del objeto, si la tiene (§88)
         # el descenso final (recto y guiado) empieza como poco descenso_agarre_m sobre el agarre: con el cubo cogido a
         # 5.5 cm (§61), la aproximacion fija a 6 cm lo dejaba en 5 mm
         ha = max(self.p["altura_aproximacion_m"], alt + self.p.get("descenso_agarre_m", 0.025))

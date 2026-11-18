@@ -157,6 +157,10 @@ def test_coger_en_linea_recta(tmp_path):
                     assert fuera(aplicar(pl.cin.fk("der", a_ + s_ * (b_ - a_), "mano"), punto)) < 0.0025, nombre
         k_ag = max(k for k, p in enumerate(pts) if p.nombre == "agarrar")
         assert np.allclose(pl.cin.fk("der", pts[k_ag].q, "mano"), plan.agarre.T_mano)
+        # §88: el cubo se suelta a su altura_suelta_m (objetos.yaml), mas abajo que la comun
+        k_baj = max(k for k, p in enumerate(pts) if p.nombre == "bajar_a_bandeja")
+        h = pl.plano.altura(aplicar(pl.cin.fk("der", pts[k_baj].q, "mano"), punto))
+        assert abs(h - pl.objetos["objetos"]["cubo"]["altura_suelta_m"]) < 0.003, h
     finally:
         t.mundo.parar()
 

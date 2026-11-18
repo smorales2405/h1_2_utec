@@ -183,6 +183,10 @@ class Percepcion:
         t0 = time.monotonic()
         detectados = [self._detectar(f, q_brazos) for f in fotogramas]
         objetos = detectados[0][0] if len(detectados) == 1 else self._fusionar([d[0] for d in detectados])
+        # un desconocido dentro de la planta de un objeto conocido es un trozo suyo que la profundidad separo (la tapa
+        # del prisma, §89): como obstaculo (§85) le quitaba el plan a su propio objeto
+        conocidos = [o for o in objetos if o.clase != "desconocido"]
+        objetos = [o for o in objetos if o.clase != "desconocido" or not self._dentro_de_conocido(o, conocidos)]
         plano = detectados[-1][1]
         self._marcar_movidos(objetos)
         for i, o in enumerate(objetos):
@@ -190,6 +194,26 @@ class Percepcion:
         esc = Escena(t=fotogramas[-1].t_rx, objetos=objetos, ms=1000 * (time.monotonic() - t0), plano=(plano.n, plano.d))
         self._previa = esc
         return esc
+
+    def _dentro_de_conocido(self, o, conocidos):
+        """Si el centro de `o` cae en la planta de alguno de `conocidos` (sus medidas de objetos.yaml con su yaw, mas
+        percepcion.margen_trozo_m)."""
+        mg = float(self.p.get("margen_trozo_m", 0.01))
+        for c in conocidos:
+            oc = self.objetos.get(c.clase) or {}
+            m = oc.get("medidas_m")
+            if not m:
+                continue
+            d = np.asarray(o.p[:2], float) - np.asarray(c.p[:2], float)
+            if oc.get("forma") in ("esfera", "cilindro"):
+                if float(np.linalg.norm(d)) <= m[0] / 2 + mg:
+                    return True
+                continue
+            u = math.cos(c.yaw) * d[0] + math.sin(c.yaw) * d[1]          # a lo largo de medidas_m[0]
+            v = -math.sin(c.yaw) * d[0] + math.cos(c.yaw) * d[1]
+            if abs(u) <= m[0] / 2 + mg and abs(v) <= m[1] / 2 + mg:
+                return True
+        return False
 
     def _fusionar(self, listas):
         n, sal = len(listas), []

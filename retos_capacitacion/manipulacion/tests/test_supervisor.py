@@ -154,6 +154,35 @@ def test_verificar_planes_sin_plan_vuelve_al_reposo(tmp_path):
 
 
 @gl
+def test_verificar_planes_dos_que_se_tapan(tmp_path):
+    """§92: dos objetos que se tapan entre si (cada uno solo tiene plan sin el otro) no pasan la verificacion: antes se
+    probaba cada uno sin todos los demas y pasaban, y la tirada se quedaba sin plan para los dos a medias."""
+    from manip.mensajes import Plan
+    a = _args(tmp_path, nivel=2, asignacion={"esfera": "A", "cubo": "C"}, verificar_planes=True,
+              colocacion={"esfera": ((0.43, 0.05), 0.0), "cubo": ((0.47, -0.07), 0.3)})
+    avisos = []
+    t = manipulacion.armar(a, _cfg(), log=avisos.append)
+    pl, en_mesa = t.sup.pl, set()
+    poner, coger = pl.poner_escena, pl.coger
+
+    def poner_y_apuntar(esc):
+        en_mesa.clear()
+        en_mesa.update(o.clase for o in esc.objetos)
+        return poner(esc)
+
+    def se_tapan(o, bandeja, q0, lado=None):
+        otro = {"esfera": "cubo", "cubo": "esfera"}[o.clase]
+        if otro in en_mesa:
+            return Plan(objeto=o, mano=lado, tarea="coger", puntos_de_paso=[], bandeja=bandeja, motivo=f"prueba: {otro}")
+        return coger(o, bandeja, q0, lado)
+    pl.poner_escena, pl.coger = poner_y_apuntar, se_tapan
+    motivo = manipulacion.correr(t, confirmar=False)
+    assert motivo.startswith("sin plan para esfera, cubo"), motivo
+    assert not {"MOVER", "CERRAR"} & {e[1] for e in t.reg.resumen["eventos"]}
+    assert any("se tapa con cubo" in x for x in avisos), avisos
+
+
+@gl
 def test_coger_en_linea_recta(tmp_path):
     """§53: los tramos finos de coger (al agarre, levantar, bajar a la bandeja y retirarse) son rectas del punto de
     agarre con una postura por cm (entre dos IK sueltas se apartaba hasta 56 mm), y el agarre acaba justo en el."""

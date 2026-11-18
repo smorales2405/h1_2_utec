@@ -231,34 +231,47 @@ class Supervisor:
 
     def _verificar_planes(self):
         """--verificar-planes (niveles 2-4): en la observacion y antes de coger nada, cada objeto de la asignacion tiene
-        que verse y tener plan. El de cada uno, con todo lo visto en la mesa; si no sale, sin los otros objetos de la
-        asignacion (se habran recogido antes). Devuelve las clases sin plan (y lo avisa con el motivo de cada una)."""
+        que verse y tener plan. Se simula un orden de recogida: en cada vuelta, los que tienen plan con lo que queda en
+        la mesa se dan por recogidos y se quitan; los que no lo tienen se vuelven a probar sin ellos. Si una vuelta no
+        recoge ninguno, los que quedan no tienen plan (tambien si se tapan entre si: el cubo solo con la esfera fuera y
+        la esfera solo con el cubo fuera, §92; antes se probaba cada uno sin todos los demas y pasaba). Devuelve las
+        clases sin plan (y lo avisa con el motivo de cada una)."""
         import dataclasses
         esc, _ = self.observar()
         c_min = self.cfg["percepcion"]["confianza_min"]
         z = self.pl.montaje.get("zona_recogida") or {}
-        mal, bien = [], []
-        for clase, bandeja in self.asignacion.items():
+        mal, bien, vistos = [], [], {}
+        for clase in self.asignacion:
             todos = [o for o in esc.objetos if o.clase == clase]
             o = max(todos, key=lambda x: x.confianza) if todos else None
             if o is None or o.confianza < c_min:
                 mal.append((clase, "no se ve" if o is None else f"se ve con confianza {o.confianza:.2f} < {c_min}"))
-                continue
-            lado = self.pl.lado_de_bandeja(bandeja)
-            plan, nota = self.pl.coger(o, bandeja, self.q(lado), lado), ""
-            if not plan.comprobado:
-                resto = [x for x in esc.objetos if x.clase not in self.asignacion or x is o]
-                self.pl.poner_escena(dataclasses.replace(esc, objetos=resto))
-                if self.pl.coger(o, bandeja, self.q(lado), lado).comprobado:
-                    nota = " (cuando se hayan recogido los demas)"
-                self.pl.poner_escena(esc)
-            if plan.comprobado or nota:
-                bien.append(f"{clase} -> {bandeja}{nota}")
-                continue
+            else:
+                vistos[clase] = o
+        recogidos, motivo = [], {}
+        while vistos:
+            avance = False
+            for clase, o in list(vistos.items()):
+                bandeja = self.asignacion[clase]
+                lado = self.pl.lado_de_bandeja(bandeja)
+                self.pl.poner_escena(dataclasses.replace(esc, objetos=[x for x in esc.objetos if x.clase not in recogidos]))
+                plan = self.pl.coger(o, bandeja, self.q(lado), lado)
+                if plan.comprobado:
+                    bien.append(f"{clase} -> {bandeja}" + (f" (tras {', '.join(recogidos)})" if recogidos else ""))
+                    recogidos.append(clase)
+                    vistos.pop(clase)
+                    avance = True
+                else:
+                    motivo[clase] = plan.motivo
+            if not avance:
+                break
+        self.pl.poner_escena(esc)
+        for clase, o in vistos.items():
             fuera = bool(z) and not (z["x"][0] <= o.p[0] <= z["x"][1] and z["y"][0] <= o.p[1] <= z["y"][1])
-            mal.append((clase, f"en ({o.p[0]:.3f}, {o.p[1]:+.3f}): {plan.motivo}"
+            mal.append((clase, f"en ({o.p[0]:.3f}, {o.p[1]:+.3f}): {motivo.get(clase, '')}"
                         + (f"; fuera de la zona de recogida (x {z['x'][0]:.2f} a {z['x'][1]:.2f}, "
-                           f"y {z['y'][0]:+.2f} a {z['y'][1]:+.2f})" if fuera else "")))
+                           f"y {z['y'][0]:+.2f} a {z['y'][1]:+.2f})" if fuera else "")
+                        + ("; se tapa con " + ", ".join(c for c in vistos if c != clase) if len(vistos) > 1 else "")))
         if not mal:
             self._a("VERIFICAR", f"todos con plan: {', '.join(bien)}")
             return []

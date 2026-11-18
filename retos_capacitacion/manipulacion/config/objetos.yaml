@@ -17,12 +17,17 @@ objetos:
     # mano entra con la palma a ~35 grados (el borde de palma_abajo_tol_deg) y, en el gemelo con las q medidas, el
     # pulgar la toca a +18-22 grados sobre el ecuador: la apretaba hacia abajo, fuera de la pinza, y se escurrio al
     # levantar (§80). A 0.040: pulgar en el ecuador (-4 a +2), indice -6 a +5 y medio -8 a -14; los dedos, a 7-11 mm de
-    # la mesa al cerrar y 17-26 en la bajada; el anular recogido, a 14-16 mm de la esfera (a 0.050, ~20)
-    altura_agarre_m: 0.040
+    # la mesa al cerrar y 17-26 en la bajada; el anular recogido, a 14-16 mm de la esfera (a 0.050, ~20).
+    # La de 7 cm (§91), en el gemelo con el montaje de las 10:00: a 0.040 pulgar -7, indice -1, medio -9 y los dedos a
+    # 7.5 mm de la mesa; a 0.045, -2/0/-8 y 12.7 mm; a 0.050 el pulgar ya pasa del ecuador (+4 a +6). 0.043: en el
+    # ecuador o algo debajo, con ~10 mm a la mesa
+    altura_agarre_m: 0.043
     nombre: esfera de PLA gris
     forma: esfera
-    medidas_m: [0.060]           # 6 cm, con la base aplanada por la impresion (el usuario, 2026-11-12)
-    masa_kg: 0.0414
+    # 7 cm desde el 2026-11-18 (§91; antes, una de 6 cm, 41.4 g): con la mano menos cerrada al tocarla y mas sitio
+    # bajo el ecuador. La percepcion la da con 0.94 (con el radio de la de 6, 0.88 y 3 mm corrida)
+    medidas_m: [0.070]
+    masa_kg: 0.066               # estimada (la de 6 cm por (7/6)^3): pesarla
     simetria_deg: 0
     # gris azulado. Mide como el cubo y la forma no los separa con la profundidad real (la tapa del cubo sale tan
     # poco plana como una esfera, RESULTADOS §53): los separa el color. En la camara del robot (dataset esfera_cubo
@@ -34,14 +39,19 @@ objetos:
     # mano no importa (es una esfera) y el empuje de lado del medio la mete en la pinza: queda encerrada entre el
     # pulgar y la V de indice y medio, bajo el ecuador. Con dos dedos, el medio recogido quedaba a 22 mm de su eje,
     # sobre su hombro (§79). De lado no hay plan: la mano entra a 1-5 mm de las bandejas C y D
-    force_set: [-1, -1, 300, 300, 450, -1]
+    # Con la de 7 cm (§92), tambien el anular: en el gemelo, a lo ancho de la mano, el pulgar y el indice la tocan a
+    # +5 mm de su centro y el medio a -8; el pulgar la empujaba hacia el lado del medio, donde no habia nada, y rodaba
+    # alejandose del indice (su fuerza bajaba de 472 a 38 gf en 8 s de transporte, la del medio subia) hasta caer. El
+    # anular la toca a -26 mm, bajo el ecuador (-26 grados): le cierra ese lado. Con 200 (el derecho tiene 392 gf de
+    # residuo, que se suma al FORCE_SET): de tope, sin empujarla de lado
+    force_set: [-1, 200, 300, 300, 450, -1]
     # el pulgar cierra a ~320 cuentas/s con SPEED 100 y el indice y el medio a ~145 (manos.csv, §80): llegaba a la
     # esfera ~0.7 s antes y la empujaba rodando el solo. A 60 (~178/s) llegaban a la vez, pero con unos mm de diferencia
     # el pulgar tocaba primero (609, los dedos en 686) y, al oponerse al indice y no al centro de la V con el medio, la
     # sacaba de lado (§86). A 45 (~134/s) llegan antes el indice y el medio (~0.5 s): la empujan recta hacia la palma y
     # el pulgar la atrapa
     speed_cierre: [100, 100, 100, 100, 45, 100]
-    preforma: tres_dedos
+    preforma: cuatro_dedos
     centro_agarre: {arriba: [0.211, -0.070, 0.028], lado: [0.211, -0.065, 0.028]}
     bandeja: blanca
   cubo:
@@ -131,14 +141,17 @@ objetos:
     # sujeta el prisma, de 10 cm, a lo largo). De 4 cm de ancho: el pulgar llega a su consigna de cierre (300) y hace de
     # tope; aprietan el indice y el medio (con el cilindro de 5 cm ya llegaba, §72). 48 g: 250/250, y 400 el pulgar.
     # Con 250 se sostenia porque el reapriete de cada 1 s subia la fuerza a 600-800 gf; sin el (§84) quedo con ~290/200
-    # y se salio a los 3.6 s de levantarlo (§85): 400/400
-    force_set: [-1, -1, 400, 400, 400, -1]
+    # y se salio a los 3.6 s de levantarlo (§85): 400/400. Con 400 el apriete se aflojaba en el transporte (el medio de
+    # 372 a 202 gf) y se solto sobre la bandeja (§92); el indice y el medio, cerrando a la vez que el pulgar, se
+    # bloqueaban en un pico (hasta 1053 gf) y luego cedian. 450/450 y el indice y el medio a SPEED 60 (~87 cuentas/s
+    # frente a ~145): el pulgar llega antes a su tope y ellos aprietan el prisma contra el, sin el pico
+    force_set: [-1, -1, 450, 450, 400, -1]
+    speed_cierre: [100, 100, 60, 60, 100, 100]
     preforma: tres_dedos
-    # z 0.030 (como el cubo, §64) -> 0.036 (arriba): el indice y el medio quedaban ~8 mm hacia -y del torso a lo largo
-    # del prisma (camara externa); al levantarlo se inclinaba con su otro extremo abajo y una vez se solto (§89). Hacia
-    # el mismo lado que la pinza del cilindro (§87-88): la mano izquierda cae ~6-8 mm por -y. +6 mm en z de la mano
-    # (su z es ~-y del torso): la mano +5.8 mm en y
-    centro_agarre: {arriba: [0.211, -0.070, 0.036], lado: [0.211, -0.065, 0.030]}
+    # z 0.030, como el cubo (§64). Con 0.036 (§89: el indice y el medio quedaban ~8 mm hacia -y a lo largo del
+    # prisma) quedaron centrados, pero se solto en los dos intentos de §91 (los dedos resbalaron hacia arriba sin
+    # levantarlo, el pulgar con su menor fuerza: ~170-210 gf netos); con 0.030 se coloco en 4 de 5. Vuelta a 0.030
+    centro_agarre: {arriba: [0.211, -0.070, 0.030], lado: [0.211, -0.065, 0.030]}
     # la posicion y el yaw, con la tapa en la imagen de color: la profundidad de la tapa naranja (muy clara en el IR)
     # da 14 mm en vez de 40. La tapa, iluminada, tiene brillo 246-250; la cara de delante, 150-187 (§74)
     tapa_color: {hsv_min: [3, 120, 220], hsv_max: [24, 255, 255]}
@@ -158,5 +171,6 @@ agarres:
 preformas:
   abierta_opuesta: [1000, 1000, 1000, 1000, 1000, 0]    # pulgar girado enfrente de los dedos
   tres_dedos:      [0, 0, 1000, 1000, 1000, 0]          # menique y anular recogidos
+  cuatro_dedos:    [0, 1000, 1000, 1000, 1000, 0]       # solo el menique recogido (la esfera de 7 cm, §92)
   dos_dedos:       [0, 0, 0, 1000, 1000, 0]             # pulgar e indice: menique, anular y medio recogidos (cilindro)
   senalar:         [0, 0, 0, 1000, 600, 500]            # nivel 1: solo el indice extendido

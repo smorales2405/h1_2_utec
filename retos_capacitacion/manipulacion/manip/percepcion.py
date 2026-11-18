@@ -274,6 +274,10 @@ class Percepcion:
                     objetos.append(o)
         # las cajas con tapa en color que la profundidad no agrupo (§75)
         por_tapa = self._tapas_sin_profundidad(f, Pt_todo, h_todo, plano, {o.clase for o in objetos if o.clase != "desconocido"})
+        # una "tapa" sobre un objeto ya reconocido no es otro objeto: el brillo de lo alto de la esfera de 7 cm en el
+        # gemelo salia como la tapa blanca del cubo, en el mismo sitio, y como obstaculo le quitaba el plan (§91)
+        conocidos = [o for o in objetos if o.clase != "desconocido"]
+        por_tapa = [t for t in por_tapa if not self._dentro_de_conocido(t, conocidos)]
         if por_tapa:
             objetos = [o for o in objetos if o.clase != "desconocido"
                        or min(np.linalg.norm(o.p[:2] - t.p[:2]) for t in por_tapa) > 0.05] + por_tapa

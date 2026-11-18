@@ -2588,3 +2588,97 @@ Dos cambios que pidió el usuario.
   - el nivel 2 simulado, con `--verificar-planes`, coloca los dos objetos y acaba con las manos abiertas del todo;
   - con un objeto sin plan, avisa de cuál, vuelve al reposo y no coge ninguno.
 - Pruebas: 137 de 137 en este PC (el remoto sigue sin responder).
+
+## 91. El prisma resbaló dos veces; la esfera se salió; la esfera de 7 cm (2026-11-18)
+
+`tirada_20261118_100641_nivel2` (montaje de las 10:00, con `--verificar-planes`):
+- La verificación dio todos con plan.
+- Cilindro y cubo colocados. El prisma se escapó en los dos intentos y la esfera en el único.
+
+- **El prisma (z 0.036).**
+  - "Agarre comprobado" las dos veces (435/220/297 y 356/255/258 gf).
+  - Al subir, el prisma no se movió: los dedos resbalaron hacia arriba por sus caras (vídeo externo). Escape a 1.0 y
+    0.6 s del transporte.
+  - Los dedos quedaron centrados a lo largo del prisma: el cambio de §89 hizo lo que debía.
+  - Pero el pulgar, en su tope de cierre (300), como siempre con 4 cm, apretó menos que en ningún otro agarre del
+    prisma: ~170–210 gf netos, frente a 225–256 en los que aguantaron.
+  - Su fuerza en bruto: 337, 297 y 258 gf en los tres que se soltaron; 339–397 en los cuatro que aguantaron.
+  - **Cambio:** vuelta a z 0.030 (con él, 4 de 5).
+  - El agarre del prisma va justo: el pulgar llega a su tope y el apriete depende de cómo se asientan el índice y el
+    medio.
+- **La esfera.**
+  - Los tres dedos tocaron casi a la vez y el medio se paró en 400 gf.
+  - Ya cerrada y sin mover la mano, la fuerza del índice cayó de 724 a 122 gf y la del pulgar de 789 a 482: se salía
+    de la pinza.
+  - Escape a los 0.6 s del transporte, como en §86–87 (la mano, aquí, a 2.4 mm del plan).
+- **La esfera de 7 cm** (impresa por el usuario, gris):
+  - Las reglas del reto piden 3–8 cm de ancho y 30–300 g: cabe.
+  - En la cámara del robot (`dataset_20261118_101946_esfera_7cm`) mide 70 × 66 × 63 mm. Con el radio de 3.5 cm sale
+    con confianza 0.94; con el de 3, 0.88 y 3 mm corrida.
+  - En el gemelo (alturas 0.040–0.055), la mano la toca más abierta: el pulgar en ~670 (frente a 620) y el índice en
+    750 (frente a 720).
+  - A 0.043 la coge en el ecuador o algo debajo, con ~10 mm hasta la mesa (la de 6 cm, ~7).
+  - Hay plan en 25 de 25 sitios de la zona de la derecha (la de 6, en 23).
+  - No cambia que el pulgar se oponga al índice y no al centro de la V con el medio, que era lo que la sacaba de lado
+    (§86). Solo le da algo de margen.
+  - **Cambio:** `medidas_m` 0.070, `altura_agarre_m` 0.043 y `masa_kg` 0.066, estimada (hay que pesarla).
+- **En el gemelo, un cubo fantasma sobre la esfera de 7 cm.**
+  - El brillo de su parte de arriba en la cámara virtual pasaba por la tapa blanca del cubo
+    (`_tapas_sin_profundidad`), en el mismo sitio que la esfera.
+  - Como obstáculo, le quitaba el plan (falló `test_salida_segura_por_giro`).
+  - En la cámara real no sale: la esfera gris es más oscura.
+  - **Cambio:** una tapa con el centro dentro de la planta de un objeto ya reconocido se descarta, como los trozos
+    de §89.
+- Pruebas: 137 de 137 en el PC remoto.
+- El nivel 2 simulado, con la esfera de 7 cm, `--verificar-planes` y el montaje de las 10:00, coloca los cuatro en cuatro
+  distribuciones: la de esta tirada, la de la mesa de ahora, L1 y 072107.
+
+## 92. La esfera de 7 cm rodaba en la mano: con el anular; el prisma, más apretado (2026-11-18)
+
+`tirada_20261118_103734_nivel2` (la esfera de 7 cm, `--verificar-planes`):
+1. **Cubo:** colocado.
+2. **Esfera, primer intento:**
+   - "Agarre comprobado" con 469/474/631 gf (medio, índice, pulgar).
+   - Escape a los 8.5 s del transporte, ya arriba. Cayó a la mesa y el usuario la retiró.
+3. **Prisma:**
+   - "Agarre comprobado" (372/268/368 gf).
+   - Escape a los 18.3 s, con el punto de agarre a ~18 cm sobre la bandeja A, antes de bajar: cayó dentro.
+   - Se da por fallido; al final no se ve en la mesa (está en su bandeja).
+4. **Cilindro:** colocado.
+5. **Esfera, segundo intento** (recolocada a mano en (0.473, −0.072)): colocada.
+
+- **La esfera rodaba dentro de la mano.**
+  - Desde que despegó, la fuerza del índice bajó sin parar, de 472 a 38 gf en 8 s, mientras la del medio subía (469 →
+    516). Al final cayó.
+  - En el vídeo va colgando bajo las yemas.
+  - En los transportes que salen bien (el segundo intento, y los de la de 6 cm en 063422), las fuerzas se asientan en
+    1 s y luego no cambian.
+  - En el gemelo, a lo ancho de la mano: el pulgar y el índice la tocan a +5 mm de su centro y el medio a −8.
+    - El pulgar la empuja hacia el lado del medio, donde no hay ningún dedo.
+    - Bajar el agarre no lo cambia: el índice sigue en el ecuador (−2°) a 0.037–0.041.
+  - **Cambio:** preforma `cuatro_dedos` (`[0, 1000, 1000, 1000, 1000, 0]`, solo el meñique recogido) para la esfera.
+    - En el gemelo, el anular la toca a −26 mm y −26° (bajo el ecuador): le cierra ese lado sin mover los otros
+      contactos.
+    - FORCE_SET del anular, 200: el derecho tiene 392 gf de residuo, que se suma; con eso hace de tope sin empujarla
+      de lado.
+    - Plan en 22 de 25 sitios de la zona de la derecha; se pierden los del borde (y −0.18).
+- **El prisma, flojo en el transporte.**
+  - El medio bajó de 372 a 202 gf antes de soltarse.
+  - El pulgar llega a su tope (4 cm de ancho). El índice y el medio, cerrando a la vez, se bloquean en un pico (hasta
+    1053 gf en 072107) y luego ceden.
+  - **Cambio:**
+    - FORCE_SET del índice y el medio, 400 → 450;
+    - su velocidad de cierre, 60 (~87 cuentas/s frente a ~145): el pulgar llega antes a su tope y ellos aprietan el
+      prisma contra él.
+- **`--verificar-planes` no veía dos objetos que se tapan entre sí.**
+  - En el simulado de esta mesa con la esfera donde se recolocó (0.473, −0.072) y el cubo donde estaba (x 0.390,
+    fuera de la zona), el cubo solo tiene plan sin la esfera y la esfera solo sin el cubo.
+  - La verificación los daba por buenos, porque probaba cada uno sin todos los demás. La tirada colocaba el cilindro y
+    el prisma y acababa sin plan para los otros dos.
+  - **Cambio:** se simula un orden de recogida. En cada vuelta, los que tienen plan con lo que queda en la mesa se dan
+    por recogidos y se quitan, y los demás se vuelven a probar. Si una vuelta no recoge ninguno, los que quedan no
+    tienen plan, y el aviso dice con cuáles se tapan.
+  - Prueba nueva: dos que se tapan no pasan.
+- Pruebas: 138 de 138 en este PC (el remoto volvió a perder la red).
+- El nivel 2 simulado (montaje de las 10:00, esfera de 7 cm con cuatro dedos, `--verificar-planes`) coloca los cuatro en
+  la distribución de esta tirada, en la de 100641 y en L1. En la combinación imposible de arriba avisa y no coge nada.

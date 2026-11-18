@@ -129,6 +129,14 @@ mano:                   # manip/mano.py; registros y trampas en la memoria del p
   force_set_max: 800    # seccion 10: tope por dedo, escrito antes de cada cierre
   force_set_abierta: 800    # el que se deja al abrir (nunca el de fabrica, 2000 = sin limite)
   corte_gf: 1200        # fuerza medida que dispara la salida segura
+  suelto_frac: 0.4      # escape: todos los dedos que agarran por debajo de esto de su FORCE_SET (sin reapretar se quedan
+                        # bloqueados; §85: en las tiradas guardadas solo salta en las dos que se escaparon sin aviso)
+  reapretar: false      # FORCE_SET y la consigna cerrada cada 1 s al llevar el objeto (un objeto puede pedirlo en
+                        # objetos.yaml). Reescribir FORCE_SET desbloquea el dedo y lo hace empujar otra vez: el cubo y
+                        # el prisma trepaban en cada tirada (medio e indice 40-70 cuentas mas cerrados, el pulgar
+                        # cediendo hasta 120, picos de 800-1045 gf), la esfera se salio (§81) y el cilindro, al
+                        # girar en la pinza, clavo el indice a 3012 gf y salto el corte (§84). Sin el, cada dedo se
+                        # queda donde llego a su fuerza (la esfera, quieta 21 s)
   persistencia_corte: 3 # ... en tantas lecturas seguidas: la mano da lecturas sueltas corruptas (3187 y 1873 gf;
                         # inspire_hand_interface, que tambien exige 3 ciclos para cualquier umbral)
   abierta_min: 900      # ANGLE_ACT de los cuatro dedos por encima de esto = mano abierta
@@ -172,6 +180,7 @@ planificacion:          # manip/planificacion.py; alturas del punto de agarre so
   descenso_agarre_m: 0.025  # ...y como poco esto sobre el agarre (el cubo, cogido a 5.5 cm, empieza a 8)
   holgura_m: 0.02           # distancia minima del robot a mesa, bandejas y cuerpo en el gemelo
   holgura_agarre_m: 0.005   # en el descenso final y el agarre, los dedos pueden acercarse mas a la mesa
+  obstaculo_margen_m: 0.01  # lo visto sin clase es una caja de su planta y alto, con esto mas por lado (§85)
   muestras_tramo: 8         # puntos por tramo en la comprobacion contra el gemelo (como minimo)
   paso_comprobacion_rad: 0.03  # y uno cada esto de la junta que mas se mueve: con 8 en el tramo de 1.8 rad
                             # a la observacion, el menique a 13 mm de la mesa caia entre dos muestras (2026-11-11)
@@ -294,7 +303,7 @@ camara_externa:            # Logitech BRIO en la laptop, de frente al robot (her
   carpeta: datos/externa
   controles:                # en este orden (v4l2-ctl): el zoom antes que pan/tilt; el foco fijo (el automatico busca al
                             # pasar el brazo; a ~1.4 m, de 0 a 20 la nitidez es la misma)
-    zoom_absolute: 274
+    zoom_absolute: 256
     pan_absolute: 0
     tilt_absolute: 0        # con la camara inclinada a mano (2026-11-13); antes -10 grados, el tope digital
     focus_automatic_continuous: 0

@@ -297,7 +297,8 @@ class Planificador:
                         continue
                     agarre = Agarre(preforma=self.objetos["preformas"][o["preforma"]], force_set=o["force_set"],
                                     speed=o.get("speed_cierre", self.cfg["mano"]["speed_cierre"]),
-                                    T_mano=self.cin.fk(lado, q_ag, "mano"), reapretar=bool(o.get("reapretar", True)))
+                                    T_mano=self.cin.fk(lado, q_ag, "mano"),
+                                    reapretar=bool(o.get("reapretar", self.cfg["mano"].get("reapretar", False))))
                     plan = Plan(objeto=objeto, mano=lado, tarea="coger", puntos_de_paso=puntos, agarre=agarre,
                                 bandeja=bandeja, detalle={"clase": objeto.clase, "agarre": tipo})
                     self._añadir_reposo(plan, punto=punto)
@@ -390,7 +391,9 @@ class Planificador:
         self.gemelo[0].poner_mano(lado, angle_set_a_rad(a))
 
     def poner_escena(self, escena):
-        """Los objetos percibidos, en el gemelo: los demas objetos son obstaculos al planificar."""
+        """Los objetos percibidos, en el gemelo: los demas objetos son obstaculos al planificar. Los que no tienen clase
+        ("desconocido"), tambien: cajas de su planta y su alto vistos, mas `obstaculo_margen_m` por lado. Antes no
+        estaban en el gemelo y la mano del prisma choco con el cilindro y la esfera juntos, vistos como uno (§85)."""
         if self.gemelo is None:
             return
         est = self.gemelo[0]
@@ -402,6 +405,21 @@ class Planificador:
             else:
                 M = self._T_objeto(o)
                 est.poner_objeto(clase, M[:3, 3], M[:3, :3])
+        if not hasattr(est, "poner_obstaculo"):
+            return
+        from sim.escena import N_OBSTACULOS
+        mg = float(self.p.get("obstaculo_margen_m", 0.01))
+        otros = sorted((o for o in escena.objetos if o.clase not in self.objetos["objetos"]),
+                       key=lambda o: -float(np.prod(o.medidas[:2])))
+        for k in range(N_OBSTACULOS):
+            if k < len(otros):
+                o = otros[k]
+                M = self._T_objeto(o)
+                medio = [o.medidas[0] / 2 + mg, o.medidas[1] / 2 + mg, max(o.medidas[2], 0.01) / 2]
+                # de la mesa a lo mas alto visto (su centro, p, a media altura)
+                est.poner_obstaculo(k, M[:3, 3], M[:3, :3], medio)
+            else:
+                est.poner_obstaculo(k)
 
     def _añadir_reposo(self, plan, marco="mano", punto=None):
         """Los planes de trabajo acaban en la pose de observacion (si se dio), desde donde se percibe otra vez."""

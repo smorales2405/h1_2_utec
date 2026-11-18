@@ -288,7 +288,7 @@ class Mano:
 
     def escapado(self, e: EstadoMano, force_set):
         """El objeto ya no esta entre los dedos: el pulgar, o todos los dedos que agarran, han llegado a su consigna
-        de cierre ("vacio" de agarre). Un dedo "flojo" (parado lejos de 0 con poca fuerza) aun lo sujeta: el indice
+        de cierre ("vacio" de agarre), o todos los que agarran se han quedado sin fuerza. Un dedo "flojo" (parado lejos de 0 con poca fuerza) aun lo sujeta: el indice
         marco 58 gf con el cubo en la mano. La suma de las fuerzas no servia: en tres_dedos el menique y el anular
         recogidos marcan ~460 gf sin tocar nada y el cubo se escapo sin que bajara del 30 % (RESULTADOS §57)."""
         _, det = self.agarre(e, force_set)
@@ -298,7 +298,14 @@ class Mano:
         neta = e.fuerza - e.base - (self.residuo if self.compensar_residuo else 0.0)
         vacio = {k: v == "vacio" and neta[k] < 0.5 * float(force_set[k]) for k, v in det.items()}
         dedos = [v for k, v in vacio.items() if k in DEDOS]
-        return vacio.get(PULGAR, False) or (bool(dedos) and all(dedos))
+        # sin reapretar (§84) los dedos se quedan bloqueados donde cerraron y no llegan a su consigna cuando el objeto se
+        # va: tambien es escape que todos los que agarran se queden sin fuerza (por debajo de suelto_frac de su
+        # FORCE_SET, sin la base). La esfera de §85 cayo con 32/42/169 gf y siguio "llevandose" 17 s; sujetando, el
+        # que menos (el medio de la esfera) no baja de ~400
+        frac = float(self.p.get("suelto_frac", 0.4))
+        agarran = [k for k in det]
+        suelto = bool(agarran) and all(e.fuerza[k] - e.base[k] < frac * float(force_set[k]) for k in agarran)
+        return vacio.get(PULGAR, False) or (bool(dedos) and all(dedos)) or suelto
 
     def cerrar_conexion(self):
         with self.cerrojo:

@@ -146,7 +146,7 @@ class Agarre:
     force_set: List[int]        # gf por DOF; -1 = ese DOF no cierra
     speed: Union[int, List[int]]  # SPEED_SET al cerrar: uno para todos o uno por DOF (objetos.yaml, speed_cierre)
     T_mano: np.ndarray          # 4x4 de *_wrist_yaw_link en el torso en el agarre
-    reapretar: bool = True      # FORCE_SET y la consigna cerrada cada 1 s en el transporte (objetos.yaml; la esfera no)
+    reapretar: bool = False     # FORCE_SET y la consigna cerrada cada 1 s en el transporte (mano.reapretar u objetos.yaml)
 
 
 @dataclass

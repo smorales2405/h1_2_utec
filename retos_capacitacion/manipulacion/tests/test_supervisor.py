@@ -83,17 +83,38 @@ def test_nivel2_coloca_en_sus_bandejas(tmp_path):
         return envuelta
     for lado, mano in t.sup.manos.items():
         mano.sujetar = contar(lado, mano.sujetar)
+    # §87: mientras cierra, el brazo sigue sujeto en el agarre (la guia de la bajada, con fijar), no con la consigna quieta
+    cerrando, fijadas = [None], []
+
+    def al_cerrar(lado, cerrar):
+        def envuelta(*a, **kw):
+            cerrando[0] = lado
+            try:
+                return cerrar(*a, **kw)
+            finally:
+                cerrando[0] = None
+        return envuelta
+    for lado, mano in t.sup.manos.items():
+        mano.cerrar = al_cerrar(lado, mano.cerrar)
+    fijar = t.brazo.fijar
+
+    def fijar_contando(pose):
+        if cerrando[0] is not None:
+            fijadas.append(cerrando[0])
+        return fijar(pose)
+    t.brazo.fijar = fijar_contando
     motivo = manipulacion.correr(t, confirmar=False)
     assert motivo == "completado"
-    # §81: la esfera (izquierda) se lleva sin reapretar; el cubo (derecha), con el reapriete de cada 1 s
-    assert "izq" not in reaprietes and "der" in reaprietes, reaprietes
+    # §81 y §84: sin el reapriete de cada 1 s (mano.reapretar false; un objeto puede pedirlo en objetos.yaml)
+    assert reaprietes == [], reaprietes
+    assert fijadas.count("izq") >= 5 and fijadas.count("der") >= 5, fijadas
     final = {k: t.mundo.bandeja_de(k) for k in ("esfera", "cubo")}
     assert final == {"esfera": "A", "cubo": "C"}
     assert t.brazo.peso == 0.0
-    # §80: la esfera (la izquierda, a la A) con el pulgar mas lento, de objetos.yaml; el cubo, con la de la mano
+    # §80 y §86: la esfera (la izquierda, a la A) con el pulgar mas lento, de objetos.yaml; el cubo, con la de la mano
     from manip.mano import SPEED_SET
     vel = {l: [v for a_, v in t.mundo.manos[l].escrituras if a_ == SPEED_SET] for l in ("izq", "der")}
-    assert [100, 100, 100, 100, 60, 100] in vel["izq"]
+    assert [100, 100, 100, 100, 45, 100] in vel["izq"]
     assert all(v in ([100] * 6, [300] * 6) for v in vel["der"]), vel["der"]
 
 
@@ -136,6 +157,31 @@ def test_coger_en_linea_recta(tmp_path):
                     assert fuera(aplicar(pl.cin.fk("der", a_ + s_ * (b_ - a_), "mano"), punto)) < 0.0025, nombre
         k_ag = max(k for k, p in enumerate(pts) if p.nombre == "agarrar")
         assert np.allclose(pl.cin.fk("der", pts[k_ag].q, "mano"), plan.agarre.T_mano)
+    finally:
+        t.mundo.parar()
+
+
+@gl
+def test_lo_desconocido_es_obstaculo(tmp_path):
+    """§85: lo visto sin clase entra en el gemelo como una caja de su planta y su alto. Con una de 16 cm sobre el cubo no
+    hay plan para cogerlo (en una de 10 cabe la mano abierta, a 6 mm); sin ella, si. Antes no estaba y la mano del prisma
+    choco con el cilindro y la esfera juntos."""
+    from manip.mensajes import Escena, Objeto
+    a = _args(tmp_path, nivel=2, asignacion={"cubo": "C"}, colocacion={"cubo": ((0.47, -0.07), 0.3)})
+    t = manipulacion.armar(a, _cfg(), log=lambda *x: None)
+    try:
+        pl = t.sup.pl
+        esc, _ = t.sup.observar()
+        o = next(x for x in esc.objetos if x.clase == "cubo")
+        assert pl.coger(o, "C", pl.observacion["der"]).comprobado
+        bulto = Objeto(id=-1, clase="desconocido", p=o.p.copy(), yaw=0.0, medidas=np.array([0.16, 0.16, 0.10]),
+                       confianza=0.2)
+        pl.poner_escena(Escena(t=0.0, objetos=[o, bulto]))
+        plan = pl.coger(o, "C", pl.observacion["der"])
+        assert not plan.comprobado
+        assert "obj_obst0" in " ".join(plan.detalle.get("rechazos", []) + [plan.motivo or ""]), plan.detalle
+        pl.poner_escena(Escena(t=0.0, objetos=[o]))
+        assert pl.coger(o, "C", pl.observacion["der"]).comprobado
     finally:
         t.mundo.parar()
 

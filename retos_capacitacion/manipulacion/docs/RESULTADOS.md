@@ -2297,3 +2297,201 @@ Con §81 desplegado, `tirada_20261118_010902_nivel2`: vista con 0.95 en (0.513, 
   - Las fuerzas, estables: medio ~405 gf, índice ~115, pulgar 415–437.
 - Con esto, los cuatro objetos del nivel 2 se han colocado cada uno por separado: cubo (§65), cilindro (§70 y §72),
   prisma (§75) y esfera.
+
+## 83. Los cuatro objetos juntos: tres colocados; el cilindro, fuera de la zona (2026-11-18)
+
+`tirada_20261118_011815_nivel2` (los cuatro en el tablero, escala 1). En la primera observación:
+- cilindro 0.87 en (0.583, 0.030);
+- cubo 1.0 en (0.444, −0.083);
+- esfera 0.88 en (0.588, −0.115);
+- prisma 1.0 en (0.457, 0.100) a −76.5°.
+
+Por orden:
+1. **Cubo:** colocado en D (medio 703, índice 730, pulgar 396).
+2. **Esfera:** colocada en C, sin incidencias (§81).
+3. **Prisma:** colocado en A (pulgar en su tope, 303).
+4. **Cilindro:** sin plan. Ir encima de él pasaba la base de la mano izquierda a 17 mm de la mesa (mínimo 20).
+
+En el simulado había colocado los cuatro en las cuatro distribuciones probadas, con el cilindro hasta x 0.54.
+
+- **El cilindro estaba 2.3 cm más allá de la zona de recogida** (x 0.40–0.56; la línea de los centros de las bandejas
+  B y D). Al recomendar la distribución se dijo "más adelante", sin ese límite.
+  - En el simulado, con los otros tres donde se vieron y el cilindro en (0.53, 0.03), se colocan los cuatro.
+  - La esfera, también fuera (0.588), sí tuvo plan.
+- **El cubo "no tan centrado"** (el usuario). El gemelo superpuesto a la observación y al cierre coincide con el cubo y
+  con la mano: se cogió donde se planeó.
+  - En el gemelo con las q medidas, a lo ancho de la cara: pulgar en el centro (+0.8 mm), índice +14 y medio −9.
+  - Es el mismo reparto que en el cubo bien cogido de §65 (+13.8 / −9.2 / −0.5): no cambió nada.
+- **El prisma, "por el borde de arriba"** (el usuario). La muñeca entra a 57° de la vertical. En el gemelo con las q
+  medidas:
+  - el pulgar lo toca a 38.7 mm (la tapa, a 40), el índice a 26.9 y el medio a 19.6;
+  - al seguir cerrando, la punta del pulgar sube ~0.35 mm por mm que avanza: pasa por encima del borde hasta su tope
+    (303, el de las tres tiradas con el prisma);
+  - lo sujetan el índice y el medio contra él.
+  - **Bajarlo 5 mm (0.037)** dejaría el pulgar a 6 mm de la tapa, pero sin plan en el sitio de esta tirada: en el
+    tramo a 'sobre', el hombro a 20 mm del torso y el anular a 19 de la mesa (mínimo 20). A 0.039 hay plan, pero el
+    pulgar seguiría a 4 mm de la tapa.
+  - **Sin cambios:** colocado en 3 de 3 cuando se vio.
+
+## 84. El cilindro, soltado por el corte de fuerza: el reapriete, fuera para todos (2026-11-18)
+
+Montaje nuevo (01:45), los cuatro en el tablero, `tirada_20261118_015329_nivel2`:
+1. **Prisma:** visto con 0.7 en (0.407, 0.094) a 85.7°, colocado en A.
+2. **Cilindro:** visto con 0.82 en (0.524, 0.037), "agarre comprobado" (índice 717, pulgar 309: como en §70–72).
+   - A los 8.8 s de llevarlo, **salida segura**: "fuerza de la mano 3012 gf > 1200 en 3 lecturas seguidas".
+   - Al abrir la mano, el cilindro cayó.
+   - El cubo y la esfera no se llegaron a intentar.
+
+- **No chocó con nada.** El punto de agarre ya estaba a 195 mm de la mesa, con el cilindro colgando a ~12 cm de ella,
+  y en los pares y los errores del brazo izquierdo no hay ningún golpe.
+- **El índice se clavó en un reapriete.** En el que tocaba hacia 8436.3, justo al empezar el movimiento lateral hacia B
+  (y de 0.030 a 0.050):
+  - el índice avanzó de 717 a 607 a la velocidad de cierre libre (~150 cuentas/s) mientras su fuerza subía
+    (416 → 923 → 1871 → 2509 → 3012 gf);
+  - el pulgar cedió de 303 a 323 (1059 gf).
+  - El cilindro, cogido solo por arriba (a 8 mm de su tapa), giró en la pinza; el índice, desbloqueado, lo siguió y
+    se clavó.
+  - En los reaprietes anteriores de la misma tirada, el índice se movía ~5 cuentas, como en §70–72.
+- **El reapriete hace trepar a todos los objetos.** Medio, índice y pulgar al principio y al final del transporte, y
+  la fuerza máxima:
+
+  | Tirada | Objeto | Medio | Índice | Pulgar | Fuerza máx. |
+  |---|---|---|---|---|---|
+  | `090609` | cubo | 711 → 646 | 730 → 667 | 394 → 495 | 943 gf |
+  | `011815` | cubo | 703 → 632 | 730 → 660 | 399 → 517 | 897 gf |
+  | `013729` | prisma | 672 → 632 | 705 → 658 | 306 → 352 | 821 gf |
+  | `025513` | prisma | 659 → 614 | 697 → 637 | 306 → 364 | 820 gf |
+  | `011815` | prisma | 666 → 623 | 701 → 646 | 303 → 344 | 819 gf |
+  | `015329` | prisma | 674 → 634 | 699 → 662 | 302 → 325 | 1045 gf |
+
+  - En cada reapriete, el índice y el medio empujan y el pulgar cede.
+  - La esfera, sin reapriete (§81–82): medio e índice quietos (±2) y el pulgar solo se asienta al despegar.
+- **Cambio:** `mano.reapretar: false` en manipulacion.yaml, para todos. Un objeto puede pedirlo en objetos.yaml
+  (`reapretar: true`); la esfera ya no lo lleva aparte. La lectura de la mano, la detección de escape y el corte de
+  1200 gf siguen igual.
+- Pruebas: 133 de 133 en el PC remoto. El nivel 2 simulado con el montaje de las 01:45 coloca los cuatro en las
+  distribuciones de esta tirada, L1 y L4 (§83).
+
+## 85. Sin reapriete: la esfera cayó sin que se notara; el prisma, flojo; un bulto sin clase, contra la mano (2026-11-18)
+
+Con §84 desplegado, los cuatro en el tablero (`tirada_20261118_021136_nivel2`, sin `resumen.json`: el usuario paró con
+Ctrl+C durante la salida segura):
+1. **Prisma**, en (0.403, 0.081): sin plan desde la observación (en el tramo a 'sobre', el anular a 12 mm de la mesa y
+   el hombro contra el torso). Sigue con la derecha.
+2. **Cubo**: colocado en D.
+3. **Esfera**: cogida (medio 618, índice 616, pulgar 535).
+   - **Se cayó a los 4 s de llevarla:** con los dedos bloqueados, la fuerza del índice fue bajando (261 → 41 gf) y
+     luego la del medio y el pulgar (32 y 169).
+   - Rodó hasta el cilindro. **El supervisor no lo notó:** la llevó vacía 17 s y la dio por soltada en C.
+   - En la de §82 el índice se quedó en 110–181 gf y llegó.
+4. **Observación:** el prisma, y el cilindro y la esfera juntos como un "desconocido" (0.24) en (0.519, 0.037).
+5. **Prisma, primer intento:** cerrado con ~290/200 gf (medio/índice; pulgar en su tope). A los 3.6 s de levantarlo,
+   la fuerza se vino abajo: "se escapa" (esta vez sí: el pulgar en su tope y sin fuerza). Cayó en (0.438, 0.088).
+6. **Segundo intento:** el índice se quedó en 1000 con 479 gf, apoyado en el bulto del cilindro y la esfera.
+   - "Agarre fallido" y salida segura (1219 gf > 1200).
+   - El brazo volvió a la observación por un punto alto (lo que vio el usuario).
+
+- **El escape no se veía con los dedos bloqueados.** `Mano.escapado` esperaba a que los dedos llegaran a su consigna de
+  cierre; sin reapriete se quedan donde cerraron.
+  - **Ahora también es escape** que todos los que agarran se queden por debajo de `mano.suelto_frac` (0.4) de su
+    FORCE_SET, en dos lecturas seguidas.
+  - Repasado con todas las tiradas guardadas: salta en la esfera de esta (a 4.4 s) y en el cubo de §57 (a 2.8 s), que
+    se escapó sin aviso; no salta en ningún transporte que llegó.
+- **El prisma se sujetaba gracias al reapriete:** las fuerzas subían a 600–800 gf; sin él, se quedaban en ~290/200.
+  FORCE_SET de índice y medio, 250 → **400**.
+- **Lo que no tiene clase no era obstáculo:** el planificador solo ponía en el gemelo las clases conocidas.
+  - Ahora `poner_escena` pone hasta cuatro cajas (`obj_obst0..3`, sim/escena.py) para lo "desconocido": su planta
+    (largo y corto, al yaw de su lado largo, que la percepción ya da), su alto y `obstaculo_margen_m` (1 cm) por lado.
+  - En las 72 observaciones guardadas salen 4, todas reales.
+  - **En el simulado de esta escena** (prisma en (0.438, 0.088), cilindro y esfera pegados), la cámara virtual da el
+    mismo bulto: "desconocido" 0.22 en (0.519, 0.022), 10.7 × 4.9 × 8 cm.
+    - Sin la caja, el plan del prisma pasaba el índice a 2 mm de él (en el robot, chocó).
+    - Con ella, no hay plan y la tirada para sin tocarlo.
+- La esfera, sin cambios: 2 de 3 sin reapriete. Ahora, si se cae, se ve y se reintenta.
+- Pruebas nuevas: el escape sin fuerza con los datos de la esfera; lo desconocido como obstáculo (con una caja de 16 cm
+  sobre el cubo no hay plan; en una de 10 cabe la mano abierta, a 6 mm).
+- Pruebas: 135 de 135 en el PC remoto. El nivel 2 simulado (montaje de las 01:45) coloca los cuatro en las
+  distribuciones de esta tirada, L1 y L4.
+
+## 86. Tres de cuatro; la esfera, apartada por el pulgar al cerrar (2026-11-18)
+
+Antes, los brazos se habían quedado en la observación: el usuario paró la tirada de §85 con Ctrl+C durante la salida
+segura. `--recuperar` los devolvió a 0.
+
+Con §85 desplegado, `tirada_20261118_024329_nivel2`:
+1. **Cubo**: colocado en D.
+2. **Esfera**: "agarre fallido" (medio 1, índice 487 y pulgar 304: los tres hasta su consigna, sin nada entre ellos).
+   - Rodó hacia la izquierda del robot y no se volvió a ver.
+3. **Prisma**: colocado en A. Con FORCE_SET 400 cerró con 408/240 gf (antes, 290/200).
+4. **Cilindro**: colocado en B.
+
+- **En la bajada no se movió.** En el vídeo externo, medido contra los ArUco 6 y 7 de la mesa (fijos), el centro de su
+  silueta solo se corre a medida que la mano la tapa (de 8500 a 3200 px). Rueda entre 132.1 y 133.6 s, ya cerrando
+  (desde 130.2), hacia la izquierda del robot, por el lado del índice. En §85 también salió por ese lado.
+- **La percepción, a ~8 mm.**
+  - La cruz que quedó al irse la esfera (detector del nivel 1, `observar_3–5`) está en (0.5296, −0.1022).
+  - La esfera se vio en (0.522, −0.104); la percepción repetida fuera de línea sobre `observar_2` da lo mismo.
+  - Si estaba centrada en la cruz, eso son ~8 mm.
+- **Quién llegó primero.**
+  - En las buenas (§82, §83), la fuerza de los tres sube a la vez: el pulgar toca en ~570 y el índice y el medio en
+    ~650.
+  - Aquí el pulgar tocó en 609 (~200 gf), con el índice y el medio aún en 686 y sin fuerza: unos milímetros más hacia
+    el pulgar bastan para que llegue antes (a 60, ~178 cuentas/s, frente a ~143 de los dedos).
+  - **El pulgar se opone al índice, no al centro de la V que forma con el medio.** En el gemelo, a lo ancho de la
+    mano, el pulgar toca a +4–5 mm del centro de la esfera, el índice a +6 y el medio a −6. Empujando solo, el pulgar
+    la saca de lado, por fuera del índice.
+  - Correr el punto de agarre a lo ancho (z 0.025, 0.0225) mueve la V y el pulgar juntos: no lo arregla.
+- **Cambios:**
+  - el pulgar de la esfera, a **SPEED 45** (~134 cuentas/s): el índice y el medio llegan ~0.5 s antes, la empujan
+    recta hacia la palma y el pulgar la atrapa;
+  - una foto más del agarre, con la mano bajada y antes de cerrar (`agarre_<clase>_bajado`).
+- Pruebas: 135 de 135 en el PC remoto. El nivel 2 simulado (montaje de las 01:45) coloca los cuatro en la
+  distribución de esta tirada y en L1.
+
+## 87. El brazo se corría al cerrar; el cilindro, cogido a un lado de su eje (2026-11-18)
+
+Montaje nuevo (05:33), `tirada_20261118_053818_nivel2`:
+1. **Cubo**: colocado en D.
+2. **Esfera**:
+   - Primer intento: "agarre comprobado" (medio 395, índice 103 y pulgar 493 gf); a los 0.6 s del transporte, escape.
+   - Segundo intento: colocada en C.
+3. **Prisma**: colocado en A (333/321/344 gf).
+4. **Cilindro**: dos intentos, los dos "comprobado" y escape a los 1.6 s del transporte, al despegar.
+   - Tras el primero quedó tumbado y el usuario lo volvió a poner de pie.
+
+- **El brazo se corría al cerrar la mano.** El punto de agarre medido (cinemática de las q medidas) frente al del plan:
+  - al acabar la bajada guiada estaba a 1–3 mm;
+  - mientras cerraba, con la consigna quieta y antes de que tocaran los dedos, se corrió en y del torso:
+    - el cubo, +9 mm;
+    - la esfera 1, +9 mm (de −2.7 a +6.7);
+    - el cilindro que salió bien en §86, +4 mm y 3.4 mm más abajo;
+    - la esfera 2, el prisma y los dos cilindros de hoy, menos de 2 mm.
+  - Es el rozamiento estático del brazo (§50): la guía había empujado la consigna para despegarlo y, ya quieta, el
+    brazo acaba yendo a ella.
+  - **La esfera 1, con la mano corrida:**
+    - tocaron primero el medio y el pulgar, y el índice 0.25 s más tarde;
+    - la fuerza del índice cayó de 665 a 82 gf mientras la esfera se le iba.
+  - **La esfera 2, sin corrimiento:** el índice y el pulgar tocaron a la vez, y las tres fuerzas se quedaron quietas.
+  - **Cambio:** mientras se cierra la mano, la guía de la bajada sigue integrando con la consigna en el agarre
+    (`Supervisor._sostener`).
+- **El cilindro, cogido a un lado de su eje.** Inclinación de su silueta en el vídeo externo:
+  - al cerrar no se movió;
+  - al despegar giró de golpe en la pinza, 22 y 28 grados, con la base hacia −y del torso, y cayó a ~1.5 s;
+  - en §86 subió derecho y fue inclinándose hasta ~9 grados, hacia el mismo lado.
+  - **Por qué gira:** colgado de la pinza pulgar–índice (de delante atrás), gira hasta tener el centro de masas
+    debajo. La pinza pasaba ~1 cm por −y de su eje.
+  - **Las fuerzas lo marcan**, en los siete agarres del cilindro desde §70:
+    - en los tres escapes, el índice tenía 46–109 gf más que el pulgar y estaba más cerrado (703–711);
+    - en los cuatro que aguantaron, las dos fuerzas iguales (±27 gf) y el índice en 716–717;
+    - lo que el índice no empujaba de frente lo sujetaba la mesa.
+  - El de §86 salió bien con la mano corrida al cerrar: +3.6 mm en y y 3.4 mm más abajo.
+  - **Cambio:** `centro_agarre` del cilindro (arriba), z 0.033 → **0.038**.
+    - Respecto del cilindro, la mano queda 4.5 mm más hacia +y del torso y 1.8 mm más abajo.
+    - En el gemelo hay plan en 20 de 25 sitios de la zona (antes, 21); se pierden esquinas del fondo (x ≥ 0.54).
+- **Visto, sin cambiar: el levantamiento no es recto.**
+  - Al levantar, el pitch de la muñeca izquierda empieza en su límite (17.1°).
+  - El despegue "recto" del origen de la mano sale por las bandas y la mano gira ~2.4° por cm.
+  - El punto de agarre sube a ~20° de la vertical (5 mm de lado por cada 14 de subida).
+  - En el cilindro que salió bien fue igual: no es la causa.
+- Pruebas: 135 de 135 en el PC remoto. La del nivel 2 comprueba que el brazo sigue sujeto mientras cierra.
+- El nivel 2 simulado (montaje de las 05:33) coloca los cuatro en la distribución de esta tirada y en L1.

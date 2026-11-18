@@ -102,6 +102,22 @@ class Supervisor:
                 return False
             time.sleep(max(0.0, cada - (time.monotonic() - t0 - t)))
 
+    def _sostener(self, lado, guia):
+        """Un vigilar() que deja el punto guiado al final de la recta de `guia` mientras se espera otra cosa (cerrar
+        la mano): la guia sigue integrando, con la consigna en su ultimo punto. Con la consigna quieta al acabar la
+        bajada, el brazo se despegaba (rozamiento estatico) hacia ella y la mano se corria de lado 4-9 mm antes de que
+        tocaran los dedos (§87). Sin guia (bajada sin guiar), solo comprobar."""
+        if guia is None:
+            return self.comprobar
+        t = [time.monotonic()]
+
+        def paso():
+            self.comprobar()
+            ahora = time.monotonic()
+            dt, t[0] = min(ahora - t[0], 0.1), ahora
+            self.brazo.fijar(self.brazo.pose_brazo(lado, guia.consigna(guia.abajo, self.q(lado), dt)))
+        return paso
+
     def _abrir_manos(self, lados=None):
         """Las manos abiertas del todo (los seis DOF a 1000: la mano abierta del gemelo, con la que se comprueban
         la entrada, la observacion y la salida). Al empezar la tirada (si no, heredan la postura de la anterior:
@@ -558,9 +574,13 @@ class Supervisor:
                 self._mover(lado, p)
         self._a("DESCENSO", "al agarre" + (", guiado" if self.c.get("guiado", True) else ""))
         g = self._recta_guiada(lado, desde(k), tramos[k][1], punto, ajuste_inicio=True, ajuste_fin=True)
+        # la mano bajada, antes de cerrar: donde quedo el objeto entre los dedos (§86)
+        fot = self.fuente.siguiente(0.5) if hasattr(self.fuente, "siguiente") else None
+        if fot is not None:
+            self.reg.imagen(f"{foto}_bajado", fot.color)
         self.vig.manos_vigiladas = {lado}
         self._a("CERRAR", f"FORCE_SET {ag.force_set}")
-        e = mano.cerrar(ag.force_set, vigilar=self.comprobar, speed=ag.speed)
+        e = mano.cerrar(ag.force_set, vigilar=self._sostener(lado, g), speed=ag.speed)
         ok, det = mano.agarre(e, ag.force_set)
         en_agarre = np.round(1000 * (aplicar(self.pl.cin.fk(lado, self.q(lado), "mano"), punto)
                                      - aplicar(self.pl.cin.fk(lado, tramos[k][1][-1].q, "mano"), punto)), 1)
@@ -580,8 +600,8 @@ class Supervisor:
             self._plan_activo = None
             return False
         # FORCE_SET y la consigna cerrada cada 1 s; la lectura, mas a menudo que mano_max_s del vigilante (con la
-        # mano vigilada, una lectura mas vieja que eso es "mano sin respuesta"). Sin reapretar (la esfera, §81), cada
-        # dedo se queda donde llego a su FORCE_SET: reescribirlo lo desbloquea y empuja otra vez, y el mas debil cede
+        # mano vigilada, una lectura mas vieja que eso es "mano sin respuesta"). Sin reapretar (por defecto, §81 y §84),
+        # cada dedo se queda donde llego a su FORCE_SET: reescribirlo lo desbloquea y empuja otra vez, y el mas debil cede
         t_sujetar, t_leer = [time.monotonic()], [time.monotonic()]
         cada_leer = min(0.2, self.vig.mano_max_s / 2)
         # si el objeto se escapa (Mano.escapado en dos lecturas seguidas) el brazo no se para: sigue su plan, sin

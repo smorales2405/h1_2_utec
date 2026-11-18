@@ -415,6 +415,8 @@ class Percepcion:
         if o is None:
             p = np.array([cx, cy, 0.0])
             p = plano.proyectar(np.array([cx, cy, Pt[:, 2].mean()])) + h_max / 2 * plano.n
+            # su lado largo (para el obstaculo del planificador, §85)
+            yaw = math.radians(ang) if w >= l else math.radians(ang + 90)
         elif o["forma"] == "esfera":
             r = o["medidas_m"][0] / 2
             c0 = plano.proyectar(Pt.mean(0)) + r * plano.n

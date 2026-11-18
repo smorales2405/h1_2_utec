@@ -96,6 +96,26 @@ def test_el_pulgar_en_su_tope_apretando_esta_lleno():
     assert not ok and det[4] == "vacio" and mano.escapado(e, fs)
 
 
+def test_sin_fuerza_con_los_dedos_bloqueados_es_escape():
+    """§85: sin reapretar, los dedos se quedan donde cerraron cuando el objeto se va: no llegan a su consigna. Con la
+    esfera de tirada_20261118_021136_nivel2 (derecha): cayo con 32/42/169 gf y los mismos angulos, y siguio
+    "llevandose" 17 s. Sujetandola (010902) el medio y el pulgar marcan ~400; un indice flojo no es escape (§57)."""
+    from manip.mensajes import EstadoMano
+    cal = {"tope_vacio": [1, None, 21, 447, 304, None], "residuo_gf": [231, 392, 223, 233, 225, 0]}
+    cfg = copy.deepcopy(config.cargar())
+    cfg["mano"].update(t_base_s=0.0, compensar_residuo=True)
+    mano = Mano("der", cfg, cliente=ManoSimulada(), calibracion=cal)
+    fs = [-1, -1, 300, 300, 450, -1]
+
+    def estado(angulo, fuerza):
+        z = np.zeros(6)
+        return EstadoMano(t=0.0, lado="der", angulo=np.array(angulo, float), fuerza=np.array(fuerza, float), base=z,
+                          force_set=z, error=z, estado=z)
+    assert not mano.escapado(estado([2, 1, 618, 616, 553, 0], [234, 400, 412, 41, 452, -60]), fs)   # el indice, flojo
+    assert mano.escapado(estado([2, 1, 619, 616, 547, 0], [234, 400, 32, 42, 169, -60]), fs)        # se fue
+    assert not mano.escapado(estado([2, 0, 622, 641, 539, 0], [234, 400, 401, 110, 407, -60]), fs)  # sujetandola
+
+
 def test_abre_aunque_los_dedos_esten_enclavados():
     mano, sim = _mano()
     fs = [-1, -1, 300, 300, 350, -1]

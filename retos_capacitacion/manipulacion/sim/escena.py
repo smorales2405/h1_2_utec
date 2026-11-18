@@ -206,6 +206,21 @@ def _bandeja(spec, nombre, b, centro_torso, plano, color, yaw=0.0):
     _caja(cu, f"bandeja_{nombre}_der", [0, -(s + e / 2), h / 2], [s, e / 2, h / 2], rgba)
 
 
+N_OBSTACULOS = 4      # lo que la percepcion ve sin clase ("desconocido"): obstaculos para el planificador (§85)
+
+
+def _obstaculo(spec, k):
+    """Caja mocap para un objeto sin clase: su tamano se pone con Estado.poner_obstaculo; empieza LEJOS."""
+    cu = spec.worldbody.add_body()
+    cu.name, cu.mocap, cu.pos = f"obj_obst{k}", True, list(LEJOS)
+    g = cu.add_geom()
+    g.name = f"obj_obst{k}"
+    g.type, g.size = mujoco.mjtGeom.mjGEOM_BOX, [0.03, 0.03, 0.03]
+    g.rgba = [0.55, 0.55, 0.55, 0.7]
+    g.contype, g.conaffinity = 2, 1
+    return cu
+
+
 def _objeto(spec, clave, o):
     """Cuerpo mocap (se mueve poniendo data.mocap_pos/quat) con la forma del objeto; empieza LEJOS."""
     cu = spec.worldbody.add_body()
@@ -283,6 +298,8 @@ def construir(montaje=None, objetos=None, cal=None, cfg=None, postura=None, con_
                   cfg["calibracion"]["ids"][lado], Td[:3, 3], Td[:3, :3], lado_m, dicc)
     for clave, o in objetos.get("objetos", {}).items():
         _objeto(spec, clave, o)
+    for k in range(N_OBSTACULOS):
+        _obstaculo(spec, k)
     if dianas:
         from manip.dianas import cruz_en_mesa
         from manip.montaje import punto_en_mesa
@@ -343,6 +360,16 @@ class Estado:
         i = self.m.body_mocapid[b]
         self.d.mocap_pos[i] = LEJOS if p is None else p
         self.d.mocap_quat[i] = [1, 0, 0, 0] if R is None else _quat(R)
+
+    def poner_obstaculo(self, k, p=None, R=None, medio=None):
+        """El obstaculo k (una caja de semilados `medio`) en p, R; sin p, lejos."""
+        if medio is not None:
+            g = mujoco.mj_name2id(self.m, mujoco.mjtObj.mjOBJ_GEOM, f"obj_obst{k}")
+            medio = np.asarray(medio, float)
+            self.m.geom_size[g] = medio
+            self.m.geom_rbound[g] = float(np.linalg.norm(medio))
+            self.m.geom_aabb[g] = np.concatenate([np.zeros(3), medio])
+        self.poner_objeto(f"obst{k}", p, R)
 
     def adelante(self):
         mujoco.mj_forward(self.m, self.d)

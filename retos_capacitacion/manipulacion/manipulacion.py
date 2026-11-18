@@ -8,6 +8,7 @@
     python3 manipulacion.py --nivel 2 --sim --visor    # lo mismo en una ventana de MuJoCo, a velocidad real
     python3 manipulacion.py --nivel 2 --sim --arnes    # empezando de pie en el arnes con los brazos a 0
     ./manipulacion.sh --nivel 1 --arnes                # el robot de pie en el arnes (herramientas/arnes.py)
+    ./manipulacion.sh --nivel 2 --arnes --verificar-planes   # antes de coger nada, los cuatro con plan; si no, al reposo
     ./manipulacion.sh --nivel 1 --arnes --recuperar    # brazos que se quedaron donde sea: salida segura a 0
 
 Pide escribir MOVER antes de mover nada (seccion 10). ESPACIO o Ctrl+C: salida segura. L2+B en el mando: la
@@ -91,6 +92,9 @@ def leer_args(cfg, objetos):
                     help="--sim: pide la salida segura s segundos despues de entrar en ESTADO (p. ej. TRANSPORTE+4)")
     ap.add_argument("--sin-comprobar-montaje", action="store_true",
                     help="no mirar al empezar si la mesa y las bandejas siguen donde dice montaje.yaml")
+    ap.add_argument("--verificar-planes", action="store_true",
+                    help="niveles 2-4: en la observacion y antes de coger nada, todos los objetos de la asignacion (por "
+                         "defecto los cuatro) tienen que verse y tener plan; si no, avisa cuales, vuelve al reposo y para")
     ap.add_argument("--salida-directa", action="store_true",
                     help="salida segura del PDF tal cual: sin pasar por la observacion y el reposo (para comparar)")
     a = ap.parse_args()
@@ -100,6 +104,8 @@ def leer_args(cfg, objetos):
         a.nivel = 0                          # el supervisor: el toque de prueba
     if (a.visor or a.parada_en) and not a.sim:
         sys.exit("--visor y --parada-en son de la simulacion de la PC: con --sim.")
+    if a.verificar_planes and (a.nivel or 0) < 2:
+        sys.exit("--verificar-planes es de los niveles 2-4 (los objetos).")
     if a.recuperar and (not a.arnes or a.sim or a.simulacro):
         sys.exit("--recuperar es del robot en el arnes: con --arnes, sin --sim ni --simulacro.")
     if a.sim and a.nivel >= 2 and not a.colocacion:
@@ -242,6 +248,7 @@ def armar(a, cfg=None, montaje=None, objetos=None, log=print):
                      dianas=a.dianas, asignacion=a.asignacion,
                      detector_dianas=lambda f: md.detectar(f, cal, montaje, **(cfg.get("dianas") or {})), log=log)
     sup.correccion_altura = corr
+    sup.verificar_planes = bool(getattr(a, "verificar_planes", False))
     reg.enganchar_lowstate(robot, sup.contexto_registro, cada=10)
     for mano in manos.values():                    # cada lectura de las manos, a manos.csv (fuerza del toque, agarres)
         leer = mano.leer

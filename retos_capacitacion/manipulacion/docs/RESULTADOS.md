@@ -2563,3 +2563,28 @@ Con §87 desplegado:
     - En el gemelo, plan en 34 de 36 combinaciones de sitio y guiñada (antes, 35).
 - Pruebas: 136 de 136 en este PC (el remoto no respondía). El nivel 2 simulado (montaje de las 06:29) coloca los cuatro
   en las distribuciones de esta tirada, de 063422 y en L1.
+
+## 90. `--verificar-planes`; las manos, abiertas del todo al acabar (2026-11-18)
+
+Dos cambios que pidió el usuario.
+
+- **`./manipulacion.sh --nivel 2 --arnes --verificar-planes`:** al llegar a la observación y antes de coger nada,
+  cada objeto de la asignación tiene que verse y tener plan. Por defecto la asignación son los cuatro de objetos.yaml.
+  - El plan de cada objeto se calcula con todo lo visto en la mesa.
+  - Si no sale, se repite sin los otros objetos de la asignación: vale, porque se habrán recogido antes.
+  - Si alguno no se ve o no tiene plan:
+    - el aviso dice cuál y por qué (el motivo del plan y, si es el caso, que está fuera de la zona de recogida);
+    - los brazos vuelven al reposo y la tirada acaba sin coger ninguno ("sin plan para ...").
+  - En el simulado de 062303, con el prisma donde estaba (x 0.371), avisa del prisma y vuelve al reposo.
+  - Solo con los niveles 2–4.
+- **Las manos, abiertas del todo al acabar.**
+  - Al soltar se abría solo la flexión: el giro del pulgar se quedaba en 0 (enfrente de los dedos), como en las
+    preformas.
+  - Ahora, en la observación y antes de ir al reposo, las dos manos van a `[1000] * 6`, como al empezar. Eso pasa al
+    acabar la tirada, en la vuelta de `--verificar-planes` y en la salida segura (con los brazos que llegaron a la
+    observación).
+  - Si una mano no responde, los brazos siguen su salida.
+- Pruebas nuevas:
+  - el nivel 2 simulado, con `--verificar-planes`, coloca los dos objetos y acaba con las manos abiertas del todo;
+  - con un objeto sin plan, avisa de cuál, vuelve al reposo y no coge ninguno.
+- Pruebas: 137 de 137 en este PC (el remoto sigue sin responder).

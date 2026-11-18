@@ -54,6 +54,7 @@ class Supervisor:
         self.c = cfg["contacto"]
         self.s = cfg["supervisor"]
         self._ultimo_fotograma = None
+        self.verificar_planes = False  # --verificar-planes: todos con plan en la observacion antes de coger nada
 
     # --- utilidades -----------------------------------------------------------------------------------
     def _a(self, estado, motivo="", detalle=None):
@@ -195,6 +196,11 @@ class Supervisor:
                 raise Parada(f"reposo -> observacion no pasa la comprobacion: {malos}")
             self._a("A_OBSERVACION", "los dos brazos a la pose de observacion")
             self._ambos(planes)
+            if self.nivel >= 2 and self.verificar_planes:
+                faltan = self._verificar_planes()
+                if faltan:
+                    self._salida()
+                    return f"sin plan para {', '.join(faltan)}: no se cogio nada"
             if self.nivel == 0:
                 self._medir_mesa()
             elif self.nivel == 1:
@@ -223,8 +229,65 @@ class Supervisor:
         self.salida_segura("recuperar los brazos")
         return "recuperados"
 
+    def _verificar_planes(self):
+        """--verificar-planes (niveles 2-4): en la observacion y antes de coger nada, cada objeto de la asignacion tiene
+        que verse y tener plan. El de cada uno, con todo lo visto en la mesa; si no sale, sin los otros objetos de la
+        asignacion (se habran recogido antes). Devuelve las clases sin plan (y lo avisa con el motivo de cada una)."""
+        import dataclasses
+        esc, _ = self.observar()
+        c_min = self.cfg["percepcion"]["confianza_min"]
+        z = self.pl.montaje.get("zona_recogida") or {}
+        mal, bien = [], []
+        for clase, bandeja in self.asignacion.items():
+            todos = [o for o in esc.objetos if o.clase == clase]
+            o = max(todos, key=lambda x: x.confianza) if todos else None
+            if o is None or o.confianza < c_min:
+                mal.append((clase, "no se ve" if o is None else f"se ve con confianza {o.confianza:.2f} < {c_min}"))
+                continue
+            lado = self.pl.lado_de_bandeja(bandeja)
+            plan, nota = self.pl.coger(o, bandeja, self.q(lado), lado), ""
+            if not plan.comprobado:
+                resto = [x for x in esc.objetos if x.clase not in self.asignacion or x is o]
+                self.pl.poner_escena(dataclasses.replace(esc, objetos=resto))
+                if self.pl.coger(o, bandeja, self.q(lado), lado).comprobado:
+                    nota = " (cuando se hayan recogido los demas)"
+                self.pl.poner_escena(esc)
+            if plan.comprobado or nota:
+                bien.append(f"{clase} -> {bandeja}{nota}")
+                continue
+            fuera = bool(z) and not (z["x"][0] <= o.p[0] <= z["x"][1] and z["y"][0] <= o.p[1] <= z["y"][1])
+            mal.append((clase, f"en ({o.p[0]:.3f}, {o.p[1]:+.3f}): {plan.motivo}"
+                        + (f"; fuera de la zona de recogida (x {z['x'][0]:.2f} a {z['x'][1]:.2f}, "
+                           f"y {z['y'][0]:+.2f} a {z['y'][1]:+.2f})" if fuera else "")))
+        if not mal:
+            self._a("VERIFICAR", f"todos con plan: {', '.join(bien)}")
+            return []
+        self._a("VERIFICAR", f"sin plan: {', '.join(c for c, _ in mal)}; vuelta al reposo sin coger nada",
+                {"sin_plan": dict(mal), "con_plan": bien})
+        self.log("\n  AVISO: no se podria manipular:\n" + "\n".join(f"    - {c}: {m}" for c, m in mal)
+                 + "\n  Recoloca ese objeto en la zona de recogida (o revisa por que no se ve) y vuelve a lanzar.\n")
+        return [c for c, _ in mal]
+
+    def _abrir_del_todo(self, lados=None, vigilar=True):
+        """Las manos abiertas del todo (tambien el giro del pulgar, como al empezar) al acabar, en la observacion: al
+        soltar solo se abre la flexion y el pulgar se quedaba girado enfrente de los dedos. Si una mano no responde,
+        se sigue (la salida de los brazos no depende de ella). vigilar=False en la salida segura (alli comprobar()
+        volveria a lanzar la parada)."""
+        for lado in list(lados or self.manos):
+            try:
+                self.manos[lado].preforma([1000] * 6, vigilar=self.comprobar if vigilar else None)
+                self.pl.mano_gemelo(lado, [1000] * 6)
+            except Parada:
+                if vigilar:
+                    raise
+                self._a(self.estado, f"la mano {lado} no se abre del todo")
+            except Exception as e:
+                self._a(self.estado, f"la mano {lado} no se abre del todo: {e}")
+        self._a(self.estado, f"manos abiertas del todo: {', '.join(list(lados or self.manos))}")
+
     def _salida(self):
         self._a("SALIDA", "observacion -> reposo")
+        self._abrir_del_todo()                         # en la observacion, como en el nivel 1 y al empezar
         planes = [self.pl.entre_reposo_y_observacion(l, False) for l in LADOS]
         if all(p.comprobado for p in planes):
             self._ambos(planes)
@@ -716,9 +779,12 @@ class Supervisor:
                 for lado in LADOS:
                     self._mover_seguro(lado, self.pl.observacion[lado], grave)
                 # al reposo solo los brazos que llegaron a la observacion: desde otro sitio barrerian la mesa
+                en_obs = [l for l in LADOS if np.abs(self.q(l) - self.pl.observacion[l]).max() < 0.1]
+                if en_obs:
+                    self._abrir_del_todo(en_obs, vigilar=False)       # alli, con el giro del pulgar
                 planes = []
                 for lado in LADOS:
-                    if np.abs(self.q(lado) - self.pl.observacion[lado]).max() < 0.1:
+                    if lado in en_obs:
                         p = self.pl.entre_reposo_y_observacion(lado, False)
                         if p.comprobado:
                             planes.append(p)

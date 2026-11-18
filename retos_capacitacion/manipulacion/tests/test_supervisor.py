@@ -71,7 +71,7 @@ def test_nivel1_sin_fijar(tmp_path):
 
 @gl
 def test_nivel2_coloca_en_sus_bandejas(tmp_path):
-    a = _args(tmp_path, nivel=2, asignacion={"esfera": "A", "cubo": "C"},
+    a = _args(tmp_path, nivel=2, asignacion={"esfera": "A", "cubo": "C"}, verificar_planes=True,
               colocacion={"esfera": ((0.43, 0.05), 0.0), "cubo": ((0.47, -0.07), 0.3)})
     t = manipulacion.armar(a, _cfg(), log=lambda *x: None)
     reaprietes = []
@@ -116,6 +116,41 @@ def test_nivel2_coloca_en_sus_bandejas(tmp_path):
     vel = {l: [v for a_, v in t.mundo.manos[l].escrituras if a_ == SPEED_SET] for l in ("izq", "der")}
     assert [100, 100, 100, 100, 45, 100] in vel["izq"]
     assert all(v in ([100] * 6, [300] * 6) for v in vel["der"]), vel["der"]
+    # §90: --verificar-planes, en la observacion, antes de coger nada; y al acabar, las manos abiertas del todo
+    # (tambien el giro del pulgar: al soltar solo se abria la flexion)
+    assert any(e[1] == "VERIFICAR" and e[2].startswith("todos con plan") for e in t.reg.resumen["eventos"])
+    for l in ("izq", "der"):
+        assert t.mundo.manos[l].obj.tolist() == [1000] * 6, (l, t.mundo.manos[l].obj)
+
+
+@gl
+def test_verificar_planes_sin_plan_vuelve_al_reposo(tmp_path):
+    """§90: con --verificar-planes, si un objeto no tiene plan en la observacion se avisa de cual y por que, los
+    brazos vuelven al reposo y no se coge ninguno; las manos, abiertas del todo."""
+    from manip.mensajes import Plan
+    a = _args(tmp_path, nivel=2, asignacion={"esfera": "A", "cubo": "C"}, verificar_planes=True,
+              colocacion={"esfera": ((0.43, 0.05), 0.0), "cubo": ((0.47, -0.07), 0.3)})
+    avisos = []
+    t = manipulacion.armar(a, _cfg(), log=avisos.append)
+    coger = t.sup.pl.coger
+
+    def sin_plan_la_esfera(o, bandeja, q0, lado=None):
+        if o.clase == "esfera":
+            return Plan(objeto=o, mano=lado, tarea="coger", puntos_de_paso=[], bandeja=bandeja, motivo="prueba: sin IK")
+        return coger(o, bandeja, q0, lado)
+    t.sup.pl.coger = sin_plan_la_esfera
+    motivo = manipulacion.correr(t, confirmar=False)
+    assert motivo.startswith("sin plan para esfera"), motivo
+    estados = [e[1] for e in t.reg.resumen["eventos"]]
+    assert "VERIFICAR" in estados and not {"MOVER", "CERRAR", "SALIDA_SEGURA"} & set(estados), estados
+    assert estados[-1] == "FIN" and t.brazo.peso == 0.0
+    assert any("AVISO" in x and "esfera" in x and "prueba: sin IK" in x for x in avisos), avisos
+    q = t.robot.q()
+    from manip.mensajes import JUNTAS_BRAZO
+    for l in ("izq", "der"):
+        assert np.abs(q[JUNTAS_BRAZO[l]] - t.sup.pl.reposo[l]).max() < 0.1, l
+        assert t.mundo.manos[l].obj.tolist() == [1000] * 6
+    assert {k: t.mundo.bandeja_de(k) for k in ("esfera", "cubo")} == {"esfera": None, "cubo": None}
 
 
 @gl

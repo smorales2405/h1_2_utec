@@ -178,8 +178,21 @@ Los logs están en el robot, en `~/utec/teleoperacion/logs/`: `teleop.log`,
 | Los dedos no cierran del todo | Conocido: el retargeting se queda corto, sobre todo en la izquierda |
 | «sin acceso por clave» | `ssh-copy-id unitree@192.168.0.143` |
 | `No route to host` | Robot apagado, o este PC fuera de `UTEC_H1_2` |
+| La imagen se congela en las Quest al entrar en «Virtual Reality» y el robot deja de seguirte | La página de Vuer descargaba los modelos de las manos de Internet. Desde el 2026-11-21 los sirve el robot (§8). Comprobar con `ssh unitree@192.168.0.143 ~/utec/teleoperacion/vuer_offline.sh comprobar`: tiene que dar `OFFLINE: si`. Si da `no`, pasarlo sin argumentos con Internet en la WiFi |
 
 ## 8. Cambios hechos en el robot
+
+**2026-11-21: la teleoperación ya no necesita Internet.** Sin Internet en
+`UTEC_H1_2`, la imagen se congelaba en las Quest al entrar en «Virtual Reality».
+El navegador de las gafas descarga de `cdn.jsdelivr.net` los modelos de las manos y
+los mandos (`@webxr-input-profiles/assets`). `~/utec/teleoperacion/vuer_offline.sh`
+los dejó en el robot (124 archivos, 98 MB, versión 1.0.20) y cambió esa dirección en
+la página de Vuer por la del robot. Modifica el paquete `vuer` de `env_tv`: si se
+reinstala, hay que repetirlo. Con `vuer_offline.sh deshacer` la página vuelve a ser
+la original.
+
+**Probado** el mismo día con la WAN del router desconectada, después de borrar los
+datos de navegación de las Quest: la teleoperación funciona sin Internet.
 
 **2026-11-04: la teleoperación pasa a `~/utec/teleoperacion`.** Con `conda create
 --clone`, `env_tv` queda en la carpeta nueva con los mismos paquetes, y sus tres

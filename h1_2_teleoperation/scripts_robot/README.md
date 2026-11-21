@@ -23,7 +23,7 @@ sitio con un solo `rsync` (§4, paso 2).
 |---|---|---|
 | `home_unitree/utec/teleoperacion/teleop_xr.sh` | `~/utec/teleoperacion/` | punto de entrada: carga `comun.sh` y lanza `arrancar.sh` (o `parar.sh` con `parar`) |
 | `home_unitree/utec/teleoperacion/comun.sh` | `~/utec/teleoperacion/` | rutas e intérprete; quita el `CYCLONEDDS_URI` del `.bashrc`, que rompe el DDS. Fuera del robot, reenvía por SSH |
-| `home_unitree/utec/teleoperacion/` | `~/utec/teleoperacion/` | `arrancar.sh`, `parar.sh`, `lanzar_teleop.py` (con los cambios del 2026-10-07 y 2026-11-03: `q` lleva los brazos a 0°, abre las manos y vuelve a la postura inicial; corte del SSH = `q`), `enviar.py`, `prueba_gafas.py`, `instalar.sh` (crea `env_tv`), `README.md` y `certs/san.cnf` |
+| `home_unitree/utec/teleoperacion/` | `~/utec/teleoperacion/` | `arrancar.sh`, `parar.sh`, `lanzar_teleop.py` (con los cambios del 2026-10-07 y 2026-11-03: `q` lleva los brazos a 0°, abre las manos y vuelve a la postura inicial; corte del SSH = `q`), `enviar.py`, `prueba_gafas.py`, `instalar.sh` (crea `env_tv`), `vuer_offline.sh` (la página sin Internet), `README.md` y `certs/san.cnf` |
 | `home_unitree/inspire_ftp_dual_driver.py` | `~/` | driver de las manos, Modbus TCP ⇄ DDS (`rt/inspire_hand/*`), que lanza `arrancar.sh` |
 | `home_unitree/pc2_offline/src/unitree_sdk2_python` | `~/pc2_offline/src/` | `unitree_sdk2py` 1.0.1, la versión exacta que funciona |
 | `home_unitree/pc2_offline/src/inspire_hand_sdk` | `~/pc2_offline/src/` | `inspire_sdkpy` 1.0.0, **ya con** [`patches/inspire_sdkpy_uint16.patch`](../patches/inspire_sdkpy_uint16.patch) |
@@ -127,6 +127,16 @@ Tiene que terminar con `OK pinocchio 3.1.0 numpy 1.26.4 torch 2.3.0+cpu` y
 `### LISTO`. Es el mismo comando (sacado del historial de conda) y el mismo
 `instalar.sh` con los que se creó el entorno del robot de UTEC el 2026-09-25, en
 `~/robotics40/meta`. El que usa ahora ese robot es un clon de aquel.
+
+**Paso 4b — página de Vuer sin Internet** (en el robot, con Internet)
+
+```bash
+~/utec/teleoperacion/vuer_offline.sh      # tiene que acabar en OFFLINE: si
+```
+
+Descarga los modelos de las manos y los mandos que pide la página al entrar en VR y
+hace que los pida al robot. Sin esto, si la WiFi se queda sin Internet, la imagen se
+congela en las Quest.
 
 **Paso 5 — entorno `teleop_venv`** (en el robot; para el driver de las manos y `manos.sh`)
 
@@ -263,7 +273,7 @@ Si cambias `teleop_xr.sh`, `comun.sh` o `estado.sh`, cópialos también a
 ```bash
 D=h1_2_teleoperation/scripts_robot
 T=utec/teleoperacion
-rsync -a $R:$T/{teleop_xr.sh,comun.sh,estado.sh,arrancar.sh,parar.sh,lanzar_teleop.py,enviar.py,prueba_gafas.py,instalar.sh,README.md} $D/home_unitree/$T/
+rsync -a $R:$T/{teleop_xr.sh,comun.sh,estado.sh,arrancar.sh,parar.sh,lanzar_teleop.py,enviar.py,prueba_gafas.py,instalar.sh,vuer_offline.sh,README.md} $D/home_unitree/$T/
 rsync -a $R:$T/certs/san.cnf $D/home_unitree/$T/certs/
 rsync -a $R:robotics40/comun.sh $D/home_unitree/robotics40/
 rsync -a --exclude=build --exclude=__pycache__ $R:robotics40/lectores_h1_2 $D/home_unitree/robotics40/

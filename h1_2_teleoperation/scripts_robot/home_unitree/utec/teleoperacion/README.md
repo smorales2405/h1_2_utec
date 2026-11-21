@@ -37,6 +37,7 @@ Sin teclado (no hay tmux en el PC2): `env_tv/bin/python enviar.py r | q | estado
 | `lanzar_teleop.py` | lanza `teleop_hand_and_arm.py` sin tocar el código de Unitree: precarga PIL antes del `fork()`, limita `ReleaseMode()` a 3 intentos, al salir lleva los brazos a 0°, abre las manos y vuelve a la postura inicial, y sale como con `q` si se corta el SSH |
 | `enviar.py` | órdenes `r`/`q`/`estado` por IPC |
 | `prueba_gafas.py` | Vuer + imagen + seguimiento de manos **sin DDS**: para probar las gafas sin mover nada |
+| `vuer_offline.sh` | hace que la página de Vuer no necesite Internet al entrar en VR (ver abajo). `comprobar` / `deshacer` |
 | `instalar.sh` | cómo se montó el entorno `env_tv` (conda, python 3.10, pinocchio 3.1.0). El de aquí es un clon del de `~/robotics40/meta` |
 | `certs/` | certificado con las IP .0.143, 123.164, 124.164 y 127.0.0.1 |
 | `xr_teleoperate/` | el repo de Unitree, con `cam_config_server.yaml` puesto solo con la D435i |
@@ -57,5 +58,10 @@ Sin teclado (no hay tmux en el PC2): `env_tv/bin/python enviar.py r | q | estado
 - El driver de las manos **las abre nada más arrancar**, antes de pulsar `r`.
 - Los dedos no llegan a cerrarse del todo (el retargeting se queda corto, sobre todo en la izquierda).
 - Si un dedo queda en `err` 5: `~/robotics40/manos/manos.sh borrar-error izq`.
+- **Sin Internet en la WiFi, la imagen se congela al entrar en VR** si no se ha pasado `vuer_offline.sh`: el navegador de
+  las Quest descarga de `cdn.jsdelivr.net` los modelos de las manos y los mandos. El script los deja en el robot
+  (`env_tv/…/vuer/client_build/assets/webxr-input-profiles/`, 98 MB) y la página los pide a `https://<robot>:8012/assets/`.
+  Aplicado y probado sin Internet el 2026-11-21. Si se reinstala `vuer`, repetirlo (con Internet). Tras aplicarlo, borrar una vez los datos de
+  navegación de las Quest. `./vuer_offline.sh comprobar` tiene que dar `OFFLINE: si`.
 - Usa la misma D435i que `camara.py`: `arrancar.sh` la para antes.
 - Siempre `PYTHONNOUSERSITE=1` (ya lo ponen los scripts).

@@ -117,6 +117,8 @@ def leer_args(cfg, objetos):
     for x in a.asignacion or []:
         k, b = x.split("=")
         asign[k] = b
+        # sus variantes (prisma_de_pie de prisma), a la misma bandeja (§94)
+        asign.update({c: b for c, v in objetos["objetos"].items() if v.get("variante_de") == k})
     a.asignacion = asign
     coloc = {}
     for x in a.colocacion or []:
@@ -175,7 +177,11 @@ def armar(a, cfg=None, montaje=None, objetos=None, log=print):
         vel = max(0.1, float(getattr(a, "velocidad", 1.0))) if getattr(a, "visor", False) else None
         if vel:
             cfg["mano"]["t_base_s"] = cfg["mano"]["t_base_s"] / vel
-        manos = {l: Mano(l, cfg, cliente=t.mundo.manos[l]) for l in LADOS}
+        # con la calibracion de la mano simulada, como la del robot (config/manos.yaml): su flexion propia cerrada en
+        # vacio (sim/mano_simulada.py: 70 + 160 (1000 - angulo) / 1000 gf), 230 los dedos en 0 y 182 el pulgar en su
+        # consigna (300). Sin ella un pulgar vacio en su tope marcaba 182 gf y no se veia el escape (§95)
+        from sim.mano_simulada import calibracion_simulada
+        manos = {l: Mano(l, cfg, cliente=t.mundo.manos[l], calibracion=calibracion_simulada(cfg)) for l in LADOS}
         lector_fsm = FsmFija(robot)
         brazo = Brazo(robot, cfg, simulacro=True, destino=robot.recibir_armsdk, escala_tiempo=a.escala_tiempo,
                       dormir=(lambda s: time.sleep(s / vel)) if vel else (lambda s: None), sincrono=True)

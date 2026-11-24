@@ -240,14 +240,16 @@ class Supervisor:
         esc, _ = self.observar()
         c_min = self.cfg["percepcion"]["confianza_min"]
         z = self.pl.montaje.get("zona_recogida") or {}
-        mal, bien, vistos = [], [], {}
-        for clase in self.asignacion:
-            todos = [o for o in esc.objetos if o.clase == clase]
+        mal, bien, vistos, grupos = [], [], {}, {}
+        for clase in self.asignacion:                  # las variantes de un objeto (el prisma de pie), con el: basta una
+            grupos.setdefault(self._grupo(clase), []).append(clase)
+        for g, clases in grupos.items():
+            todos = [o for o in esc.objetos if o.clase in clases]
             o = max(todos, key=lambda x: x.confianza) if todos else None
             if o is None or o.confianza < c_min:
-                mal.append((clase, "no se ve" if o is None else f"se ve con confianza {o.confianza:.2f} < {c_min}"))
+                mal.append((g, "no se ve" if o is None else f"se ve ({o.clase}) con confianza {o.confianza:.2f} < {c_min}"))
             else:
-                vistos[clase] = o
+                vistos[o.clase] = o
         recogidos, motivo = [], {}
         while vistos:
             avance = False
@@ -524,9 +526,14 @@ class Supervisor:
                 "altura_mm": None if contacto["h"] is None else round(1000 * contacto["h"], 1)}
 
     # --- niveles 2 y 3 ----------------------------------------------------------------------------------
+    def _grupo(self, clase):
+        """El objeto de una clase: el suyo o, si es una variante (prisma_de_pie), el de `variante_de` (§94). Las
+        variantes son el mismo objeto en otra postura: una basta, y comparten bandeja e intentos."""
+        return (self.pl.objetos["objetos"].get(clase) or {}).get("variante_de", clase)
+
     def _niveles_objetos(self):
         pendientes = dict(self.asignacion)
-        intentos = {k: 0 for k in pendientes}
+        intentos = {self._grupo(k): 0 for k in pendientes}
         en_curso = None             # el brazo que esta trabajando: sigue con sus objetos antes de pasar al otro
         while pendientes:
             esc, f = self.observar()
@@ -534,7 +541,7 @@ class Supervisor:
             if not vistos:
                 c_min = self.cfg["percepcion"]["confianza_min"]
                 dudosos = [f"{o.clase} ({o.confianza:.2f}) en ({o.p[0]:.3f}, {o.p[1]:+.3f})" for o in esc.objetos]
-                self._a("PLANIFICAR", f"no veo ninguno de {sorted(pendientes)} con confianza >= {c_min}"
+                self._a("PLANIFICAR", f"no veo ninguno de {sorted({self._grupo(c) for c in pendientes})} con confianza >= {c_min}"
                         + (f"; vistos: {', '.join(dudosos)}" if dudosos else ""))
                 break
             hecho = False
@@ -552,12 +559,14 @@ class Supervisor:
                     continue
                 en_curso = lado
                 ok = self._coger(plan, f)
-                intentos[clase] += 1
+                g = self._grupo(clase)
+                intentos[g] += 1
                 self.resultados.append({"objeto": clase, "bandeja": bandeja, "mano": lado,
-                                        "resultado": "colocado" if ok else "fallido", "intento": intentos[clase],
+                                        "resultado": "colocado" if ok else "fallido", "intento": intentos[g],
                                         "agarre": plan.detalle.get("agarre")})
-                if ok or intentos[clase] >= self.s.get("intentos_por_objeto", 2):
-                    pendientes.pop(clase)
+                if ok or intentos[g] >= self.s.get("intentos_por_objeto", 2):
+                    for c in [c for c in pendientes if self._grupo(c) == g]:      # con sus variantes
+                        pendientes.pop(c)
                 hecho = True
                 break
             if not hecho:

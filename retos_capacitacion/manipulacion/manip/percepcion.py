@@ -167,7 +167,10 @@ class Percepcion:
         alto = _altura_clase(o)
         pl, pc = _planta_clase(o)
         # la profundidad ve las esferas y los bordes mas bajos y pequenos: tolerancias asimetricas
-        s_alto = math.exp(-((max(0.0, h_max - alto) / 0.015) ** 2 + (max(0.0, 0.55 * alto - h_max) / 0.015) ** 2))
+        # por abajo, hasta 0.55 del alto o el alto_min_m del objeto: el prisma de pie (10 cm) con 0.55 aceptaba la bola
+        # roja de espuma (5.2 cm, captura del 9-oct, §93)
+        bajo = float(o.get("alto_min_m", 0.55 * alto))
+        s_alto = math.exp(-((max(0.0, h_max - alto) / 0.015) ** 2 + (max(0.0, bajo - h_max) / 0.015) ** 2))
         s_planta = math.exp(-(((largo - pl) / 0.03) ** 2 + ((corto - pc) / 0.03) ** 2) / 2)
         return fr_color * (0.3 + 0.7 * s_alto * s_planta), fr_color, s_alto * s_planta
 

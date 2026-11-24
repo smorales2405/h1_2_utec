@@ -116,6 +116,27 @@ def test_sin_fuerza_con_los_dedos_bloqueados_es_escape():
     assert not mano.escapado(estado([2, 0, 622, 641, 539, 0], [234, 400, 401, 110, 407, -60]), fs)  # sujetandola
 
 
+def test_el_pulgar_en_su_tope_apretando_no_es_escape():
+    """§95: el pulgar en su tope (300) apretando el prisma de pie con 219-232 gf netos (sin su residuo de 47) se daba
+    por "vacio" con el umbral de 0.5 de su FORCE_SET (225) y la mano soltaba un prisma bien cogido (tirada
+    20261119_044420, izquierda). Con mano.vacio_frac 0.25 (112) no; con ~30 gf, que es vacio de verdad, si."""
+    from manip.mensajes import EstadoMano
+    cal = {"tope_vacio": [2, 0, 24, 502, 302, None], "residuo_gf": [149, 110, 131, 205, 47, 0]}
+    cfg = copy.deepcopy(config.cargar())
+    cfg["mano"].update(t_base_s=0.0, compensar_residuo=True)
+    mano = Mano("izq", cfg, cliente=ManoSimulada(), calibracion=cal)
+    fs = [-1, -1, -1, 300, 450, -1]
+
+    def estado(angulo, fuerza):
+        z = np.zeros(6)
+        return EstadoMano(t=0.0, lado="izq", angulo=np.array(angulo, float), fuerza=np.array(fuerza, float), base=z,
+                          force_set=z, error=z, estado=z)
+    cogido = estado([1, 1, 5, 696, 306, 0], [223, 205, 137, 301, 266, 84])
+    assert mano.agarre(cogido, fs)[1][4] == "lleno"
+    assert not mano.escapado(cogido, fs)
+    assert mano.escapado(estado([1, 1, 5, 696, 306, 0], [223, 205, 137, 230, 78, 84]), fs)
+
+
 def test_abre_aunque_los_dedos_esten_enclavados():
     mano, sim = _mano()
     fs = [-1, -1, 300, 300, 350, -1]

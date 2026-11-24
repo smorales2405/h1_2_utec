@@ -74,10 +74,13 @@ def test_asignacion_por_color_o_nombre():
 
 
 def test_asignacion_de_objetos_yaml_existe_en_el_montaje():
-    """La asignacion fija (objetos.yaml) apunta a bandejas de montaje.yaml, una por objeto."""
+    """La asignacion fija (objetos.yaml) apunta a bandejas de montaje.yaml, una por objeto; sus variantes (el prisma de
+    pie, §94), a la del suyo."""
     objetos, mon = config.cargar_objetos(), config.cargar_montaje()
     asign = mt.resolver_asignacion({k: v["bandeja"] for k, v in objetos["objetos"].items()}, mon)
-    assert sorted(asign.values()) == sorted(mon["bandejas"])
+    obj = objetos["objetos"]
+    assert sorted(b for k, b in asign.items() if "variante_de" not in obj[k]) == sorted(mon["bandejas"])
+    assert all(asign[k] == asign[obj[k]["variante_de"]] for k in asign if "variante_de" in obj[k])
 
 
 @gl

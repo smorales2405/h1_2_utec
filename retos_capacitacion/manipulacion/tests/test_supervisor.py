@@ -183,6 +183,26 @@ def test_verificar_planes_dos_que_se_tapan(tmp_path):
 
 
 @gl
+def test_el_prisma_de_pie(tmp_path):
+    """§94: el prisma de pie es una variante del tumbado (prisma_de_pie, variante_de: prisma): la percepcion lo separa
+    por el alto, se coge con dos dedos y el supervisor y la verificacion los tratan como un objeto (basta uno: el
+    tumbado, que no esta, no queda pendiente ni falta en la verificacion)."""
+    a = _args(tmp_path, nivel=2, asignacion={"prisma": "A", "prisma_de_pie": "A"}, verificar_planes=True,
+              colocacion={"prisma_de_pie": ((0.47, 0.06), 0.0)})
+    t = manipulacion.armar(a, _cfg(), log=lambda *x: None)
+    motivo = manipulacion.correr(t, confirmar=False)
+    assert motivo == "completado", motivo
+    eventos = t.reg.resumen["eventos"]
+    assert any(e[1] == "VERIFICAR" and e[2].startswith("todos con plan: prisma_de_pie -> A") for e in eventos), eventos
+    assert [(r["objeto"], r["resultado"]) for r in t.sup.resultados] == [("prisma_de_pie", "colocado")]
+    assert t.mundo.bandeja_de("prisma_de_pie") == "A"
+    assert not any("no veo" in e[2] for e in eventos)
+    from manip.mano import FORCE_SET
+    assert any(v[3] > 0 and v[2] == t.manos["izq"].fs_abierta for a_, v in t.mundo.manos["izq"].escrituras
+               if a_ == FORCE_SET), "dos dedos: el medio no cierra"
+
+
+@gl
 def test_coger_en_linea_recta(tmp_path):
     """§53: los tramos finos de coger (al agarre, levantar, bajar a la bandeja y retirarse) son rectas del punto de
     agarre con una postura por cm (entre dos IK sueltas se apartaba hasta 56 mm), y el agarre acaba justo en el."""

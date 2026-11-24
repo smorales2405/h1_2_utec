@@ -89,6 +89,10 @@ class Mano:
         self.fs_min = int(m.get("force_set_min", 100))
         self.cierre = [int(x) for x in m.get("cierre", [0, 0, 0, 0, 300, -1])]
         self.compensar_residuo = bool(m.get("compensar_residuo", False))
+        # un dedo en su consigna de cierre con menos de esto de su FORCE_SET (sin su residuo) esta "vacio". Con 0.5, el
+        # pulgar en su tope apretando el prisma de pie con 219-232 gf netos (FORCE_SET 450) daba un escape falso al
+        # levantarlo y la mano lo soltaba (§95); vacio de verdad, ~0 +- 46 gf (la deriva del cero tras sujetar)
+        self.vacio_frac = float(m.get("vacio_frac", 0.25))
         self.residuo = np.zeros(6)
         cal = cargar_calibracion(lado) if calibracion == "auto" and cliente is None else \
             (None if calibracion == "auto" else calibracion)
@@ -274,7 +278,7 @@ class Mano:
                 continue
             neta = e.fuerza[k] - e.base[k]
             if (e.angulo[k] <= max(vacio_max, self.cierre[k] + vacio_max if self.cierre[k] > 0 else 0)
-                    and not (self.residuo_medido and sin_residuo[k] >= 0.5 * float(force_set[k]))):
+                    and not (self.residuo_medido and sin_residuo[k] >= self.vacio_frac * float(force_set[k]))):
                 # llego (o casi) a su consigna de cierre (con tope_vacio, la del indice queda antes del pulgar) y sin
                 # apenas fuerza: en vacio. Con fuerza aprieta algo: el pulgar cierra el cilindro de 5 cm en 302-331
                 # (su consigna, 300) con 290-460 gf, y el agarre se daba por fallido (RESULTADOS §67)
@@ -296,7 +300,7 @@ class Mano:
         # tope, 300) apretando el cubo con 1526 gf y daba un escape falso (§61). Con el residuo medido, agarre() ya lo
         # pide; sin el, tambien aqui
         neta = e.fuerza - e.base - (self.residuo if self.compensar_residuo else 0.0)
-        vacio = {k: v == "vacio" and neta[k] < 0.5 * float(force_set[k]) for k, v in det.items()}
+        vacio = {k: v == "vacio" and neta[k] < self.vacio_frac * float(force_set[k]) for k, v in det.items()}
         dedos = [v for k, v in vacio.items() if k in DEDOS]
         # sin reapretar (§84) los dedos se quedan bloqueados donde cerraron y no llegan a su consigna cuando el objeto se
         # va: tambien es escape que todos los que agarran se queden sin fuerza (por debajo de suelto_frac de su

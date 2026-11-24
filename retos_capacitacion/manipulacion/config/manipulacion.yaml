@@ -129,6 +129,8 @@ mano:                   # manip/mano.py; registros y trampas en la memoria del p
   force_set_max: 800    # seccion 10: tope por dedo, escrito antes de cada cierre
   force_set_abierta: 800    # el que se deja al abrir (nunca el de fabrica, 2000 = sin limite)
   corte_gf: 1200        # fuerza medida que dispara la salida segura
+  vacio_frac: 0.25      # un dedo en su consigna de cierre con menos de esto de su FORCE_SET (sin residuo): vacio (0.5 daba
+                        # escapes falsos con el pulgar en su tope apretando el prisma de pie con ~220 gf, §95)
   suelto_frac: 0.4      # escape: todos los dedos que agarran por debajo de esto de su FORCE_SET (sin reapretar se quedan
                         # bloqueados; §85: en las tiradas guardadas solo salta en las dos que se escaparon sin aviso)
   reapretar: false      # FORCE_SET y la consigna cerrada cada 1 s al llevar el objeto (un objeto puede pedirlo en
@@ -166,7 +168,8 @@ supervisor:
   paso_pierna_rad: 0.10     # una junta de pierna que se aparta mas que esto de la postura inicial = paso
   lowstate_max_s: 0.5
   fotograma_max_s: 1.0
-  mano_max_s: 0.5
+  mano_max_s: 1.5          # una lectura Modbus lenta tarda hasta 1 s (su timeout): con 0.5, una sola en el transporte
+                            # de la esfera hizo la salida segura (§95); una mano muerta ya falla al leer (ManoSinRespuesta)
   fsm_cada_s: 2.0           # lee la FSM en segundo plano; distinta de 201 -> salida segura
   boton_parada: null        # elegir con lectores.sh mando-vivo: uno sin funcion en FSM 201
   joystick_para: true       # un eje fuera de cero hace andar al robot: salida segura
@@ -304,7 +307,7 @@ camara_externa:            # Logitech BRIO en la laptop, de frente al robot (her
   carpeta: datos/externa
   controles:                # en este orden (v4l2-ctl): el zoom antes que pan/tilt; el foco fijo (el automatico busca al
                             # pasar el brazo; a ~1.4 m, de 0 a 20 la nitidez es la misma)
-    zoom_absolute: 249
+    zoom_absolute: 265
     pan_absolute: 0
     tilt_absolute: 0        # con la camara inclinada a mano (2026-11-13); antes -10 grados, el tope digital
     focus_automatic_continuous: 0

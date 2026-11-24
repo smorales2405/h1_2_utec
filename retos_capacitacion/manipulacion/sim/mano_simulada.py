@@ -18,6 +18,13 @@ CUENTAS_POR_S_POR_SPEED = 3.0      # SPEED_SET calibra el actuador: k = 2.99-3.0
 K_CONTACTO = 12.0                  # gf por cuenta contra un objeto
 
 
+def calibracion_simulada(cfg):
+    """La calibracion de config/manos.yaml para la mano simulada (probar_manos.py --guardar-cierre en el robot): cada DOF
+    para en su consigna de cierre (mano.cierre: los dedos en 0, el pulgar en 300) y marca alli su flexion propia."""
+    cierre = [max(0, int(c)) for c in cfg["mano"].get("cierre", [0, 0, 0, 0, 300, -1])][:5]
+    return {"tope_vacio": cierre + [None], "residuo_gf": [70 + 160 * (1000 - c) / 1000 for c in cierre] + [0.0]}
+
+
 class ManoSimulada:
     def __init__(self):
         self.ang = np.full(6, 1000.0)

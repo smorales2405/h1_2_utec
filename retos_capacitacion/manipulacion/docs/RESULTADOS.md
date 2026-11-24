@@ -2682,3 +2682,131 @@ Dos cambios que pidió el usuario.
 - Pruebas: 138 de 138 en este PC (el remoto volvió a perder la red).
 - El nivel 2 simulado (montaje de las 10:00, esfera de 7 cm con cuatro dedos, `--verificar-planes`) coloca los cuatro en
   la distribución de esta tirada, en la de 100641 y en L1. En la combinación imposible de arriba avisa y no coge nada.
+
+## 93. El prisma, de pie y con dos dedos; el índice del cilindro, más lento (2026-11-19)
+
+`tirada_20261119_035310_nivel2` (montaje de las 03:48, `--verificar-planes`):
+- Cubo y esfera (7 cm, cuatro dedos) colocados. La esfera cerró con el anular en 554 ("lleno").
+- **El prisma (tumbado) se soltó en los dos intentos.**
+  - Con el índice y el medio a SPEED 60 (§92), el pulgar llegó antes a su tope, como se buscaba.
+  - El índice tocó (532 gf), pero al llegar el medio (600 gf) el prisma giró entre los dedos y el índice se quedó sin
+    apretar (157 gf). Solo lo sujetaban el medio y el pulgar, que no están enfrentados.
+  - Con tres dedos y el pulgar en su tope, el reparto entre el índice y el medio no es estable: se soltó en 6 de los
+    últimos 8 intentos.
+- **El cilindro se soltó sobre la bandeja B, a los 18.7 s.**
+  - Al cerrar, la mano se corrió 8 mm de lado (y −9 tras cerrar) justo cuando tocó el índice (pico de 748 gf).
+  - El índice llegó antes de que el pulgar estuviera en su tope, empujó el cilindro y el brazo cedió. `_sostener`
+    integra demasiado despacio para ese golpe.
+  - La pinza quedó fuera del eje (índice 583 gf, pulgar 462: §87).
+
+El usuario propuso intercambiar los agarres: el prisma de pie con dos dedos y el cilindro tumbado con tres.
+- **El prisma de pie (4 × 4 × 10 cm) con dos dedos, sí:**
+  - con un solo dedo enfrente del pulgar, el apriete va en línea (el cilindro, ~500/470 gf);
+  - en caras planas;
+  - a 0.090, la línea de la pinza queda a ~73 mm, 23 sobre el centro de masas: cuelga estable.
+- **El cilindro tumbado con tres dedos, no:**
+  - rodaría al tocarlo, como la esfera;
+  - se cogería por su curva, cerca de la mesa, y con 5 cm el pulgar seguiría en su tope;
+  - con tres dedos repetiría el reparto que falla con el prisma. Sigue de pie con dos dedos.
+- **Cambios:**
+  - **Prisma:** `medidas_m` [0.040, 0.040, 0.100], simetría 90 y guiñada 30 (como el cubo), `altura_agarre_m` 0.090,
+    `dos_dedos` con FORCE_SET 300/450 y `centro_agarre` como el cilindro (y −0.075, z 0.040), solo desde arriba.
+  - **El índice a SPEED 60 en el prisma y en el cilindro:** el pulgar llega antes a su tope y el índice aprieta contra
+    él, sin empujar el objeto ni el brazo.
+  - **Percepción:**
+    - `alto_min_m` por objeto (por defecto, 0.55 del alto); el prisma, 0.080.
+    - Con 0.55, la bola roja de espuma (5.2 cm de alto) de la captura del 9-oct salía prisma de pie.
+    - El prisma de pie en la mesa de ahora (`dataset_20261119_040557_prisma_de_pie`): 1.00 en (0.408, 0.075), con 102 mm
+      de alto.
+  - Las pruebas de la tapa naranja (§74–76) y de los trozos (§89) usan un prisma tumbado propio.
+- En el gemelo, el prisma de pie tiene plan en 50 de 50 casos (25 sitios de la zona de la izquierda, a 0 y 30°).
+- Pruebas: 138 de 138 en el PC remoto.
+- El nivel 2 simulado (montaje de las 03:48, `--verificar-planes`) coloca los cuatro con la mesa de ahora (el prisma de
+  pie en (0.408, 0.075)) y en L1 con el prisma de pie.
+- Con el cubo y la esfera a 11 cm entre centros y a la misma y, se tapan entre sí y la verificación avisa: hay que dejar
+  sitio para los dedos (en 035310 estaban a 15 cm y pasó).
+
+## 94. El prisma, tumbado o de pie; el de pie no se cogió (2026-11-19)
+
+`tirada_20261119_042101_nivel2`, solo el prisma, de pie: "agarre fallido" en los dos intentos.
+- Tras el primero el usuario lo recolocó. Tras el segundo ya no se ve en la mesa: se cayó.
+- En los dos, el índice apretó (344 y 144 gf) y el pulgar quedó en su tope (303) sin tocarlo ("vacío").
+- En el vídeo, el índice empuja la cara de delante y el prisma se inclina hacia el robot, sin llegar al pulgar.
+- **La percepción y la mano estaban bien.** Superpuesto en la foto del robot, el gemelo con las q medidas pone el
+  prisma y la mano donde están.
+- **El agarre:**
+  - **A lo ancho de la mano:** en el gemelo, el pulgar toca a +14–17 mm del centro de la cara (la arista, a 20) y el
+    índice a +1–3. Con el error del gemelo en el pulgar (~1 cm), puede pasar por el costado.
+  - **A lo largo de la pinza:**
+    - con 4 cm (el cilindro, 5) y el mismo centro, el pulgar se para en su tope a ~1 cm de la cara;
+    - el índice, más lento (§93), lo empuja solo;
+    - un prisma de pie de 10 cm vuelca con ~13 gf a 7 cm de alto, antes de deslizar (μ ≈ 0.5: ~23 gf).
+
+**Cambio (lo pidió el usuario): el prisma, tumbado o de pie.**
+- `prisma` vuelve a ser el tumbado: tres dedos, FORCE_SET 400 y la velocidad de siempre. Con 450 y el índice y el
+  medio a 60 (§92) se soltó en los dos intentos de §93.
+- **`prisma_de_pie`**, nuevo en objetos.yaml, con `variante_de: prisma`:
+  - 4 × 4 × 10 cm, `alto_min_m` 0.080, simetría 90, dos dedos, `altura_agarre_m` 0.090;
+  - `centro_agarre` y −0.080 (5 mm más cerca del pulgar que el cilindro: su cara, donde para el pulgar) y z 0.033 (el
+    pulgar, más hacia el centro de la cara);
+  - el índice a la velocidad de siempre: el pulgar y el índice llegan a la vez y ninguno empuja el prisma solo.
+- **La percepción** los separa por el alto:
+  - el de pie de esta tirada y del dataset de las 04:05 sale `prisma_de_pie` 1.00 (98–110 mm de alto);
+  - el tumbado de 072107 sale `prisma` 1.00.
+- **El supervisor** trata las variantes como un objeto:
+  - comparten intentos;
+  - colocado (o agotado) uno, sale también su variante de los pendientes;
+  - la verificación pide que se vea una de ellas.
+- `--asignacion prisma=A` lleva también la variante.
+- Las pruebas de la tapa naranja (§74–76) y de los trozos (§89) vuelven a usar el prisma tumbado de la configuración.
+- Prueba nueva: el nivel 2 simulado con el prisma de pie y la asignación de los dos lo coge con dos dedos, lo coloca y
+  acaba sin pendientes.
+- Pruebas: 139 de 139 en el PC remoto. La de la asignación de objetos.yaml cuenta una bandeja por objeto, no por variante.
+- El nivel 2 simulado (montaje de las 03:48, `--verificar-planes`) coloca los cuatro:
+  - con el prisma de pie donde estaba en esta tirada (0.421, 0.073), y con el cubo y la esfera como en 035310;
+  - con el prisma de pie en (0.47, 0.10) a 20°;
+  - con el prisma tumbado como en 103734.
+
+## 95. Escapes falsos con el pulgar en su tope; una lectura lenta de la mano cortó la tirada (2026-11-19)
+
+1. **`tirada_20261119_044420_nivel2`**, solo el prisma, de pie: cogido en los dos intentos.
+   - Primer intento: "se escapa" a los 0.6 s, con el índice y el pulgar apretando aún 301 y 266 gf (al cerrar, 347 y
+     279). La mano lo soltó al acabar de levantarlo y el usuario lo recolocó.
+   - Segundo intento: "se escapa" a los 20 s, sobre la bandeja A, con 392 y 260 gf. Al abrir allí, cayó dentro.
+2. **`tirada_20261119_044802_nivel2`**, los cuatro: cubo colocado.
+   - Con la esfera cerca de su bandeja, salida segura por "mano sin respuesta: der". La mano la soltó en C.
+   - El cilindro y el prisma no se intentaron.
+
+- **El escape falso.**
+  - Con el pulgar en su tope (300) un dedo cuenta como "vacío" si, sin su residuo (47 gf), tiene menos de 0.5 de su
+    FORCE_SET (225).
+  - Con 4 cm, el pulgar aprieta lo que le pasa el índice (FORCE_SET 300): 219–232 gf netos. Al empezar a subir, bajó a
+    219 y saltó.
+  - Con el cilindro no pasaba (~450).
+- **Repetido sobre los transportes grabados desde el 18-nov** (`Mano.escapado` con las fuerzas de manos.csv; con 0.5
+  da los mismos escapes que el robot):
+  - con 0.25, los escapes de verdad (cilindro, esfera y prisma tumbado con los dedos resbalando, vistos en el vídeo)
+    saltan igual o 0.2–1 s más tarde;
+  - deja de saltar en el segundo del prisma de pie;
+  - en el prisma tumbado de 035310, el escape pasa de 2.2 s a 8.0 s. En el vídeo, el prisma seguía en la mano,
+    inclinado, hasta los ~7.5 s: también era falso, y la mano lo soltaba al acabar de levantar.
+- **Cambio:** `mano.vacio_frac` 0.25 (antes 0.5 fijo) en `Mano.agarre` y `Mano.escapado`. Vacío de verdad es ~0 ± 46 gf
+  (la deriva del cero tras sujetar).
+- **La mano sin respuesta.**
+  - La derecha se leía cada 0.2 s y una lectura tardó 0.99 s, seguramente el timeout de Modbus (1 s). Luego siguió
+    respondiendo.
+  - `supervisor.mano_max_s` era 0.5. Huecos así salen 1–3 veces por tirada en cada mano; hasta ahora no habían caído
+    con la mano vigilada.
+  - **Cambio:** `mano_max_s` 1.5. Una mano que no contesta ya falla al leer (`ManoSinRespuesta`).
+- Prueba nueva: el pulgar en su tope con 266 gf no es escape, y con 78 sí.
+- **La mano simulada, con su calibración.**
+  - Falló `test_el_cubo_que_se_escapa_al_levantar_se_reintenta`: la mano simulada marca su flexión propia (70–230 gf)
+    y en la simulación no se descontaba.
+  - En el robot sí se descuenta, con el residuo de config/manos.yaml. En el simulado, un pulgar vacío en su tope
+    marcaba 182 gf, por encima del umbral nuevo (112).
+  - **Cambio:** las manos simuladas llevan su calibración (`sim/mano_simulada.calibracion_simulada`): los dedos paran
+    en 0 y marcan 230 gf; el pulgar en 300 y marca 182. Como en el robot, ese residuo se suma al FORCE_SET y se descuenta
+    al juzgar "vacío".
+- Pruebas: 140 de 140 en el PC remoto.
+- El nivel 2 simulado (`--verificar-planes`) coloca los cuatro con la mesa de 044802 (el prisma de pie) y en L1 con el
+  prisma tumbado.

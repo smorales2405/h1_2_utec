@@ -112,6 +112,9 @@ objetos:
     # empujaba la parte baja del cilindro hacia el indice con el pulgar arriba, y giro ~50 grados en la mano al
     # levantarlo hasta soltarse. En el cubo el medio aprieta una cara plana: sin empuje de lado
     force_set: [-1, -1, -1, 300, 450, -1]
+    # el indice a SPEED 60 (§93): tocaba antes que el pulgar llegara a su tope, empujaba el cilindro y el brazo cedia 8 mm
+    # de lado (la pinza fuera del eje, §87); asi el pulgar llega antes y el indice lo aprieta contra el
+    speed_cierre: [100, 100, 100, 60, 100, 100]
     preforma: dos_dedos
     # y -0.075 (el cubo, -0.070): el pulgar llega por -y y el indice por +y (marco de la muneca). Con -0.070, el
     # cilindro (radio 25 frente a los 30 del cubo) dejaba el pulgar en su tope (303; consigna 300) sin apretar: hacia
@@ -125,7 +128,7 @@ objetos:
     centro_agarre: {arriba: [0.211, -0.075, 0.040], lado: [0.211, -0.070, 0.033]}
     bandeja: roja
   prisma:
-    # tumbado (4 cm de alto, centro de masas a 20 mm). Con 0.030 el medio quedaba a la altura de la mesa (§61). Con
+    # TUMBADO (el de pie es prisma_de_pie, §94): 4 cm de alto, centro de masas a 20 mm). Con 0.030 el medio quedaba a la altura de la mesa (§61). Con
     # 0.042 (yemas del cubo: 9/24/31 mm bajo el punto): pulgar ~33 (7 mm bajo la tapa), indice ~18, medio ~11; la
     # linea pulgar-indice a ~26, por encima del centro de masas (§73)
     altura_agarre_m: 0.042
@@ -143,10 +146,11 @@ objetos:
     # Con 250 se sostenia porque el reapriete de cada 1 s subia la fuerza a 600-800 gf; sin el (§84) quedo con ~290/200
     # y se salio a los 3.6 s de levantarlo (§85): 400/400. Con 400 el apriete se aflojaba en el transporte (el medio de
     # 372 a 202 gf) y se solto sobre la bandeja (§92); el indice y el medio, cerrando a la vez que el pulgar, se
-    # bloqueaban en un pico (hasta 1053 gf) y luego cedian. 450/450 y el indice y el medio a SPEED 60 (~87 cuentas/s
-    # frente a ~145): el pulgar llega antes a su tope y ellos aprietan el prisma contra el, sin el pico
-    force_set: [-1, -1, 450, 450, 400, -1]
-    speed_cierre: [100, 100, 60, 60, 100, 100]
+    # bloqueaban en un pico (hasta 1053 gf) y luego cedian. Con 450/450 y el indice y el medio a SPEED 60 (§92), el
+    # pulgar llego antes a su tope, pero al llegar el medio el prisma giro y el indice se quedo sin apretar (157 gf) y
+    # se solto en los dos intentos (§93): vuelta a 400/400 a la velocidad de siempre. Tumbado el agarre va justo: de
+    # pie (prisma_de_pie), con dos dedos
+    force_set: [-1, -1, 400, 400, 400, -1]
     preforma: tres_dedos
     # z 0.030, como el cubo (§64). Con 0.036 (§89: el indice y el medio quedaban ~8 mm hacia -y a lo largo del
     # prisma) quedaron centrados, pero se solto en los dos intentos de §91 (los dedos resbalaron hacia arriba sin
@@ -154,6 +158,36 @@ objetos:
     centro_agarre: {arriba: [0.211, -0.070, 0.030], lado: [0.211, -0.065, 0.030]}
     # la posicion y el yaw, con la tapa en la imagen de color: la profundidad de la tapa naranja (muy clara en el IR)
     # da 14 mm en vez de 40. La tapa, iluminada, tiene brillo 246-250; la cara de delante, 150-187 (§74)
+    tapa_color: {hsv_min: [3, 120, 220], hsv_max: [24, 255, 255]}
+    bandeja: azul
+  prisma_de_pie:
+    # el mismo prisma DE PIE (§93-94), 4 x 4 x 10 cm: la percepcion lo separa del tumbado por el alto (102 mm frente a
+    # 40) y el supervisor los trata como un objeto (variante_de: la misma bandeja y los mismos intentos)
+    variante_de: prisma
+    # A 0.090 (como el cilindro, 8-10 mm bajo la tapa): pulgar ~81 mm, indice ~66; la linea a ~73, 23 mm sobre el
+    # centro de masas (50): cuelga estable
+    altura_agarre_m: 0.090
+    nombre: prisma de PLA de pie
+    forma: caja
+    medidas_m: [0.040, 0.040, 0.100]
+    alto_min_m: 0.080            # la profundidad lo ve de 101-103 mm; con 0.55 del alto, la bola de espuma (52) pasaba
+    masa_kg: 0.0478
+    simetria_deg: 90
+    guinada_tol_deg: 30          # si no hay plan alineado (como el cubo)
+    color: {nombre: naranja, hsv_min: [3, 120, 100], hsv_max: [24, 255, 255]}
+    agarre: [arriba]
+    # dos dedos, como el cilindro: un solo dedo enfrente del pulgar aprieta en linea (el cilindro, ~500/470 gf); tumbado,
+    # con tres, el reparto entre el indice y el medio no aguantaba (§93). Con 4 cm, como con el cilindro de 5, el pulgar
+    # llega a su tope. A la vez el pulgar y el indice (SPEED 100): con el indice mas lento (60), el pulgar esperaba en su
+    # tope a ~1 cm de la cara y el indice empujaba el prisma solo: un prisma de pie de 10 cm vuelca antes que deslizar
+    # (~13 gf a 7 cm de alto) y no se cogio en ninguno de los dos intentos (§94)
+    force_set: [-1, -1, -1, 300, 450, -1]
+    preforma: dos_dedos
+    # y -0.080: 5 mm mas cerca del pulgar que el cilindro (4 cm frente a 5), para que su cara quede donde para el
+    # pulgar. z 0.033: con 0.040 (el del cilindro), en el gemelo con las q medidas el pulgar tocaba a +14-17 mm del
+    # centro de la cara (la arista, a 20) y el indice a +1-3; en el robot no la toco (§94)
+    centro_agarre: {arriba: [0.211, -0.080, 0.033], lado: [0.211, -0.075, 0.033]}
+    # la tapa de arriba, de 4 x 4, en la imagen de color, como la del tumbado (§74)
     tapa_color: {hsv_min: [3, 120, 220], hsv_max: [24, 255, 255]}
     bandeja: azul
 

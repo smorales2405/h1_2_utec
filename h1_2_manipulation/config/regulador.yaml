@@ -1,0 +1,109 @@
+# Regulador de fuerza en el agarre del reto (agarre/lazo.py; README). Las constantes del lazo salen del banco
+# (inspire_hand_interface/Control/regulador_results.md, medidas en la mano DERECHA del robot, la de 192.168.124.210);
+# los angulos de contacto y las fuerzas de agarre, de las tiradas de nivel 2 del 15 al 19-nov (README, "De donde
+# salen los numeros"). Todo en gf sobre el cero (la mano abierta, sin carga y >= 10 s desde la ultima suelta).
+
+lectura:
+  sondeo_hz: 200            # tope del sondeo de POS y fuerza: la mano publica cada 30.7 ms por DOF (Control/README)
+  angulo_cada: 2            # ANGLE_ACT cada tantas lecturas (el contacto, los topes y el registro)
+  corriente_cada: 8
+  temperatura_cada_s: 5.0
+  sin_lectura_max_s: 1.0    # el hilo sin una lectura buena tanto tiempo: fallo y salida segura (el timeout Modbus, 1 s)
+
+aproximacion:               # cierre hibrido: rapido hasta justo antes del objeto y lento hasta tocarlo (Exp 2: la
+                            # conmutacion de velocidad es la unica mitigacion del impacto que funciona en los cinco DOF)
+  vel_rapida: 100           # SPEED_SET hasta el angulo de aproximacion del objeto (el reto cierra a 100)
+  vel_lenta: 40             # ... y desde ahi (~58 cuentas/s el indice y el medio, ~124 el pulgar)
+  t_max_s: 6.0              # sin tocar ni llegar a su tope en este tiempo, el dedo se para donde este
+  subida_contacto_gf: 60    # contacto: la fuerza sube esto sobre su minimo de los ultimos ventana_contacto_s
+  ventana_contacto_s: 0.3
+  t_ignorar_s: 0.4          # ... salvo al arrancar el dedo: el arranque da un pico (en las tiradas, hasta ~80 cuentas)
+  contacto_abs_gf: 350      # o la fuerza sobre el cero pasa de esto (moviendose, el pulgar derecho marca ~190 en vacio)
+  tope_tol: 12              # a esto de su consigna de cierre, parado: llego al tope sin tocar nada
+
+control:                    # en coordenadas (A3/B1), no un lazo por dedo: apriete = (F_pulgar + F_dedos) / 2, balance
+                            # = F_pulgar - F_dedos y, en el modo 2, reparto = F_indice - F_medio. PI en gramos, J^-1
+                            # (o la K del RLS en el modo 1) a comando, y el cuanto por dedo con acumulador de resto
+  kp_apriete: 0.5           # con J exacta, el error se reduce a la mitad por accion; con J 2x mayor (cubo de PLA
+                            # frente a la bola, 1.2-1.5x), 1.0: aun estable (< 2)
+  ki_apriete: 0.0           # P puro: la caida de 5-10 % se agota (E3.4) y la banda la vuelve a corregir
+  kp_balance: 0.3           # balance y reparto, con ganancia baja: mueven el objeto, deciden el ladeo y no la seguridad
+  kp_reparto: 0.2
+  fuga: 0.98                # del integrador (si ki > 0)
+  banda_apriete_gf: 25      # A3: el balance llega a 18-24 g con banda de 24 en coordenadas
+  banda_balance_gf: 40
+  banda_reparto_gf: 40
+  refractario_s: 0.20       # A2: la fuerza asienta en ~111 ms; sin esperar se encadenan escalones (+90 % de pico)
+  paso_cierra: 5            # E3.2: el escalon minimo fiable, 5 cerrando y 3 abriendo
+  paso_abre: 3
+  dq_max: 15                # unidades por accion y dedo (se escala el vector entero: recortar uno deshace el desacoplo)
+  t_establecer_max_s: 3.0   # Mano.cerrar vuelve al establecerse el agarre o pasado esto
+  establecido_s: 0.3        # el apriete en su banda tanto tiempo: agarre establecido (balance y reparto, desde ahi)
+  desacoplo_modo1: rls      # la J en linea (A4: estabiliza a 220 g lo que la J fija no podia); o fija (A3) o diagonal
+  desacoplo_modo2: diagonal # como B1: cada dedo, su cambio de fuerza entre su propia ganancia (la J 3x3 medida no es
+                            # autoconsistente); o fija (J^-1)
+  rls_lam: 0.97
+  rls_min_pos: 5.0
+  rls_ridge: 0.005
+  rls_espera_s: 0.40
+
+seguridad:
+  fset_respaldo_gf: 800     # FORCE_SET de los dedos regulados: el paro del firmware, siempre por encima del lazo (en
+                            # bruto, como mucho el force_set_max del reto, 800)
+  techo_gf: 700             # un dedo regulado por encima en fuerza_ciclos lecturas seguidas: aflojar (la red, no el
+                            # tope). El banco usa 600/700, pero en el modo 2 el pulgar carga con indice y medio: con el
+                            # cubo, 475 de mediana y picos de 650-790 con el firmware
+  fuerza_ciclos: 3
+  corriente_max_ma: 700
+  corriente_ciclos: 25
+  temp_max_c: 50
+  guardas_max: 3            # tantas guardas en 2 s: fallo (salida segura)
+
+reacciones:                 # los dos detectores de A1; la reaccion correcta es OPUESTA
+  resbalon_counts: 10       # el actuador cede: POS retrocede contra su comando (normal 0-2 en 60 s, resbalon ~50)
+  resbalon_ventana_s: 0.5
+  aflojar_frac: 0.15        # ... aflojar: abrir 2 x paso_abre ese dedo y bajar la consigna esto (A5)
+  escape_gf: 60             # el objeto se escapa: la fuerza cae esto y escape_frac en TODOS los dedos, POS quieto
+  escape_frac: 0.35
+  apretar_frac: 0.25        # ... apretar: subir la consigna esto, hasta fuerza_max_frac de la del objeto
+  fuerza_max_frac: 1.3
+  contacto_min_gf: 80       # todos los dedos regulados por debajo de esto (o el pulgar o todos los dedos vacios en su
+  t_perdido_s: 0.2          # tope) tanto tiempo: el objeto se perdio (escapado)
+  frac_perdido: 0.35        # ... o el apriete por debajo de esto de la consigna tanto tiempo, con el lazo cerrando (sin
+  t_perdido_lento_s: 0.6    # objeto, la flexion de los dedos al cerrarse ya pasa de contacto_min: el pulgar, ~100 gf)
+
+ganancias:                  # J en gf por unidad de ANGLE_SET cerrando, J[afectado][mueve], dedos en el orden de abajo
+  modo1: [[5.4, 9.5],       # pulgar, indice: la pinza sobre la bola de espuma de 7 cm (A3); el RLS la corrige
+          [2.4, 12.6]]
+  modo2: [[5.93, 4.67, 4.00],     # pulgar, indice, medio (B1): indice y medio se acoplan en NEGATIVO
+          [0.87, 14.40, -1.27],
+          [1.67, -6.47, 12.73]]
+  pos_por_u: {pulgar: 1.00, dedo: 1.75}   # cuentas de POS por unidad de comando (A4, medido)
+
+observar_firmware: true     # en el brazo sin regulador, el mismo hilo solo mira y apunta (sin mandar nada)
+
+# Por objeto (la clase de objetos.yaml del reto): modo 1 = pulgar + indice, 2 = pulgar + indice + medio; los demas
+# dedos que cierran (el anular de la esfera) van por FORCE_SET, como en el reto. fuerza_gf: la consigna del apriete
+# (la mediana de los transportes buenos con el firmware). aprox: el angulo hasta el que se cierra rapido (el
+# contacto medido en las tiradas + ~80 de margen; el pulgar, ~100). Con una sola tabla vale para las dos manos.
+objetos:
+  cubo:            # der: contacto medio 715, indice 743, pulgar ~457; apriete 585 (391-923)
+    modo: 2
+    fuerza_gf: 550
+    aprox: {medio: 790, indice: 820, pulgar: 560}
+  esfera:          # der: medio 639 (599-722), indice 643 (567-706), pulgar ~642; apriete 583 (96-777)
+    modo: 2
+    fuerza_gf: 550
+    aprox: {medio: 780, indice: 780, pulgar: 740}
+  cilindro:        # izq: indice 720 (710-727), pulgar 389 (370-394); apriete 397 (303-421)
+    modo: 1
+    fuerza_gf: 400
+    aprox: {indice: 800, pulgar: 490}
+  prisma:          # izq, tumbado: medio 676 (666-688), indice 706, pulgar 334 (303-352, junto a su tope 300); 422
+    modo: 2
+    fuerza_gf: 420
+    aprox: {medio: 760, indice: 790, pulgar: 430}
+  prisma_de_pie:   # izq: indice 702, pulgar 342; una sola tirada con transporte (322)
+    modo: 1
+    fuerza_gf: 380
+    aprox: {indice: 790, pulgar: 440}

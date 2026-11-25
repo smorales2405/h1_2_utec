@@ -9,9 +9,12 @@
   Sale el acoplamiento que midio el banco: cerrar el indice sube la fuerza del pulgar y BAJA la del medio (B1), y un
   dedo solo empuja el objeto en vez de apretarlo. Sobre el residual de flexion de la del reto. El firmware para el
   dedo al llegar a FORCE_SET y lo deja enclavado (como la del reto).
+  El cubo, con la planta medida en el robot (PLANTA): sus escalones valen lo que alli (el indice ~155 gf).
 - Relajacion (E3.4): la fuerza de contacto cae `relajar` (8 %) con tau 1.5 s tras cada movimiento y se agota.
-- Ruido de +-ruido gf en cada publicacion.
-- resbalar(du) y quitar_objeto(): el objeto se escurre (menos penetracion) o se va (las pruebas de los detectores).
+- Ruido de +-ruido gf en cada publicacion; `vaiven` (gf, periodo): una fuerza que empuja el objeto entre los dedos,
+  como el brazo moviendose en el transporte.
+- resbalar(du) y quitar_objeto(): el objeto se escurre (menos penetracion) o se va (las pruebas de los detectores);
+  empujar(dof, du, sostenido): un tiron echa atras un dedo (vuelve solo, o se queda si el actuador cede).
 No es la fisica del agarre (el objeto no se mueve ni gira): es la planta que midio el banco, para probar el lazo, sus
 fases y sus detectores sin el robot.
 """
@@ -40,13 +43,23 @@ K_ANCLA = 5.0
 CONTACTO = {"cubo": {2: 715, 3: 743, 4: 457}, "esfera": {1: 568, 2: 639, 3: 643, 4: 642},
             "cilindro": {3: 720, 4: 389}, "prisma": {2: 676, 3: 706, 4: 334}, "prisma_de_pie": {3: 702, 4: 342}}
 RIGIDEZ = {"cubo": 1.5, "esfera": 1.3, "cilindro": 1.3, "prisma": 1.5, "prisma_de_pie": 1.5}
+# el cubo, MEDIDO en el robot (mano derecha, 2026-11-25: los escalones aislados del lazo en los bancos 095047 y
+# 104925): fuerza de un dedo por unidad de su comando, pulgar 10.8, indice 31, medio 25, e indice<->medio -5.6. Lo
+# dan estas rigideces con el objeto anclado a 121 (pulgar<-indice sale +2.2; medido ~0.5)
+PLANTA = {"cubo": {"k": {4: 11.5, 3: 38.3, 2: 29.3}, "k_ancla": 121.3}}
+
+
+def planta(clase):
+    """Los argumentos de poner_objeto para una clase: la planta medida si la hay; si no, la rigidez relativa."""
+    return dict(PLANTA[clase]) if clase in PLANTA else {"rigidez": RIGIDEZ.get(clase, 1.3)}
 
 
 class ManoFisica(ManoSimulada):
     def __init__(self, relajar=0.08, tau=1.5, ruido=2.0, semilla=0, cuanto=True):
         super().__init__()
-        self.rigidez = 1.0
+        self.k = K_DEDO.copy()             # gf por cuenta hundida, por dedo (ya con la rigidez del objeto)
         self.k_ancla = K_ANCLA
+        self.vaiven = (0.0, 1.0)           # (gf, periodo s): el brazo moviendose empuja el objeto entre los dedos
         self.relajar, self.tau, self.ruido, self.cuanto = relajar, tau, ruido, cuanto
         self.rng = np.random.default_rng(semilla)
         self.k_rel = np.ones(6)
@@ -58,11 +71,24 @@ class ManoFisica(ManoSimulada):
         self._cerrojo_sim = threading.RLock()
 
     # --- el objeto -------------------------------------------------------------------------------------
-    def poner_objeto(self, angulos_contacto, rigidez=1.0):
+    def poner_objeto(self, angulos_contacto, rigidez=1.0, k=None, k_ancla=None):
+        """rigidez: todo x rigidez (los muelles de K_DEDO y el ancla); k ({dof: gf/u}) y k_ancla: los de una planta
+        medida (PLANTA)."""
         with self._cerrojo_sim:
-            self.contacto = {int(k): float(a) for k, a in dict(angulos_contacto).items()}
-            self.rigidez = float(rigidez)
+            self.contacto = {int(j): float(a) for j, a in dict(angulos_contacto).items()}
+            self.k = K_DEDO * float(rigidez)
+            self.k_ancla = K_ANCLA * float(rigidez) if k_ancla is None else float(k_ancla)
+            for j, v in (k or {}).items():
+                self.k[int(j)] = float(v)
             self.k_rel[:] = 1.0
+
+    def empujar(self, dof, du, sostenido=False):
+        """Un tiron echa el dedo `du` unidades atras (abre). Suelto, su control lo devuelve al comando a su velocidad
+        (el vaiven del transporte); sostenido, se queda alli (el actuador cede: un resbalon de verdad)."""
+        with self._cerrojo_sim:
+            self.ang[dof] = min(1000.0, self.ang[dof] + du)
+            if sostenido:
+                self.atascado.add(dof)
 
     def resbalar(self, du):
         """El objeto se escurre entre los dedos: cada contacto `du` cuentas mas cerrado (menos penetracion)."""
@@ -79,10 +105,12 @@ class ManoFisica(ManoSimulada):
         dedos de enfrente (en -x): x = (k_T p_T - suma k_g p_g) / (suma k + k_ancla), solo con los que tocan."""
         p = {j: a - self.ang[j] for j, a in self.contacto.items()}           # cerrado pasado el contacto
         activos = {j for j, v in p.items() if v > 0}
+        amp, per = self.vaiven
+        ext = amp * math.sin(2 * math.pi * time.monotonic() / per) if amp else 0.0
         x = 0.0
         for _ in range(4):
-            num = sum((K_DEDO[j] if j == 4 else -K_DEDO[j]) * p[j] for j in activos)
-            x = num / (sum(K_DEDO[j] for j in activos) + self.k_ancla) if activos else 0.0
+            num = sum((self.k[j] if j == 4 else -self.k[j]) * p[j] for j in activos) + (ext if activos else 0.0)
+            x = num / (sum(self.k[j] for j in activos) + self.k_ancla) if activos else 0.0
             pen = {j: (p[j] - x if j == 4 else p[j] + x) for j in p}
             nuevos = {j for j, v in pen.items() if v > 0}
             if nuevos == activos:
@@ -93,7 +121,7 @@ class ManoFisica(ManoSimulada):
     def _fuerza_real(self):
         f = 70 + 160 * (1000 - self.ang) / 1000            # el residual de flexion (el de la mano del reto)
         for j, v in self.penetraciones().items():
-            f[j] += K_DEDO[j] * v * self.rigidez * self.k_rel[j]
+            f[j] += self.k[j] * v * self.k_rel[j]
         return f
 
     def _fuerza(self):
@@ -212,7 +240,6 @@ def mundo_fisico():
             clase = self.sujeto[lado]
             if clase is not None and antes is None and clase in CONTACTO:
                 mano = self.manos[lado]
-                mano.poner_objeto({k: a for k, a in CONTACTO[clase].items() if mano.ang[k] > a + 30},
-                                  rigidez=RIGIDEZ.get(clase, 1.3))
+                mano.poner_objeto({k: a for k, a in CONTACTO[clase].items() if mano.ang[k] > a + 30}, **planta(clase))
 
     return MundoFisico

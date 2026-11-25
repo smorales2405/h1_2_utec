@@ -14,6 +14,8 @@ planificador, vigilante, supervisor y salida segura. Lo único distinto es:
 
 Con `regular = False` la mano es la del reto, línea por línea. Ese es el brazo **firmware** de la comparación.
 
+**Resultados:** `docs/RESULTADOS.md`, cada prueba en el robot con lo que se vio y lo que se cambió por ella.
+
 ## Uso
 
 En el robot, igual que el reto. Desde la PC, los lanzadores se reenvían por SSH (`comun.sh`) y graban con la cámara
@@ -43,10 +45,24 @@ Un solo objeto en la zona de recogida y N ensayos. Cada ensayo:
 4. **sostenerlo** `--sostener-s` segundos;
 5. volver por el mismo camino, bajarlo por la recta de levantar hasta donde lo cogió y soltarlo.
 
-El siguiente ensayo lo encuentra donde quedó. Lo que se movió (mm y grados) es una medida más.
+6. volver a la observación y **mirar dónde quedó** (también tras el último): lo que se movió, en mm y grados, es una
+   medida más.
 
-Si no se agarra o se cae, el robot vuelve a la observación y pide recolocarlo: **Enter** para seguir, **q** para
-acabar, **ESPACIO** para la salida segura.
+**Cada ensayo empieza con el objeto en su sitio, sobre la cruz de cinta.** Devolverlo lo mueve: el 2026-11-25, unos
+15 mm y 10° por ensayo con el cubo, y el agarre cambiaba con dónde y cómo estaba (`datos/banco_20261125_095047_cubo`).
+
+- **Al lanzar el banco, deja el objeto fuera de la cruz.** El robot mira primero las cruces (con el detector del nivel 1,
+  sin profundidad) y luego pide ponerlo **centrado sobre la cruz y recto** (las caras paralelas a los bordes de la mesa).
+- **Su sitio** es donde lo ve esa primera vez. Lo apartado de la cruz (`sitio_desde_cruz_mm` en `resumen.json`) mide
+  la percepción, como la esfera sobre la cruz del §79 del reto. Si la cruz estaba tapada, solo falta esa medida.
+- **Tras cada ensayo**, si no quedó en su sitio (más de `--tol-sitio-mm` 5 mm o `--tol-sitio-deg` 5°), o si no se
+  sostuvo, pide recolocarlo y dice hacia dónde (desde el robot: hacia él o lejos, a su izquierda o a su derecha, y el
+  giro visto desde arriba). Lo vuelve a mirar y, si sigue fuera, dice otra vez cuánto falta. A la tercera lo acepta y
+  queda apuntado en `sitio_mm` y `sitio_deg`.
+- **Enter** para seguir, **q** para acabar, **ESPACIO** para la salida segura.
+- `--sin-recolocar`: como antes. El siguiente lo encuentra donde quedó y solo pide recolocarlo si se cae o no se agarra.
+
+En la simulación lo recoloca solo, donde estaba al empezar.
 
 El orden de los brazos sigue el §8 del plan del regulador: una sola tanda, brazos intercalados en bloques
 equilibrados (AB o BA al azar) y sin más de dos seguidos del mismo. La semilla queda en el registro. **No se compara
@@ -85,8 +101,11 @@ regulado sigue cuatro pasos.
    - el vector se escala a `dq_max` y cada dedo da su cuanto (5 cerrando, 3 abriendo) con acumulador de resto;
    - el control solo avanza con muestra fresca y respeta el periodo refractario de 0.2 s;
    - `Mano.cerrar` vuelve cuando el apriete está en su banda (o pasados 3 s) y el lazo sigue en su hilo hasta abrir.
+   - **Establecido el agarre, solo el apriete**, con banda de ±50 gf. El balance y el reparto se quedan como
+     estaban al establecerse (`sostener_solo_apriete`, `banda_apriete_sostener_gf`).
 3. **Reacciones**, con los dos detectores de A1:
-   - **el actuador cede** (`POS` retrocede contra su comando): aflojar ese dedo y bajar la consigna un 15 %;
+   - **el actuador cede** (`POS` retrocede contra su comando y sigue atrás 0.3 s después): aflojar ese dedo y bajar
+     la consigna un 15 %. Si vuelve antes, solo se apunta (`cede_breve`);
    - **el objeto se escapa** (cae la fuerza en todos los dedos con `POS` quieto): subir la consigna un 25 %, hasta
      1.3 veces la del objeto y siempre por debajo de 0.9 veces el techo;
    - **guarda**: un dedo por encima de 700 gf en 3 lecturas seguidas: aflojar. Si salta más de 3 veces en 2 s, fallo
@@ -118,6 +137,19 @@ regulado sigue cuatro pasos.
   detector, y en simulación encadenaba resbalones falsos, cada uno aflojando otra vez.
 - **Una regla más de objeto perdido** (el apriete al 35 % durante 0.6 s). Sin objeto, la flexión propia de los dedos
   al cerrarse supera el umbral fijo de 80 gf; el pulgar ya marca ~100 cerca de su tope.
+- **Sosteniendo, solo el apriete y con banda de 50** (desde el 2026-11-25). En los dos primeros bancos con el cubo
+  (`datos/banco_20261125_095047_cubo` y `104925`), el regulador no asentaba durante el transporte:
+  - mandaba 17–58 órdenes por dedo en los ~26 s de transporte y sostén; el firmware, ninguna;
+  - la σ del reparto era de 78–115 gf (firmware 6–40), la del balance 49–65 (8–30) y la del apriete 31–57 (16–28).
+
+  La causa es el cuanto del dedo contra un cubo de PLA rígido. Medido en esos bancos con los escalones aislados del
+  lazo, un dedo da 31 gf por unidad el índice, 25 el medio y 10.8 el pulgar, unas 2 veces la J del banco. Un escalón
+  de 5 vale ~155 gf en el índice, y el reparto con banda de 40 no podía asentarse. Es lo que avisa el propio `PI` del
+  núcleo: la banda muerta tiene que ser del tamaño del cuanto. Con el apriete solo, un escalón de un dedo lo mueve
+  ≤ ~60 gf, menos que la banda entera de 100.
+- **El resbalón tiene que durar 0.3 s.** En esos bancos, el pulgar retrocedía justo 10 cuentas en el transporte y
+  volvía en ~0.1 s. El detector lo daba por resbalón y bajaba la consigna a 468 gf el resto del agarre (2 de 4
+  ensayos con regulador). Un resbalón de verdad (~50 cuentas) no vuelve. El firmware se mide con la misma regla.
 
 ## De dónde salen los números
 
@@ -155,6 +187,11 @@ copiar los ficheros.
 - ruido;
 - un objeto que **flota** entre el pulgar y los dedos, sujeto por un muelle. Así salen los acoplamientos que midió el
   banco: cerrar el índice sube la fuerza del pulgar y baja la del medio.
+- el **cubo con la planta medida en el robot** (`PLANTA`): pulgar 10.8, índice 31 y medio 25 gf por unidad, e
+  índice↔medio −5.6;
+- `vaiven`: una fuerza que empuja el objeto entre los dedos, como el brazo en el transporte. Con la configuración
+  anterior reproduce lo del robot (21–26 órdenes en 5–6 s y σ del reparto 25–98 gf); con la de ahora, 0–5 y ~6;
+- `empujar(dedo, du, sostenido)`: un tirón que echa atrás un dedo; o vuelve solo, o se queda (resbalón de verdad).
 
 No es la física del agarre (el objeto no gira ni rueda), así que sirve para probar el lazo, sus fases y sus
 detectores, no para predecir la tasa de éxito. Esa sale del banco en el robot.

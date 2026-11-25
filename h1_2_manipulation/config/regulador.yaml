@@ -31,8 +31,14 @@ control:                    # en coordenadas (A3/B1), no un lazo por dedo: aprie
   kp_reparto: 0.2
   fuga: 0.98                # del integrador (si ki > 0)
   banda_apriete_gf: 25      # A3: el balance llega a 18-24 g con banda de 24 en coordenadas
-  banda_balance_gf: 40
+  banda_balance_gf: 40      # balance y reparto: solo hasta establecer el agarre (sostener_solo_apriete)
   banda_reparto_gf: 40
+  sostener_solo_apriete: true     # establecido el agarre, solo el apriete; balance y reparto, como al establecer. En
+                            # el robot con el cubo (2026-11-25) un escalon vale ~155 gf en el indice (31 gf/u), ~125
+                            # en el medio (25) y ~55 en el pulgar (10.8), y el reparto con banda de 40 no asentaba:
+                            # sigma del reparto 78-115 gf en el transporte (firmware 6-40) y el pulgar retrocediendo
+  banda_apriete_sostener_gf: 50   # ... y con esta banda: un escalon de un dedo mueve el apriete <= ~60 gf, menos que
+                            # la banda entera (100): no se pasa al otro lado. El brazo moviendose ya da sigma 16-28
   refractario_s: 0.20       # A2: la fuerza asienta en ~111 ms; sin esperar se encadenan escalones (+90 % de pico)
   paso_cierra: 5            # E3.2: el escalon minimo fiable, 5 cerrando y 3 abriendo
   paso_abre: 3
@@ -62,6 +68,8 @@ seguridad:
 reacciones:                 # los dos detectores de A1; la reaccion correcta es OPUESTA
   resbalon_counts: 10       # el actuador cede: POS retrocede contra su comando (normal 0-2 en 60 s, resbalon ~50)
   resbalon_ventana_s: 0.5
+  resbalon_persistir_s: 0.3 # ... y sigue retrocedido (>= la mitad) tanto despues: en el transporte del cubo el pulgar
+                            # retrocedia 10 y volvia en ~0.1 s, y bajaba la consigna sin resbalon (2 de 4 ensayos)
   aflojar_frac: 0.15        # ... aflojar: abrir 2 x paso_abre ese dedo y bajar la consigna esto (A5)
   escape_gf: 60             # el objeto se escapa: la fuerza cae esto y escape_frac en TODOS los dedos, POS quieto
   escape_frac: 0.35

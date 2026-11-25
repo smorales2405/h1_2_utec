@@ -17,7 +17,7 @@ from sim.mano_simulada import calibracion_simulada
 from agarre.banco import calendario
 from agarre.lazo import DEDOS_MODO
 from agarre.mano_regulada import ManoRegulada, cargar_config
-from agarre.sim_mano import CONTACTO, RIGIDEZ, ManoFisica
+from agarre.sim_mano import CONTACTO, ManoFisica, planta
 from analisis.comparar import fisher, mann_whitney
 
 LADO = {"cubo": "der", "esfera": "der", "cilindro": "izq", "prisma": "izq", "prisma_de_pie": "izq"}
@@ -43,11 +43,11 @@ def _mano(clase, regular=True, rc=None, sim=None, clase_mano=ManoRegulada, tmp_p
     return m, sim
 
 
-def _coger(m, sim, clase):
+def _coger(m, sim, clase, **kw_planta):
     o = config.cargar_objetos()
     ob = o["objetos"][clase]
     m.preforma(o["preformas"][ob["preforma"]])
-    sim.poner_objeto(CONTACTO[clase], rigidez=RIGIDEZ[clase])
+    sim.poner_objeto(CONTACTO[clase], **(kw_planta or planta(clase)))
     e = m.cerrar(ob["force_set"], speed=ob.get("speed_cierre"))
     return e, ob
 
@@ -115,10 +115,11 @@ def test_mantiene_el_apriete_cuando_la_fuerza_se_relaja():
 
 def test_el_objeto_que_resbala_se_aprieta():
     """El objeto se escurre (menos penetracion en todos los dedos, POS quieto): el detector de escape sube la consigna
-    y el lazo recupera el apriete sin darlo por perdido."""
+    y el lazo recupera el apriete sin darlo por perdido. Con la planta blanda (la del banco x 1.5): en la del cubo
+    medido, que caiga un 35 % en todos los dedos es que el cubo ya se va (el indice lo pierde todo con 12 cuentas)."""
     rc = cargar_config()
     m, sim = _mano("cubo")
-    _coger(m, sim, "cubo")
+    _coger(m, sim, "cubo", rigidez=1.5)
     _sostener(m, 0.5)
     sim.resbalar(15)
     _sostener(m, 1.5)
@@ -130,6 +131,55 @@ def test_el_objeto_que_resbala_se_aprieta():
     assert not lz.perdido
     assert a >= 0.9 * rc["objetos"]["cubo"]["fuerza_gf"], a
     m.abrir()
+
+
+def test_sostiene_el_cubo_sin_vaiven_de_los_dedos():
+    """En el robot (2026-11-25), con el brazo moviendose, el reparto con banda de 40 no asentaba en el cubo de PLA (un
+    escalon del indice, ~155 gf): sigma 78-115 gf y decenas de ordenes en el transporte. La planta medida del cubo con
+    un vaiven lo reproduce; establecido el agarre, solo el apriete con banda de 50 lo quita."""
+    res = {}
+    for viejo in (True, False):
+        rc = cargar_config()
+        if viejo:
+            rc["control"]["sostener_solo_apriete"] = False
+        m, sim = _mano("cubo", rc=rc)
+        _coger(m, sim, "cubo")
+        sim.vaiven = (200.0, 1.2)
+        n0 = m.lazo.n_acciones
+        rep = []
+        m.sup.estado = "TRANSPORTE"
+        t0 = time.monotonic()
+        while time.monotonic() - t0 < 5.0:
+            F = m.leer().fuerza - m.cero
+            rep.append(F[3] - F[2])
+            time.sleep(0.02)
+        res[viejo] = (m.lazo.n_acciones - n0, float(np.std(rep)))
+        assert not m.lazo.perdido and not m.lazo.fallo
+        m.abrir()
+    assert res[True][0] >= 10, res                                # antes: los dedos van y vienen (21-26 ordenes)
+    assert res[False][0] <= res[True][0] / 3, res                 # ahora: 0-5
+    assert res[False][1] < min(15.0, res[True][1] / 2), res       # sigma del reparto: ~6 frente a 25-98
+
+
+def test_un_tiron_del_pulgar_no_es_resbalon():
+    """El pulgar echado atras 14 que vuelve solo (el vaiven del transporte): cede breve, sin aflojar ni bajar la
+    consigna. Echado atras 30 y sin volver (el actuador cede de verdad): resbalon, afloja y baja la consigna."""
+    m, sim = _mano("cubo")
+    _coger(m, sim, "cubo")
+    _sostener(m, 0.5)
+    lz = m.lazo
+    f0 = lz.f_ref
+    sim.empujar(4, 14)
+    _sostener(m, 2.0)                       # el lazo, si abre al volver el pulgar, deja 0.8 s sin historia al detector
+    tipos = [x["tipo"] for x in lz.eventos]
+    assert "cede_breve" in tipos and "resbalon" not in tipos, lz.eventos
+    assert lz.f_ref == f0
+    sim.empujar(4, 30, sostenido=True)
+    _sostener(m, 1.0)
+    assert "resbalon" in [x["tipo"] for x in lz.eventos] and lz.f_ref < f0, lz.eventos
+    m.abrir()
+    r = m.agarres[-1]
+    assert r["eventos"] and not r["perdido"]
 
 
 def test_el_objeto_que_se_va_es_un_escape():

@@ -13,8 +13,13 @@ Un agarre regulado (LazoAgarre), dentro de Mano.cerrar y hasta Mano.abrir:
      PI en gramos de cada coordenada -> cambio de fuerza por dedo -> J^-1 (en el modo 1, la K del RLS) -> comando,
      con el vector escalado a dq_max y el cuanto por dedo (5 cerrando, 3 abriendo) con acumulador de resto.
      Solo se decide con muestra fresca (Disparador) y fuera del periodo refractario.
-     Los detectores de A1: el actuador cede (POS retrocede contra su comando) -> AFLOJAR; el objeto se escapa (la
-     fuerza cae en todos los dedos con POS quieto) -> APRETAR (sube la consigna). La guarda (techo por dedo) afloja.
+     ESTABLECIDO el agarre (`sostener_solo_apriete`), solo el apriete, con la banda ancha `banda_apriete_sostener_gf`:
+     balance y reparto se quedan como al establecerse. En el robot, con el cubo de PLA, un escalon del indice vale
+     ~155 gf (31 gf/u medidos, 2026-11-25) y el reparto, con banda de 40, no asentaba: el indice y el medio se
+     pasaban el cubo de uno a otro todo el transporte (sigma del reparto 78-115 gf; con el firmware, 6-40).
+     Los detectores de A1: el actuador cede (POS retrocede contra su comando y no vuelve en `resbalon_persistir_s`)
+     -> AFLOJAR; el objeto se escapa (la fuerza cae en todos los dedos con POS quieto) -> APRETAR (sube la consigna).
+     La guarda (techo por dedo) afloja.
      Todos los dedos sin fuerza, o el pulgar o todos los dedos vacios en su tope: el objeto se perdio (`perdido`).
 En el brazo sin regulador (observador=True) el mismo hilo solo mira y apunta: las mismas columnas, coordenadas y
 detectores, sin escribir nada en la mano. Asi los dos brazos del banco se miden igual.
@@ -22,6 +27,7 @@ detectores, sin escribir nada en la mano. Asi los dos brazos del banco se miden 
 Fuerzas en gf sobre el cero (`mano.cero`: la mano abierta, sin carga, >= 10 s desde la ultima suelta).
 """
 
+import statistics
 import threading
 import time
 from collections import deque
@@ -29,7 +35,7 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from nucleo import PI, Bitacora, DetectorEscape, DetectorResbalon, Disparador, EstimadorRLS, Guarda
+from nucleo import CIERRA_POS, PI, Bitacora, DetectorEscape, DetectorResbalon, Disparador, EstimadorRLS, Guarda
 from hand_modbus import CURRENT, POS_ACT
 from manip.mano import ANGLE_ACT, FORCE_ACT, ManoSinRespuesta, bytes_de
 
@@ -74,6 +80,9 @@ class LazoAgarre:
         self.pi_a = mk(c["kp_apriete"], c["ki_apriete"], c["banda_apriete_gf"])
         self.pi_b = mk(c["kp_balance"], 0.0, c["banda_balance_gf"])
         self.pi_r = mk(c["kp_reparto"], 0.0, c["banda_reparto_gf"])
+        # establecido el agarre: solo el apriete, con una banda mayor que lo que vale un escalon de un dedo
+        self.solo_apriete = bool(c.get("sostener_solo_apriete", False))
+        self.pi_a_sost = mk(c["kp_apriete"], c["ki_apriete"], c.get("banda_apriete_sostener_gf", c["banda_apriete_gf"]))
         # el cuanto vive en el dedo: un PI por dedo solo para cuantizar (con su resto acumulado)
         self.q = {d: PI(0.0, 0.0, 1.0, 0.0, c["paso_cierra"], c["paso_abre"], c["dq_max"], 0.0) for d in self.dedos}
         g = p["ganancias"]
@@ -98,6 +107,8 @@ class LazoAgarre:
         # estado
         self.cmds = {}                     # ANGLE_SET de cada dedo regulado (lo ultimo mandado)
         self.t_abre = {}                   # cuando se le mando abrir a cada dedo (el detector de resbalon, en espera)
+        self._cede = {}                    # dof -> retroceso visto por el detector, por confirmar (resbalon_persistir_s)
+        self._pos_rec = {d: deque(maxlen=3) for d in self.dedos}
         self.contacto = {}                 # dof -> (t desde el inicio, angulo) al tocar
         self.al_tope = set()               # dedos que llegaron a su tope sin tocar
         self.t_accion = None
@@ -362,7 +373,9 @@ class LazoAgarre:
                 self.resbalon.hist[d].clear()
                 self.resbalon.cmd_hist[d].clear()
         # los detectores, tambien en el observador (solo se apuntan)
-        r = self.resbalon.actualiza(t, pl, self.cmds, Fl, float(self.r["contacto_min_gf"]))
+        for d in self.dedos:
+            self._pos_rec[d].append(pl[d])
+        r = self._confirmar_resbalon(t, pl, self.resbalon.actualiza(t, pl, self.cmds, Fl, float(self.r["contacto_min_gf"])), ev)
         e = self.escape.actualiza(t, pl, Fl)
         if self.observador:
             if r:
@@ -430,6 +443,30 @@ class LazoAgarre:
         self._control(t, pos, F, fresca, ev)
         self._fila(t, pos, F, fresca, " ".join(ev))
 
+    def _confirmar_resbalon(self, t, pl, r, ev):
+        """El detector del banco ve el retroceso; aqui se exige que dure `resbalon_persistir_s`. En el robot, con el
+        cubo, el pulgar retrocedia justo 10 cuentas en el transporte y volvia en ~0.1 s (el vaiven del brazo): el
+        detector lo daba por resbalon y la consigna bajaba un 15 % el resto del agarre. Un resbalon de verdad (~50
+        cuentas, no vuelve) sigue retrocedido. Si en la espera se le mando abrir, es obediencia."""
+        pers = float(self.r.get("resbalon_persistir_s", 0.0) or 0.0)
+        if pers <= 0:
+            return r
+        if r and r["dof"] not in self._cede:
+            d = r["dof"]
+            self._cede[d] = {"t": t, "ref": pl[d] + CIERRA_POS * float(r["counts"]), "counts": float(r["counts"])}
+        conf = None
+        for d, c in list(self._cede.items()):
+            if conf is not None or t - c["t"] < pers:
+                continue
+            del self._cede[d]
+            ret = (c["ref"] - statistics.median(self._pos_rec[d])) * CIERRA_POS
+            if ret >= 0.5 * float(self.r["resbalon_counts"]) and self.t_abre.get(d, -1e9) <= c["t"]:
+                conf = {"dof": d, "counts": max(c["counts"], ret)}
+            else:
+                ev.append(self._evento("cede_breve", f"el actuador cede y vuelve ({NOMBRE[d]}, {c['counts']:.0f} cuentas; "
+                                                     f"a los {pers:.1f} s, {ret:.0f}): no es resbalon"))
+        return conf
+
     def _control(self, t, pos, F, fresca, ev):
         toca = [self.disp[d].toca(t, fresca) for d in self.dedos]
         if not any(x[0] for x in toca):
@@ -455,9 +492,10 @@ class LazoAgarre:
             self.t_en_banda = None
         if self.t_accion is not None and t - self.t_accion < float(self.c["refractario_s"]):
             return
-        u_a = self.pi_a.fuerza_pedida(self.f_ref - a, dt)
-        u_b = self.pi_b.fuerza_pedida(self.b0 - b, dt) if self.b0 is not None else 0.0
-        u_r = self.pi_r.fuerza_pedida(self.r0 - r, dt) if (self.r0 is not None and self.modo == 2) else 0.0
+        sost = self.solo_apriete and self.t_establecido is not None
+        u_a = (self.pi_a_sost if sost else self.pi_a).fuerza_pedida(self.f_ref - a, dt)
+        u_b = self.pi_b.fuerza_pedida(self.b0 - b, dt) if self.b0 is not None and not sost else 0.0
+        u_r = self.pi_r.fuerza_pedida(self.r0 - r, dt) if (self.r0 is not None and self.modo == 2 and not sost) else 0.0
         if u_a == 0.0 and u_b == 0.0 and u_r == 0.0:
             return
         dF_T = u_a + u_b / 2.0

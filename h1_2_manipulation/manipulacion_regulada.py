@@ -13,6 +13,9 @@ Opciones propias:
     --brazos A,B       los brazos que se intercalan (regulador,firmware)
     --semilla S        del orden de los brazos (por defecto, la hora; queda en el registro)
     --sostener-s S     sobre la bandeja, antes de devolverlo (por defecto 3)
+    --sin-recolocar    no pedir ponerlo sobre la cruz antes de cada ensayo (solo si se cae o no se agarra)
+    --tol-sitio-mm M   con el objeto a mas de M mm de su sitio, se pide recolocarlo (por defecto 5)
+    --tol-sitio-deg G  ... o girado mas de G grados (por defecto 5)
     --brazo B          sin --banco: regulador (por defecto) o firmware
     --regulador-config RUTA   otra config/regulador.yaml
 El resto (--arnes, --escala-tiempo, --sin-comprobar-montaje, --sim, --asignacion, --verificar-planes...) pasa tal
@@ -24,12 +27,15 @@ Registro en datos/banco_<fecha>_<objeto>/ o datos/regulada_<fecha>_nivel<N>_<bra
 
 import argparse
 import functools
+import math
 import os
 import sys
 import threading
 import time
 
-AQUI = os.path.dirname(os.path.abspath(__file__))
+import numpy as np
+
+AQUI =os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, AQUI)
 import agarre  # noqa: E402  (pone el reto y el regulador en sys.path)
 import manipulacion as reto  # noqa: E402  (el manipulacion.py del reto)
@@ -50,6 +56,9 @@ def leer_mios(argv):
     ap.add_argument("--semilla", type=int, default=None)
     ap.add_argument("--sostener-s", type=float, default=3.0)
     ap.add_argument("--racha-max", type=int, default=2)
+    ap.add_argument("--sin-recolocar", action="store_true")
+    ap.add_argument("--tol-sitio-mm", type=float, default=5.0)
+    ap.add_argument("--tol-sitio-deg", type=float, default=5.0)
     ap.add_argument("--brazo", choices=list(BRAZOS), default="regulador")
     ap.add_argument("--regulador-config", default=None)
     ap.add_argument("-h", "--help", action="store_true")
@@ -123,7 +132,9 @@ def armar(a, mios, cfg, objetos, log=print, datos=None):
         t.sup.banco.update({"objeto": mios.banco, "ensayos": mios.ensayos,
                             "brazos": [x.strip() for x in mios.brazos.split(",") if x.strip()],
                             "semilla": mios.semilla if mios.semilla is not None else int(time.time()) % 100000,
-                            "racha_max": mios.racha_max, "sostener_s": mios.sostener_s})
+                            "racha_max": mios.racha_max, "sostener_s": mios.sostener_s,
+                            "recolocar": not mios.sin_recolocar, "tol_sitio_mm": mios.tol_sitio_mm,
+                            "tol_sitio_deg": mios.tol_sitio_deg})
     cerrar = t.reg.cerrar
 
     def cerrar_con_agarres(**kw):            # el resumen de cada agarre (y del banco) en resumen.json
@@ -136,10 +147,28 @@ def armar(a, mios, cfg, objetos, log=print, datos=None):
     return t
 
 
+def operador_simulado(t):
+    """En el mundo simulado, quien recoloca el objeto del banco: lo pone donde estaba al empezar (la "cruz" de la
+    simulacion), con el mismo giro."""
+    sup, mundo = t.sup, t.mundo
+    clase = next((c for c in mundo.poses if sup._grupo(c) == sup.banco["objeto"]), sup.banco["objeto"])
+    T0 = np.array(mundo.donde(clase), float)
+    xy, yaw = T0[:2, 3].copy(), math.atan2(T0[1, 0], T0[0, 0])
+
+    def esperar(texto):
+        with mundo.cerrojo:
+            mundo.poner(clase, xy, yaw)
+        return True
+    return esperar
+
+
 def correr(t, confirmar=True):
-    """manipulacion.correr del reto; con --banco, ademas, Enter para seguir tras recolocar el objeto (q: acabar)."""
+    """manipulacion.correr del reto; con --banco, ademas, Enter para seguir tras recolocar el objeto (q: acabar). En
+    la simulacion lo recoloca operador_simulado (salvo que ya haya otro, el de una prueba)."""
     if not isinstance(t.sup, SupervisorBanco):
         return reto.correr(t, confirmar=confirmar)
+    if t.mundo is not None and t.sup.esperar_usuario is None:
+        t.sup.esperar_usuario = operador_simulado(t)
     tecla, enter, acabar = None, threading.Event(), threading.Event()
 
     def al_teclear(ch):
@@ -165,7 +194,7 @@ def correr(t, confirmar=True):
         def __init__(self, al_pulsar, **kw):
             kw.setdefault("al_teclear", al_teclear)
             super().__init__(al_pulsar, **kw)
-            if self.activo:
+            if self.activo and t.mundo is None:
                 t.sup.esperar_usuario = esperar          # sin terminal (la PC, pytest) no se puede esperar a nadie
     teclado.Teclado = TecladoBanco
     try:

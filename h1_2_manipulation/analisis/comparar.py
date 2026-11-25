@@ -34,6 +34,7 @@ MEDIDAS = [
     ("mano_desde_el_plan_mm", "mano apartada del plan al cerrar (mm)"),
     ("desplazamiento_mm", "objeto desplazado al devolverlo (mm)"),
     ("giro_deg", "objeto girado al devolverlo (grados)"),
+    ("sitio_mm", "objeto apartado de su sitio al empezar (mm)"),
 ]
 
 
@@ -124,8 +125,8 @@ def tabla(ensayos):
         lin.append(f"  {texto:40s}" + "".join(f"{_fmt(vals[b]):>22s}" for b in brazos)
                    + (f"   {p:.3f}" if p is not None else ""))
     eventos = {b: [sum(int(_num(r.get(k)) or 0) for r in ensayos if r["brazo"] == b)
-                   for k in ("resbalones", "escapes_detectados", "guardas")] for b in brazos}
-    lin.append("  eventos del lazo (resbalones / escapes detectados / guardas): "
+                   for k in ("resbalones", "ceden_breves", "escapes_detectados", "guardas")] for b in brazos}
+    lin.append("  eventos del lazo (resbalones / cedes breves / escapes detectados / guardas): "
                + "; ".join(f"{b} {'/'.join(map(str, v))}" for b, v in eventos.items()))
     return "\n".join(lin)
 
